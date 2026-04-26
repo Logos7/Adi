@@ -1,0 +1,20 @@
+; Sutra v1.3 — bool ops
+
+start:
+    move @led0, true
+    move @led1, false
+
+    move b0, @led0
+    move b1, @led1
+
+    band b2, b0, b1
+    bor  b3, b0, b1
+    bxor b4, b0, b1
+    bnot b5, b1
+
+    move @led2, b3
+    move @led3, b4
+    move @led4, b5
+
+    wait 27000000
+    jump start

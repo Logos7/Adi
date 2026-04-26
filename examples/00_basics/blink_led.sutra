@@ -1,0 +1,9 @@
+; Sutra v1.3 — LED blink
+; led0 = fizyczny pin15 na Tang Nano 20K
+
+start:
+    move @led0, high
+    wait 27000000
+    move @led0, low
+    wait 27000000
+    jump start

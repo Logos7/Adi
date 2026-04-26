@@ -1,0 +1,109 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Sutra",
+  "scopeName": "source.sutra",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#labels"
+    },
+    {
+      "include": "#predicates"
+    },
+    {
+      "include": "#mnemonics"
+    },
+    {
+      "include": "#address-values"
+    },
+    {
+      "include": "#memory"
+    },
+    {
+      "include": "#registers"
+    },
+    {
+      "include": "#complex-registers"
+    },
+    {
+      "include": "#bool-registers"
+    },
+    {
+      "include": "#bool-constants"
+    },
+    {
+      "include": "#math-constants"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "match": ";.*$",
+      "name": "comment.line.semicolon.sutra"
+    },
+    "labels": {
+      "match": "^\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*:",
+      "captures": {
+        "1": {
+          "name": "entity.name.function.label.sutra"
+        }
+      }
+    },
+    "mnemonics": {
+      "match": "(?i)\\b(move|band|bor|bxor|bnot|iadd|fadd|isub|fsub|iand|ior|ixor|inot|shl|shr|sar|imul|fmul|itof|ftoi|fabs|cadd|csub|cmul|cabs2|cmp\\.(?:eq|ne|lt|le|gt|ge|feq)|jump|jmp|wait|nop|halt)\\b",
+      "name": "keyword.control.sutra"
+    },
+    "predicates": {
+      "match": "\\(\\s*!?\\s*[bB][0-7]\\s*\\)",
+      "name": "keyword.operator.predicate.sutra"
+    },
+    "address-values": {
+      "match": "&(?:[A-Za-z_][A-Za-z0-9_]*|pin[0-9]+|inpin[0-9]+|0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+)",
+      "name": "constant.other.address.sutra"
+    },
+    "memory": {
+      "match": "@(?:[rR](?:[12]?[0-9]|3[01])|[tT][0-7]|[A-Za-z_][A-Za-z0-9_]*|pin[0-9]+|inpin[0-9]+|0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+)",
+      "name": "storage.modifier.memory.sutra"
+    },
+    "registers": {
+      "match": "(?i)\\b(r(?:[12]?[0-9]|3[01])|t[0-7])\\b",
+      "name": "variable.parameter.register.sutra"
+    },
+    "complex-registers": {
+      "match": "(?i)\\b(z(?:[0-9]|1[0-5]))\\b",
+      "name": "variable.parameter.complex.sutra"
+    },
+    "bool-registers": {
+      "match": "(?i)\\b(b[0-7])\\b",
+      "name": "variable.parameter.bool.sutra"
+    },
+    "bool-constants": {
+      "match": "(?i)\\b(true|false|high|low)\\b",
+      "name": "constant.language.bool.sutra"
+    },
+    "math-constants": {
+      "match": "(?i)(?:\\b(pi|tau|phi|e|half|sqrt[0-9.]*|sqrt\\([^)]*\\)|ln2|ln10|log2e|log10e|inv_pi|inv_tau|inv_sqrt2|silver|golden|one|zero|two)\\b|[πτεφ½]|√[A-Za-z0-9_.]+)",
+      "name": "constant.numeric.symbolic.sutra"
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "match": "\\b0[xX][0-9a-fA-F]+\\b",
+          "name": "constant.numeric.hex.sutra"
+        },
+        {
+          "match": "\\b0[bB][01]+\\b",
+          "name": "constant.numeric.binary.sutra"
+        },
+        {
+          "match": "-?\\b[0-9]+(?:\\.[0-9]+)?\\b",
+          "name": "constant.numeric.decimal.sutra"
+        }
+      ]
+    }
+  }
+}

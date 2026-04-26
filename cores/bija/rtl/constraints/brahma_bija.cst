@@ -1,0 +1,32 @@
+// =============================================================================
+// brahma_bija.cst — Physical Constraints dla Tang Nano 20K
+// FPGA: GW2AR-LV18QN88C7/I6
+// =============================================================================
+
+// Zegar 27 MHz z oscylatora pokładowego
+IO_LOC "clk_27mhz" 4;
+IO_PORT "clk_27mhz" PULL_MODE=UP IO_TYPE=LVCMOS33;
+
+// 6 LED-ów (LED0..LED5)
+IO_LOC "led[0]" 15;
+IO_PORT "led[0]" IO_TYPE=LVCMOS33 DRIVE=8;
+IO_LOC "led[1]" 16;
+IO_PORT "led[1]" IO_TYPE=LVCMOS33 DRIVE=8;
+IO_LOC "led[2]" 17;
+IO_PORT "led[2]" IO_TYPE=LVCMOS33 DRIVE=8;
+IO_LOC "led[3]" 18;
+IO_PORT "led[3]" IO_TYPE=LVCMOS33 DRIVE=8;
+IO_LOC "led[4]" 19;
+IO_PORT "led[4]" IO_TYPE=LVCMOS33 DRIVE=8;
+IO_LOC "led[5]" 20;
+IO_PORT "led[5]" IO_TYPE=LVCMOS33 DRIVE=8;
+
+// UART przez pokładowy BL616 USB-UART bridge.
+// TX działał wcześniej na pinie 69.
+// RX jest ustawiony na pin70, ale jeśli upload nie łapie READY, to właśnie tę linię
+// trzeba zweryfikować ze schematem swojej rewizji Tang Nano 20K / Dock.
+IO_LOC "uart_rx" 70;
+IO_PORT "uart_rx" IO_TYPE=LVCMOS33 PULL_MODE=UP;
+
+IO_LOC "uart_tx" 69;
+IO_PORT "uart_tx" IO_TYPE=LVCMOS33 DRIVE=8;

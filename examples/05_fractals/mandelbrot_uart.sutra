@@ -1,0 +1,51 @@
+; Sutra v1.3 — Mandelbrot 64x64, maxIter=64
+; z0 = z, z1 = c. cmul/cadd/cabs2 używają t0..t3 jako scratch.
+
+start:
+    move @uart_tx, 65
+    move @uart_tx, 68
+    move @uart_tx, 73
+    move @uart_tx, 48
+    move @uart_tx, 64
+    move @uart_tx, 64
+
+    move r5, 0          ; y
+    move r3, -1.5       ; c.im
+
+row_loop:
+    move r4, 0          ; x
+    move r2, -2.0       ; c.re
+
+col_loop:
+    move r0, 0.0        ; z.re
+    move r1, 0.0        ; z.im
+    move r11, 0         ; iter
+
+iter_loop:
+    cabs2 r8, z0
+    cmp.gt b0, r8, 4.0
+    (b0) jump pixel_done
+
+    cmp.ge b0, r11, 64
+    (b0) jump pixel_done
+
+    cmul z0, z0, z0
+    cadd z0, z0, z1
+
+    iadd r11, r11, 1
+    jump iter_loop
+
+pixel_done:
+    move @uart_tx, r11
+
+    fadd r2, r2, 0.046875
+    iadd r4, r4, 1
+    cmp.lt b0, r4, 64
+    (b0) jump col_loop
+
+    fadd r3, r3, 0.046875
+    iadd r5, r5, 1
+    cmp.lt b0, r5, 64
+    (b0) jump row_loop
+
+    jump start

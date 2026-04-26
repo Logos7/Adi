@@ -1,0 +1,37 @@
+; Sutra v1.3 — integer, fixed, konwersje i fabs
+; LED-y aktywne niskim stanem: low = świeci, high = zgaszona.
+
+start:
+    imul r3, -6, 7
+    cmp.eq b0, r3, -42
+
+    fmul r4, 0.5, 2.0
+    cmp.feq b1, r4, 1.0, 0.0001
+
+    fadd r5, 1.0, 1.0
+    cmp.feq b2, r5, 2.0, 0.0001
+
+    itof r6, 2
+    cmp.eq b3, r6, 2.0
+
+    ftoi r7, 2.0
+    cmp.eq b4, r7, 2
+
+    fabs r8, -1.5
+    cmp.feq b5, r8, 1.5, 0.0001
+
+    (b0) move @led0, low
+    (!b0) move @led0, high
+    (b1) move @led1, low
+    (!b1) move @led1, high
+    (b2) move @led2, low
+    (!b2) move @led2, high
+    (b3) move @led3, low
+    (!b3) move @led3, high
+    (b4) move @led4, low
+    (!b4) move @led4, high
+    (b5) move @led5, low
+    (!b5) move @led5, high
+
+    wait 27000000
+    jump start

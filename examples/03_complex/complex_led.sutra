@@ -1,0 +1,37 @@
+; Sutra v1.3 — complex fixed-point na LED-ach
+; z0 = 1 + 2i
+; z1 = 3 + 4i
+; z2 = z0*z1 = -5 + 10i
+; |z0|² = 1² + 2² = 5
+;
+; LED-y Tang Nano 20K są aktywne niskim stanem:
+; low = świeci, high = zgaszona.
+; Sukces testu zapala LED0..LED2, a LED5 mruga jako heartbeat.
+
+start:
+    move r0, 1.0
+    move r1, 2.0
+    move r2, 3.0
+    move r3, 4.0
+
+    cmul z2, z0, z1
+    cabs2 r8, z0
+
+    cmp.feq b0, r4, -5.0, 0.0001
+    cmp.feq b1, r5, 10.0, 0.0001
+    cmp.feq b2, r8, 5.0, 0.0001
+
+    (b0)  move @led0, low
+    (!b0) move @led0, high
+
+    (b1)  move @led1, low
+    (!b1) move @led1, high
+
+    (b2)  move @led2, low
+    (!b2) move @led2, high
+
+    move @led5, low
+    wait 13500000
+    move @led5, high
+    wait 13500000
+    jump start

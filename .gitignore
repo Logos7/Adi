@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Gowin / FPGA build outputs
+cores/**/impl/
+cores/**/obj/
+cores/**/*.fs
+cores/**/*.bin
+cores/**/*.bit
+cores/**/*.vo
+cores/**/*.vvp
+cores/**/*.rpt
+cores/**/*.log
+cores/**/*.tmp
+cores/**/*.bak
+
+# Editors
+.vscode/
+.idea/
+*.user
+*.suo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Adi local/runtime
+*.tmp
+*.uart.log
+artifacts/
