@@ -13,7 +13,13 @@
       "include": "#predicates"
     },
     {
-      "include": "#mnemonics"
+      "include": "#compare-instructions"
+    },
+    {
+      "include": "#macro-instructions"
+    },
+    {
+      "include": "#core-instructions"
     },
     {
       "include": "#address-values"
@@ -22,13 +28,13 @@
       "include": "#memory"
     },
     {
-      "include": "#registers"
-    },
-    {
       "include": "#complex-registers"
     },
     {
       "include": "#bool-registers"
+    },
+    {
+      "include": "#registers"
     },
     {
       "include": "#bool-constants"
@@ -53,9 +59,17 @@
         }
       }
     },
-    "mnemonics": {
-      "match": "(?i)\\b(move|band|bor|bxor|bnot|iadd|fadd|isub|fsub|iand|ior|ixor|inot|shl|shr|sar|imul|fmul|itof|ftoi|fabs|cadd|csub|cmul|cabs2|cmp\\.(?:eq|ne|lt|le|gt|ge|feq)|jump|jmp|wait|nop|halt)\\b",
+    "core-instructions": {
+      "match": "(?i)\\b(move|band|bor|bxor|bnot|iadd|fadd|isub|fsub|iand|ior|ixor|inot|shl|shr|sar|imul|fmul|itof|ftoi|fabs|cadd|csub|cmul|cabs2|jump|jmp|wait|nop|halt)\\b",
       "name": "keyword.control.sutra"
+    },
+    "compare-instructions": {
+      "match": "(?i)\\b(cmp\\.(?:eq|ne|lt|le|gt|ge|feq))\\b",
+      "name": "keyword.operator.comparison.sutra"
+    },
+    "macro-instructions": {
+      "match": "(?i)\\b(wait_rx|read_rx|wait_uart|write_tx|jump_if|jump_if_not|beq|bne|blt|ble|bgt|bge|inc|dec|neg|fneg|imin|imax|fmin|fmax)\\b",
+      "name": "support.function.macro.sutra"
     },
     "predicates": {
       "match": "\\(\\s*!?\\s*[bB][0-7]\\s*\\)",
