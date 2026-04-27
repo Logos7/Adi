@@ -1,210 +1,175 @@
-# Adi / Brahma-Bija / Sutra
+# Adi
 
-Adi to mały ekosystem własnego CPU na FPGA:
+Adi is a small FPGA CPU / virtual machine project for Tang Nano 20K, written in Verilog, with a tiny Sutra assembler, UART bootloader, graphics UART viewer and text UART terminal.
 
-```text
-Sutra .sutra → assembler → program.hex → Brahma-Bija RTL → Tang Nano 20K
-                         ↘ symulator Python / testy
-```
+## Current status
 
-## Brahma-Bija / Sutra v1.4.0
+- FPGA target: Sipeed Tang Nano 20K / Gowin GW2AR
+- UART bootloader works
+- Programs can be uploaded without rebuilding the bitstream
+- Runtime UART RX is available through `@uart_rx` and `@uart_rx_ready`
+- Text UART terminal is separated from the graphics viewer
+- Text and framebuffer-style UART examples are supported
+- Sutra macro pack is available for branches, UART waits, min/max and convenience operations
 
-Najważniejsze zasady składni:
-
-```asm
-move r0, 123          ; wartość natychmiastowa
-move r1, π            ; stała matematyczna Q7.25
-move r2, √500         ; pierwiastek jako stała Q7.25
-move r3, &uart_tx     ; adres jako zwykła liczba
-
-move r4, @7           ; pamięć pod adresem 7
-move @7, r4
-move r5, @r6          ; pamięć pod adresem trzymanym w r6
-move @uart_tx, r0     ; MMIO UART TX
-move b0, @uart_rx_ready
-move r0, @uart_rx      ; MMIO UART RX
-move @led0, low       ; LED świeci, bo LED-y Tang Nano 20K są aktywne niskim stanem
-move b0, @uart_ready
-```
-
-Czyli:
+## Project layout
 
 ```text
-wartość          → bez prefiksu: 123, 1.0, π, true, high
-pamięć / IO      → @: @7, @uart_tx, @uart_rx, @led0, @r1, @r1+4
-adres jako liczba → &: &uart_tx, &led0, &pin15
+Adi/
+  apps/
+    Adi.UartViewer/
+      adi_uart_viewer.py
+
+    Adi.UartTerminal/
+      adi_uart_terminal.py
+
+  cores/
+    bija/
+      docs/
+        isa.md
+
+      rtl/
+        brahma_bija.gprj
+        src/
+          *.v
+
+      sim/
+        __init__.py
+
+      tests/
+        test_v14_macros_uart_rx.py
+
+  examples/
+    00_basics/
+    04_uart/
+      echo_rx.sutra
+      command_led.sutra
+    05_fractals/
+
+  sutra/
+    sutra/
+      __init__.py
+
+  tools/
+    sutra_upload.py
+    sutra-vscode/
+
+  README.md
+  .gitignore
+  .gitattributes
 ```
 
-Dla bool używamy tylko `true/false/high/low`. Surowe `0` i `1` są zawsze wartościami integer/word, nie bitami.
+## Build FPGA bitstream
 
-Nie używamy już `#123` ani `[adres]`.
-
-## Rejestry
+Open in Gowin:
 
 ```text
-r0..r31          normalne GPR
-t0..t7           aliasy r24..r31, scratch/volatile
-z0 = r0:r1
-z1 = r2:r3
-...
-z11 = r22:r23    bezpieczne complex-pairs
+cores/bija/rtl/brahma_bija.gprj
 ```
 
-`cmul/cabs2` używają `t0..t3` jako scratch. Operacje typu `iadd/fadd/cmp` z operandami natychmiastowymi mogą używać `t4..t7` jako scratch. Nie trzymaj tam ważnych danych przez makra.
-
-## Stałe
-
-Preferowany styl w przykładach i dokumentacji używa symboli matematycznych:
-
-```asm
-move r0, π
-move r1, τ
-move r2, e
-move r3, φ
-move r4, √2
-move r5, √500
-move r6, √0.5
-move r7, ln2
-move r8, 1/π
-```
-
-ASCII aliasy nadal działają, ale przykłady i dokumentacja używają znaków matematycznych.
-
-## Fixed-point i porównania
-
-`fmul` pracuje w Q7.25, więc wyniki po mnożeniu mogą różnić się o najmłodsze bity. Do testów fixed-point używaj tolerancji:
-
-```asm
-fmul r9, √2, √2
-cmp.feq b0, r9, 2.0, 0.0001
-```
-
-Dostępne jest też:
-
-```asm
-fabs r1, r0
-```
-
-## GPIO / LED / piny
-
-`@pinN` oznacza **bool_mem[N]**, a nie automatyczne sterowanie dowolnym fizycznym pinem FPGA. Fizyczne wyprowadzenia są w `cores/bija/rtl/src/brahma_bija_top.v`.
-
-Obecnie Tang Nano 20K ma podłączone:
+Then run:
 
 ```text
-@led0 = @pin15
-@led1 = @pin16
-@led2 = @pin17
-@led3 = @pin18
-@led4 = @pin19
-@led5 = @pin20
+Synthesize
+Place & Route
+Generate Bitstream
+Programmer
 ```
 
-LED-y są aktywne niskim stanem:
-
-```asm
-move @led0, low    ; świeci
-move @led0, high   ; zgaszona
-```
-
-## Przykłady
-
-Przykłady są poukładane katalogami:
-
-```text
-examples/00_basics/blink_led.sutra
-examples/00_basics/predication_led.sutra
-
-examples/01_memory/move_direct_indirect.sutra
-
-examples/02_math/integer_fixed.sutra
-examples/02_math/bool_ops.sutra
-examples/02_math/constants.sutra
-
-examples/03_complex/complex_led.sutra
-
-examples/04_uart/hello_loop.sutra
-examples/04_uart/diag_x.sutra
-examples/04_uart/diag_y.sutra
-examples/04_uart/diag_xy.sutra
-
-examples/05_fractals/mandelbrot_uart.sutra
-examples/05_fractals/julia_uart.sutra
-examples/05_fractals/tricorn_uart.sutra
-```
-
-
-## Bootloader UART
-
-Po jednorazowym wgraniu bitstreamu z bootloaderem nowe programy `.sutra` wrzucasz przez COM, bez Gowina:
+Before rebuilding, it is usually safest to remove the old Gowin implementation output:
 
 ```powershell
-py tools\sutra_upload.py COM9 examples\05_fractals\julia_uart.sutra
+Remove-Item .\cores\bija\rtl\impl -Recurse -Force -ErrorAction SilentlyContinue
 ```
 
-Albo GUI/viewer:
+## Tools
+
+### Graphics viewer
+
+Use this for framebuffer/fractal examples that emit `ADI0` frames:
 
 ```powershell
-py apps\Adi.UartViewer\adi_uart_viewer.py
+py apps/Adi.UartViewer/adi_uart_viewer.py
 ```
 
-W v1.4.0 po konfiguracji FPGA CPU czeka w bootloaderze na pierwszy upload. `LED0` powinien świecić. Po udanym uploadzie program startuje i może wysyłać obraz przez UART.
+This tool is intended for graphical UART output and resolution/iteration controls.
 
-## UART / Mandelbrot
-
-Aktualny `program.hex` jest wygenerowany z:
+Use it for programs such as:
 
 ```text
-examples/05_fractals/mandelbrot_uart.sutra
+examples/05_fractals/*.sutra
 ```
 
-Ramka UART:
+### Text UART terminal
 
-```text
-ADI0 width height pixels...
-```
-
-Domyślnie:
-
-```text
-64x64, maxIter=64
-```
-
-Uruchom viewer:
+Use this for normal text-based Sutra programs:
 
 ```powershell
-py -m pip install pyserial
-py apps\Adi.UartViewer\adi_uart_viewer.py COM8 --scale 6
+py apps/Adi.UartTerminal/adi_uart_terminal.py
 ```
 
-Zmień `COM8` na port Tang Nano.
-
-## Asemblacja
+Upload and open terminal:
 
 ```powershell
-py tools\sutra2hex.py examples\05_fractals\mandelbrot_uart.sutra cores\bija\rtl\src\program.hex
+py apps/Adi.UartTerminal/adi_uart_terminal.py COM9 examples/04_uart/echo_rx.sutra
 ```
 
-Potem w Gowin najlepiej pełne odświeżenie:
+The text terminal does not parse `ADI0` graphics frames and does not patch width/height/iteration constants.
+
+Use it for programs such as:
 
 ```text
-zamknij Gowina
-usuń cores/bija/rtl/impl
-otwórz projekt
-Synthesize → Place & Route → Programmer
+examples/04_uart/echo_rx.sutra
+examples/04_uart/command_led.sutra
+examples/00_basics/*.sutra
 ```
 
-## Testy
+## Upload program manually
+
+Text program:
 
 ```powershell
-py cores\bija\tests\test_symbolic_constants.py
-py cores\bija\tests\test_mandelbrot_uart.py
+py tools/sutra_upload.py COM9 examples/04_uart/echo_rx.sutra --graphics off
 ```
 
+Graphics/fractal program:
 
-## v1.4.0 — runtime UART RX
+```powershell
+py tools/sutra_upload.py COM9 examples/05_fractals/julia_uart.sutra --width 96 --height 64 --max-iter 80 --graphics auto
+```
 
-CPU potrafi teraz odbierać bajty z PC w działającym programie:
+## UART bootloader behavior
+
+After programming the FPGA bitstream, the bootloader waits for the PC uploader.
+
+Expected behavior:
+
+```text
+FPGA configured
+LED0 stays on
+PC sends ADI!
+FPGA replies ADI_BOOT_READY
+PC uploads program
+FPGA replies ADI_BOOT_OK
+CPU starts program
+```
+
+If the upload fails, the CPU should remain held by the bootloader instead of starting an old program.
+
+## Runtime UART RX
+
+Runtime UART RX allows a Sutra program to receive bytes from the PC while it is already running.
+
+Important symbols:
+
+```asm
+@uart_rx
+@uart_rx_ready
+@uart_tx
+@uart_ready
+```
+
+Minimal echo example:
 
 ```asm
 loop:
@@ -213,59 +178,149 @@ loop:
     jump loop
 ```
 
-Nowe MMIO i makra:
+Expanded manually:
+
+```asm
+loop:
+    move b0, @uart_rx_ready
+    (!b0) jump loop
+
+    move r0, @uart_rx
+
+wait_tx:
+    move b0, @uart_ready
+    (!b0) jump wait_tx
+
+    move @uart_tx, r0
+    jump loop
+```
+
+## Sutra v1.4 macro pack
+
+Convenience UART macros:
+
+```asm
+wait_rx
+read_rx r0
+wait_uart
+write_tx r0
+```
+
+Branch macros:
+
+```asm
+jump_if b0, label
+jump_if_not b0, label
+
+beq r0, r1, label
+bne r0, r1, label
+blt r0, r1, label
+ble r0, r1, label
+bgt r0, r1, label
+bge r0, r1, label
+```
+
+Convenience arithmetic macros:
+
+```asm
+inc r0
+dec r0
+neg r0, r1
+fneg r0, r1
+```
+
+Min/max macros:
+
+```asm
+imin r0, r1, r2
+imax r0, r1, r2
+fmin r0, r1, r2
+fmax r0, r1, r2
+```
+
+Indexed memory syntax:
+
+```asm
+move r0, @r1+4
+move @r1+4, r0
+```
+
+## Examples
+
+### Echo RX
+
+```powershell
+py apps/Adi.UartTerminal/adi_uart_terminal.py COM9 examples/04_uart/echo_rx.sutra
+```
+
+Type text into the terminal input field. The FPGA should echo received characters back.
+
+### Command LED
+
+```powershell
+py apps/Adi.UartTerminal/adi_uart_terminal.py COM9 examples/04_uart/command_led.sutra
+```
+
+This example is intended for simple runtime command control over UART.
+
+### Fractal viewer
+
+```powershell
+py apps/Adi.UartViewer/adi_uart_viewer.py
+```
+
+Use the graphics viewer for programs that emit `ADI0` framebuffer frames.
+
+## Development workflow
+
+Work on a feature branch:
+
+```powershell
+git switch -c feature/some-change
+```
+
+Check changes:
+
+```powershell
+git status
+git diff --stat
+```
+
+Commit changes:
+
+```powershell
+git add .
+git commit -m "Describe the change"
+```
+
+Merge after testing:
+
+```powershell
+git switch main
+git merge feature/some-change
+```
+
+Tag stable versions:
+
+```powershell
+git tag v1.4.1
+git push
+git push origin v1.4.1
+```
+
+## Notes
+
+Generated Gowin implementation files are intentionally not committed.
+
+Do not commit:
 
 ```text
-@uart_rx
-@uart_rx_ready
-wait_rx
-read_rx rX
-wait_uart
-write_tx rX
-beq/bne/blt/ble/bgt/bge
-inc/dec/neg/fneg
-imin/imax/fmin/fmax
-@rX+offset
+cores/**/impl/
+*.fs
+*.bit
+*.bin
+*.rpt
+*.log
 ```
 
-Przykłady:
-
-```powershell
-py tools\sutra_upload.py COM9 examples_uart\echo_rx.sutra --graphics off
-py apps\Adi.UartViewerdi_uart_viewer.py
-```
-
-W terminalu GUI możesz teraz wysyłać tekst do FPGA bez reuploadu programu.
-
-## v1.3 — UART bootloader
-
-Po jednorazowym wgraniu bitstreamu możesz ładować nowe programy Sutra przez UART, bez Gowina:
-
-```powershell
-py tools\sutra_upload.py COM8 examples\05_fractals\mandelbrot_uart.sutra
-```
-
-Albo od razu upload + viewer:
-
-```powershell
-py apps\Adi.UartViewer\adi_uart_viewer.py COM8 --upload examples\05_fractals\julia_uart.sutra --scale 4
-```
-
-Bootloader używa protokołu `ADI!` i odpowiada `ADI_BOOT_OK`. Szczegóły: `cores/bija/docs/bootloader.md`.
-
-
-## UART bootloader v1.3.1
-
-Po jednorazowym wgraniu bitstreamu można ładować programy Sutra bez Gowina:
-
-```powershell
-py tools\sutra_upload.py COM9 examples\05_fractals\julia_uart.sutra
-```
-
-Albo uruchomić viewer z wybieraczką portu COM i programu:
-
-```powershell
-py apps\Adi.UartViewer\adi_uart_viewer.py
-```
-
-Bootloader działa bez przycisku reset: uploader spamuje `ADI!`, FPGA odpowiada `ADI_BOOT_READY`, a potem przyjmuje program.
+Bitstreams should be published separately as release artifacts, not stored directly in the repository history.
