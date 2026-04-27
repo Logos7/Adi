@@ -330,6 +330,15 @@ module brahma_bija_core (
             end
         end else begin
             uart_tx_valid <= 1'b0;
+
+            // UART RX ma jednobajtowy bufor.
+            // Jeśli program nie czyta @uart_rx wystarczająco szybko, nowy bajt
+            // nadpisze poprzedni — proste i celowe na tym etapie.
+            if (uart_rx_valid) begin
+                uart_rx_buf     <= uart_rx_data;
+                uart_rx_pending <= 1'b1;
+            end
+
             case (state)
                 S_FETCH: begin
                     instr <= imem[pc[9:0]];
@@ -415,7 +424,11 @@ module brahma_bija_core (
                                 if (rd_field <= 5'd31) begin
                                     addr8_work = data_addr(rs_field, i_imm);
                                     if (addr8_work == UART_RX_ADDR) begin
-                                        gpr[rd_field] <= {24'd0, uart_rx_buf};
+                                        if (uart_rx_valid) begin
+                                            gpr[rd_field] <= {24'd0, uart_rx_data};
+                                        end else begin
+                                            gpr[rd_field] <= {24'd0, uart_rx_buf};
+                                        end
                                         uart_rx_pending <= 1'b0;
                                     end else begin
                                         gpr[rd_field] <= data_mem[addr8_work];
@@ -446,7 +459,11 @@ module brahma_bija_core (
                             OP_LOAD_MD: begin
                                 if (rd_field <= 5'd31) begin
                                     if (md_imm[7:0] == UART_RX_ADDR) begin
-                                        gpr[rd_field] <= {24'd0, uart_rx_buf};
+                                        if (uart_rx_valid) begin
+                                            gpr[rd_field] <= {24'd0, uart_rx_data};
+                                        end else begin
+                                            gpr[rd_field] <= {24'd0, uart_rx_buf};
+                                        end
                                         uart_rx_pending <= 1'b0;
                                     end else begin
                                         gpr[rd_field] <= data_mem[md_imm[7:0]];
