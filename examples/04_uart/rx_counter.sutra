@@ -1,0 +1,11 @@
+; Sutra v1.4 â€” licznik znakĂłw z UART RX.
+; KaĹĽdy odebrany znak zwiÄ™ksza licznik i odsyĹ‚a jego najniĹĽszy bajt.
+
+start:
+    move r1, 0
+
+loop:
+    read_rx r0
+    inc r1
+    write_tx r1
+    jump loop
