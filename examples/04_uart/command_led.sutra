@@ -1,5 +1,5 @@
-; Sterowanie LED0 po UART.
-; '1' zapala LED0, '0' gasi LED0, inne znaki są odsyłane echem.
+; Sutra v1.4 â€” sterowanie LED0 po UART.
+; '1' zapala LED0, '0' gasi LED0, inne znaki sÄ… odsyĹ‚ane echem.
 
 loop:
     read_rx r0

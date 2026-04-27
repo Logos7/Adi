@@ -1,13 +1,19 @@
-; Sutra v1.3 — Tricorn / Mandelbar 64x64, maxIter=64
+; Sutra v1.4 â€” Tricorn / Mandelbar 64x64, maxIter=64
 ; z = conjugate(z)^2 + c
 
 start:
-    move @uart_tx, 65
-    move @uart_tx, 68
-    move @uart_tx, 73
-    move @uart_tx, 48
-    move @uart_tx, 64
-    move @uart_tx, 64
+    move r0, 65
+    write_tx r0
+    move r0, 68
+    write_tx r0
+    move r0, 73
+    write_tx r0
+    move r0, 48
+    write_tx r0
+    move r0, 64
+    write_tx r0
+    move r0, 64
+    write_tx r0
 
     move r5, 0
     move r3, -1.5
@@ -23,30 +29,25 @@ col_loop:
 
 iter_loop:
     cabs2 r8, z0
-    cmp.gt b0, r8, 4.0
-    (b0) jump pixel_done
+    bgt r8, 4.0, pixel_done
+    bge r11, 64, pixel_done
 
-    cmp.ge b0, r11, 64
-    (b0) jump pixel_done
-
-    fsub r1, 0.0, r1    ; conjugate: im = -im
+    fneg r1, r1
     cmul z0, z0, z0
     cadd z0, z0, z1
 
-    iadd r11, r11, 1
+    inc r11
     jump iter_loop
 
 pixel_done:
-    move @uart_tx, r11
+    write_tx r11
 
     fadd r2, r2, 0.046875
-    iadd r4, r4, 1
-    cmp.lt b0, r4, 64
-    (b0) jump col_loop
+    inc r4
+    blt r4, 64, col_loop
 
     fadd r3, r3, 0.046875
-    iadd r5, r5, 1
-    cmp.lt b0, r5, 64
-    (b0) jump row_loop
+    inc r5
+    blt r5, 64, row_loop
 
     jump start

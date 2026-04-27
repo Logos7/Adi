@@ -1,26 +1,30 @@
-; Sutra v1.3 — UART frame 64x64, pixel = y
+; Sutra v1.4 â€” UART frame 64x64, pixel = y
 
 start:
-    move @uart_tx, 65
-    move @uart_tx, 68
-    move @uart_tx, 73
-    move @uart_tx, 48
-    move @uart_tx, 64
-    move @uart_tx, 64
+    move r0, 65
+    write_tx r0
+    move r0, 68
+    write_tx r0
+    move r0, 73
+    write_tx r0
+    move r0, 48
+    write_tx r0
+    move r0, 64
+    write_tx r0
+    move r0, 64
+    write_tx r0
 
     move r5, 0
 row_loop:
     move r4, 0
 col_loop:
-    iadd r0, r5, 0
-    move @uart_tx, r0
+    move r0, r5
+    write_tx r0
 
-    iadd r4, r4, 1
-    cmp.lt b0, r4, 64
-    (b0) jump col_loop
+    inc r4
+    blt r4, 64, col_loop
 
-    iadd r5, r5, 1
-    cmp.lt b0, r5, 64
-    (b0) jump row_loop
+    inc r5
+    blt r5, 64, row_loop
 
     jump start

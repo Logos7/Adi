@@ -1,5 +1,5 @@
-; Echo UART RX -> TX.
-; W terminalu wpisz tekst i naciśnij Wyślij.
+; Sutra v1.4 â€” Echo UART RX -> TX.
+; W terminalu wpisz tekst i naciĹ›nij WyĹ›lij.
 
 loop:
     read_rx r0

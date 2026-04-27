@@ -1,13 +1,17 @@
-; Sutra v1.3 — UART hello loop
-; wysyła "ADI\n" co chwilę i mruga led0
+; Sutra v1.4 â€” UART hello loop
+; WysyĹ‚a "ADI\n" co chwilÄ™ i mruga LED0.
 
 start:
     move @led0, high
 
-    move @uart_tx, 65
-    move @uart_tx, 68
-    move @uart_tx, 73
-    move @uart_tx, 10
+    move r0, 65
+    write_tx r0
+    move r0, 68
+    write_tx r0
+    move r0, 73
+    write_tx r0
+    move r0, 10
+    write_tx r0
 
     wait 27000000
     move @led0, low

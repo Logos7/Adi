@@ -1,61 +1,56 @@
-; Sutra v1.3 — Julia set 64x64, maxIter=64
-;
-; Różnica względem Mandelbrota:
-; - dla każdego piksela z startuje od współrzędnej piksela,
-; - c jest stałe dla całego obrazka: c = -0.8 + 0.156i.
-;
+; Sutra v1.4 â€” Julia set 64x64, maxIter=64
 ; z0 = aktualne z = r0:r1
-; z1 = stałe c   = r2:r3
+; z1 = staĹ‚e c   = r2:r3
 
 start:
-    move @uart_tx, 65
-    move @uart_tx, 68
-    move @uart_tx, 73
-    move @uart_tx, 48
-    move @uart_tx, 64
-    move @uart_tx, 64
+    move r0, 65
+    write_tx r0
+    move r0, 68
+    write_tx r0
+    move r0, 73
+    write_tx r0
+    move r0, 48
+    write_tx r0
+    move r0, 64
+    write_tx r0
+    move r0, 64
+    write_tx r0
 
-    move r2, -0.8       ; c.re — stałe dla całej Julii
-    move r3, 0.156      ; c.im — stałe dla całej Julii
+    move r2, -0.8
+    move r3, 0.156
 
-    move r5, 0          ; y index
-    move r7, -1.5       ; pixel im start
+    move r5, 0
+    move r7, -1.5
 
 row_loop:
-    move r4, 0          ; x index
-    move r6, -1.5       ; pixel re start
+    move r4, 0
+    move r6, -1.5
 
 col_loop:
-    ; Dla Julii z startuje z pozycji piksela.
-    fadd r0, r6, 0.0    ; z.re = pixel.re
-    fadd r1, r7, 0.0    ; z.im = pixel.im
-    move r11, 0         ; iter
+    fadd r0, r6, 0.0
+    fadd r1, r7, 0.0
+    move r11, 0
 
 iter_loop:
     cabs2 r8, z0
-    cmp.gt b0, r8, 4.0
-    (b0) jump pixel_done
-
-    cmp.ge b0, r11, 64
-    (b0) jump pixel_done
+    bgt r8, 4.0, pixel_done
+    bge r11, 64, pixel_done
 
     cmul z0, z0, z0
     cadd z0, z0, z1
 
-    iadd r11, r11, 1
+    inc r11
     jump iter_loop
 
 pixel_done:
-    move @uart_tx, r11
+    write_tx r11
 
     fadd r6, r6, 0.046875
-    iadd r4, r4, 1
-    cmp.lt b0, r4, 64
-    (b0) jump col_loop
+    inc r4
+    blt r4, 64, col_loop
 
     fadd r7, r7, 0.046875
-    iadd r5, r5, 1
-    cmp.lt b0, r5, 64
-    (b0) jump row_loop
+    inc r5
+    blt r5, 64, row_loop
 
     jump start
