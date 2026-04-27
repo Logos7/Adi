@@ -1,4 +1,4 @@
-# Brahma-Bija ISA / Sutra v1.3
+# Brahma-Bija ISA / Sutra v1.4
 
 ## Styl
 
@@ -28,6 +28,8 @@ low        wartość bool 0
 
 @7         pamięć/IO pod adresem 7
 @uart_tx   MMIO UART_TX
+@uart_rx   MMIO UART_RX, odczyt ostatniego bajtu i skasowanie ready
+@uart_rx_ready   bool MMIO, 1 gdy czeka bajt RX
 @led0      alias bool_mem[15], który top.v mapuje na fizyczną LED0
 @pin15     bool_mem[15], nie automatycznie dowolny fizyczny pin FPGA
 @r1        pamięć/IO pod adresem zapisanym w r1
@@ -78,7 +80,9 @@ Aktualny RTL implementuje:
 data_mem[0..255]       word RAM, 32-bit
 bool_mem[0..127]       bool/GPIO RAM
 @uart_tx = 240         word MMIO, zapis low8 wysyła bajt UART
+@uart_rx = 241         word MMIO read-only, odczyt low8 odbiera bajt i czyści @uart_rx_ready
 @uart_ready = 128      bool MMIO read-only, 1 gdy UART TX gotowy
+@uart_rx_ready = 129   bool MMIO read-only, 1 gdy czeka bajt UART RX
 ```
 
 Ważne: `@pinN` oznacza **adres bool_mem[N]**, a nie magiczne podłączenie dowolnego fizycznego pinu FPGA. Fizyczne wyprowadzenia robi `brahma_bija_top.v`.
@@ -101,7 +105,7 @@ move @led0, low    ; LED świeci
 move @led0, high   ; LED zgaszona
 ```
 
-Assembler odrzuca statyczne dostępy bool poza zaimplementowanym zakresem `@pin0..@pin127`, z wyjątkiem odczytu `@uart_ready`.
+Assembler odrzuca statyczne dostępy bool poza zaimplementowanym zakresem `@pin0..@pin127`, z wyjątkiem odczytu `@uart_ready` i `@uart_rx_ready`.
 
 ## Instrukcje
 
@@ -126,10 +130,14 @@ move r0, &uart_tx
 
 move r0, @7
 move r0, @r1
+move r0, @r1+4
 move @7, r0
 move @r1, r0
+move @r1+4, r0
 move @uart_tx, r0
 move @uart_tx, 65
+move b0, @uart_rx_ready
+move r0, @uart_rx
 
 move b0, @led0
 move b0, @uart_ready
@@ -200,6 +208,53 @@ fsub tmp, r1, 2.0
 fabs tmp, tmp
 cmp.le b0, tmp, 0.0001
 ```
+
+
+### Makra branch / wygoda
+
+```asm
+inc r0
+dec r0
+neg r0, r1
+fneg r0, r1
+
+jump_if b0, label
+jump_if_not b0, label
+
+beq r0, r1, label
+bne r0, 0, label
+blt r0, 10, label
+ble r0, r1, label
+bgt r0, r1, label
+bge r0, r1, label
+
+imin r2, r0, r1
+imax r3, r0, r1
+fmin r4, r0, r1
+fmax r5, r0, r1
+```
+
+Branch/min/max używają `b7` jako scratch.
+
+### UART runtime macros
+
+```asm
+wait_rx
+read_rx r0
+wait_uart
+write_tx r0
+```
+
+Echo UART:
+
+```asm
+loop:
+    read_rx r0
+    write_tx r0
+    jump loop
+```
+
+`read_rx` czeka na `@uart_rx_ready`, potem czyta `@uart_rx`. `write_tx` czeka na `@uart_ready`, potem zapisuje `@uart_tx`.
 
 ### Complex macros
 

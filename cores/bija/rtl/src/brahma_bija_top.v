@@ -69,6 +69,8 @@ module brahma_bija_top (
         .uart_tx_ready (cpu_uart_tx_ready),
         .uart_tx_valid (cpu_uart_tx_valid),
         .uart_tx_data  (cpu_uart_tx_data),
+        .uart_rx_valid (rx_valid & ~boot_busy & ~boot_cpu_reset),
+        .uart_rx_data  (rx_data),
         .boot_we       (boot_we),
         .boot_addr     (boot_addr),
         .boot_data     (boot_data)

@@ -63,7 +63,9 @@ BOOL_FUNCT_NAMES = {FUNCT_BAND: "band", FUNCT_BOR: "bor", FUNCT_BXOR: "bxor", FU
 MASK32 = 0xFFFFFFFF
 DATA_MEM_SIZE = 256
 UART_TX_ADDR = 0xF0
+UART_RX_ADDR = 0xF1
 UART_READY_BOOL_ADDR = 0x80
+UART_RX_READY_BOOL_ADDR = 0x81
 BOOL_GPIO_PIN_BASE = 0
 BOOL_GPIO_PIN_COUNT = 128
 
@@ -138,6 +140,9 @@ class CPU:
     gpio_listeners: list = field(default_factory=list)
     uart_tx_bytes: list[int] = field(default_factory=list)
     uart_tx_ready: int = 1
+    uart_rx_bytes: list[int] = field(default_factory=list)
+    uart_rx_ready: int = 0
+    uart_rx_data: int = 0
 
     def read_register(self, num: int) -> int:
         if 0 <= num <= 31:
@@ -163,7 +168,12 @@ class CPU:
         raise RuntimeError(f"Niepoprawny numer bool do zapisu: {num}")
 
     def read_data_mem(self, addr: int) -> int:
-        return self.data_mem[addr & 0xFF]
+        addr8 = addr & 0xFF
+        if addr8 == UART_RX_ADDR:
+            value = self.uart_rx_data & 0xFF
+            self.uart_rx_ready = 0
+            return value
+        return self.data_mem[addr8]
 
     def write_data_mem(self, addr: int, value: int):
         addr8 = addr & 0xFF
@@ -175,6 +185,8 @@ class CPU:
     def read_bool_mem(self, addr: int) -> int:
         if addr == UART_READY_BOOL_ADDR:
             return self.uart_tx_ready & 1
+        if addr == UART_RX_READY_BOOL_ADDR:
+            return self.uart_rx_ready & 1
         if not 0 <= addr < len(self.bool_mem):
             raise RuntimeError(f"Adres bool poza zakresem: {addr}")
         return self.bool_mem[addr]
@@ -188,6 +200,11 @@ class CPU:
         if BOOL_GPIO_PIN_BASE <= addr < BOOL_GPIO_PIN_BASE + BOOL_GPIO_PIN_COUNT and old != new:
             for listener in self.gpio_listeners:
                 listener(addr - BOOL_GPIO_PIN_BASE, new, self.cycle_count)
+
+    def push_uart_rx(self, value: int):
+        self.uart_rx_data = value & 0xFF
+        self.uart_rx_ready = 1
+        self.uart_rx_bytes.append(value & 0xFF)
 
     def load_program(self, words: list[int], start: int = 0):
         end = start + len(words)
@@ -236,9 +253,9 @@ class CPU:
         elif opcode == OPCODE_LOAD_L:
             self.write_register(field_rd(word), self.imem[self.pc + 1]); self.pc += 2
         elif opcode == OPCODE_LOAD_M:
-            self.write_register(field_rd(word), self.read_data_mem(self.read_register(field_rs(word)))); self.pc += 1
+            self.write_register(field_rd(word), self.read_data_mem(self.read_register(field_rs(word)) + field_i_imm(word))); self.pc += 1
         elif opcode == OPCODE_SAVE_M:
-            addr = self.read_register(field_rs(word))
+            addr = self.read_register(field_rs(word)) + field_i_imm(word)
             if (addr & 0xFF) == UART_TX_ADDR and not self.uart_tx_ready:
                 self.cycle_count += 1
                 return
@@ -350,9 +367,13 @@ def disassemble(word: int, second_word: int = None) -> str:
     if opcode == OPCODE_LOAD_L:
         return f"{pred}move {reg_name(field_rd(word))}, 0x{second_word:08x}" if second_word is not None else f"{pred}move {reg_name(field_rd(word))}, <next>"
     if opcode == OPCODE_LOAD_M:
-        return f"{pred}move {reg_name(field_rd(word))}, @{reg_name(field_rs(word))}"
+        off = field_i_imm(word)
+        suffix = "" if off == 0 else (f"+{off}" if off > 0 else str(off))
+        return f"{pred}move {reg_name(field_rd(word))}, @{reg_name(field_rs(word))}{suffix}"
     if opcode == OPCODE_SAVE_M:
-        return f"{pred}move @{reg_name(field_rs(word))}, {reg_name(field_rd(word))}"
+        off = field_i_imm(word)
+        suffix = "" if off == 0 else (f"+{off}" if off > 0 else str(off))
+        return f"{pred}move @{reg_name(field_rs(word))}{suffix}, {reg_name(field_rd(word))}"
     if opcode == OPCODE_LOAD_MD:
         return f"{pred}move {reg_name(field_rd(word))}, @{field_md_imm(word)}"
     if opcode == OPCODE_SAVE_MD:

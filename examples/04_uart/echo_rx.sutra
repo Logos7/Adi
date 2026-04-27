@@ -1,0 +1,7 @@
+; Echo UART RX -> TX.
+; W terminalu wpisz tekst i naciśnij Wyślij.
+
+loop:
+    read_rx r0
+    write_tx r0
+    jump loop

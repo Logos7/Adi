@@ -7,7 +7,7 @@ Sutra .sutra → assembler → program.hex → Brahma-Bija RTL → Tang Nano 20K
                          ↘ symulator Python / testy
 ```
 
-## Brahma-Bija / Sutra v1.3.2
+## Brahma-Bija / Sutra v1.4.0
 
 Najważniejsze zasady składni:
 
@@ -21,6 +21,8 @@ move r4, @7           ; pamięć pod adresem 7
 move @7, r4
 move r5, @r6          ; pamięć pod adresem trzymanym w r6
 move @uart_tx, r0     ; MMIO UART TX
+move b0, @uart_rx_ready
+move r0, @uart_rx      ; MMIO UART RX
 move @led0, low       ; LED świeci, bo LED-y Tang Nano 20K są aktywne niskim stanem
 move b0, @uart_ready
 ```
@@ -29,7 +31,7 @@ Czyli:
 
 ```text
 wartość          → bez prefiksu: 123, 1.0, π, true, high
-pamięć / IO      → @: @7, @uart_tx, @led0, @r1
+pamięć / IO      → @: @7, @uart_tx, @uart_rx, @led0, @r1, @r1+4
 adres jako liczba → &: &uart_tx, &led0, &pin15
 ```
 
@@ -146,7 +148,7 @@ Albo GUI/viewer:
 py apps\Adi.UartViewer\adi_uart_viewer.py
 ```
 
-W v1.3.2 po konfiguracji FPGA CPU czeka w bootloaderze na pierwszy upload. `LED0` powinien świecić. Po udanym uploadzie program startuje i może wysyłać obraz przez UART.
+W v1.4.0 po konfiguracji FPGA CPU czeka w bootloaderze na pierwszy upload. `LED0` powinien świecić. Po udanym uploadzie program startuje i może wysyłać obraz przez UART.
 
 ## UART / Mandelbrot
 
@@ -198,6 +200,42 @@ Synthesize → Place & Route → Programmer
 py cores\bija\tests\test_symbolic_constants.py
 py cores\bija\tests\test_mandelbrot_uart.py
 ```
+
+
+## v1.4.0 — runtime UART RX
+
+CPU potrafi teraz odbierać bajty z PC w działającym programie:
+
+```asm
+loop:
+    read_rx r0
+    write_tx r0
+    jump loop
+```
+
+Nowe MMIO i makra:
+
+```text
+@uart_rx
+@uart_rx_ready
+wait_rx
+read_rx rX
+wait_uart
+write_tx rX
+beq/bne/blt/ble/bgt/bge
+inc/dec/neg/fneg
+imin/imax/fmin/fmax
+@rX+offset
+```
+
+Przykłady:
+
+```powershell
+py tools\sutra_upload.py COM9 examples_uart\echo_rx.sutra --graphics off
+py apps\Adi.UartViewerdi_uart_viewer.py
+```
+
+W terminalu GUI możesz teraz wysyłać tekst do FPGA bez reuploadu programu.
 
 ## v1.3 — UART bootloader
 

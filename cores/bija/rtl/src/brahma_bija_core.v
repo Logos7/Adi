@@ -15,6 +15,8 @@ module brahma_bija_core (
     input  wire        uart_tx_ready,
     output reg         uart_tx_valid,
     output reg  [7:0]  uart_tx_data,
+    input  wire        uart_rx_valid,
+    input  wire [7:0]  uart_rx_data,
 
     input  wire        boot_we,
     input  wire [9:0]  boot_addr,
@@ -43,7 +45,9 @@ module brahma_bija_core (
     localparam [5:0] OP_HALT     = 6'h3F;
 
     localparam [7:0] UART_TX_ADDR = 8'hF0;
+    localparam [7:0] UART_RX_ADDR = 8'hF1;
     localparam [13:0] UART_READY_BOOL_ADDR = 14'd128;
+    localparam [13:0] UART_RX_READY_BOOL_ADDR = 14'd129;
 
     localparam [6:0] FUNCT_IADD   = 7'h00;
     localparam [6:0] FUNCT_ISUB   = 7'h01;
@@ -100,6 +104,8 @@ module brahma_bija_core (
     reg [31:0] instr;
     reg [31:0] instr2;
     reg [31:0] wait_counter;
+    reg [7:0]  uart_rx_buf;
+    reg        uart_rx_pending;
 
     integer i;
 
@@ -250,6 +256,8 @@ module brahma_bija_core (
         begin
             if (addr == UART_READY_BOOL_ADDR) begin
                 read_bool_mem = uart_tx_ready;
+            end else if (addr == UART_RX_READY_BOOL_ADDR) begin
+                read_bool_mem = uart_rx_pending;
             end else if (addr < 14'd128) begin
                 read_bool_mem = bool_mem[addr[6:0]];
             end else begin
@@ -303,8 +311,10 @@ module brahma_bija_core (
             instr2       <= 32'd0;
             addr8_work   <= 8'd0;
             addr14_work  <= 14'd0;
-            uart_tx_valid <= 1'b0;
-            uart_tx_data  <= 8'd0;
+            uart_tx_valid  <= 1'b0;
+            uart_tx_data   <= 8'd0;
+            uart_rx_buf    <= 8'd0;
+            uart_rx_pending <= 1'b0;
 
             for (i = 0; i < 32; i = i + 1) begin
                 gpr[i] <= 32'd0;
@@ -404,7 +414,12 @@ module brahma_bija_core (
                             OP_LOAD_M: begin
                                 if (rd_field <= 5'd31) begin
                                     addr8_work = data_addr(rs_field, i_imm);
-                                    gpr[rd_field] <= data_mem[addr8_work];
+                                    if (addr8_work == UART_RX_ADDR) begin
+                                        gpr[rd_field] <= {24'd0, uart_rx_buf};
+                                        uart_rx_pending <= 1'b0;
+                                    end else begin
+                                        gpr[rd_field] <= data_mem[addr8_work];
+                                    end
                                 end
                                 pc    <= pc + 32'd1;
                                 state <= S_FETCH;
@@ -430,7 +445,12 @@ module brahma_bija_core (
 
                             OP_LOAD_MD: begin
                                 if (rd_field <= 5'd31) begin
-                                    gpr[rd_field] <= data_mem[md_imm[7:0]];
+                                    if (md_imm[7:0] == UART_RX_ADDR) begin
+                                        gpr[rd_field] <= {24'd0, uart_rx_buf};
+                                        uart_rx_pending <= 1'b0;
+                                    end else begin
+                                        gpr[rd_field] <= data_mem[md_imm[7:0]];
+                                    end
                                 end
                                 pc    <= pc + 32'd1;
                                 state <= S_FETCH;

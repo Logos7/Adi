@@ -327,6 +327,7 @@ def run_text_window(
     ser = serial.Serial(port, baudrate=baud, timeout=0.01, write_timeout=2.0)
     file_var = tk.StringVar(value=upload or os.path.join("examples", "04_uart", "hello_loop.sutra"))
     status_var = tk.StringVar(value=f"Terminal UART {port} @ {baud}. Tryb zwykły: bez patchowania WIDTH/HEIGHT/ITER.")
+    send_var = tk.StringVar(value="")
 
     top = ttk.Frame(root, padding=8)
     top.pack(fill="x")
@@ -378,6 +379,30 @@ def run_text_window(
 
     ttk.Button(top, text="Upload / przeładuj zwykły program", command=do_upload).grid(row=1, column=0, columnspan=2, sticky="we", pady=(8, 0))
     ttk.Button(top, text="Wyczyść terminal", command=lambda: term.delete("1.0", "end")).grid(row=1, column=2, sticky="we", pady=(8, 0))
+
+    send_frame = ttk.Frame(root, padding=(8, 0, 8, 8))
+    send_frame.pack(fill="x")
+    ttk.Label(send_frame, text="Wyślij do FPGA:").pack(side="left")
+    send_entry = ttk.Entry(send_frame, textvariable=send_var)
+    send_entry.pack(side="left", fill="x", expand=True, padx=6)
+
+    def do_send(add_newline: bool = False):
+        text = send_var.get()
+        if add_newline:
+            text += "\n"
+        if not text:
+            return
+        data = text.encode("utf-8", errors="replace")
+        ser.write(data)
+        ser.flush()
+        write_log(f"\n[TX] {data!r}\n")
+        send_var.set("")
+
+    ttk.Button(send_frame, text="Wyślij", command=lambda: do_send(False)).pack(side="left")
+    ttk.Button(send_frame, text="Wyślij + LF", command=lambda: do_send(True)).pack(side="left", padx=(4, 0))
+    send_entry.bind("<Return>", lambda _e: do_send(False))
+    send_entry.bind("<Control-Return>", lambda _e: do_send(True))
+
     top.columnconfigure(1, weight=1)
 
     ttk.Label(root, textvariable=status_var).pack(fill="x", padx=8, pady=(0, 8))

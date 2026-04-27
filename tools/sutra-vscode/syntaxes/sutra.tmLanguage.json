@@ -66,7 +66,7 @@
       "name": "constant.other.address.sutra"
     },
     "memory": {
-      "match": "@(?:[rR](?:[12]?[0-9]|3[01])|[tT][0-7]|[A-Za-z_][A-Za-z0-9_]*|pin[0-9]+|inpin[0-9]+|0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+)",
+      "match": "@(?:[rR](?:[12]?[0-9]|3[01])(?:[+-][0-9]+)?|[tT][0-7](?:[+-][0-9]+)?|[A-Za-z_][A-Za-z0-9_]*|pin[0-9]+|inpin[0-9]+|0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+)",
       "name": "storage.modifier.memory.sutra"
     },
     "registers": {
