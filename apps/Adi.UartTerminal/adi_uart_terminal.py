@@ -16,7 +16,50 @@ except ImportError:
     print("Brak pyserial. Zainstaluj: py -m pip install pyserial", file=sys.stderr)
     raise SystemExit(2)
 
-from sutra_upload import assemble_file, upload_words
+from sutra_upload import ACK_ERR, ACK_OK, ACK_READY, assemble_file, upload_words
+
+
+BOOT_ACKS = (ACK_READY, ACK_OK, ACK_ERR)
+BOOT_PREFIX = b"ADI_BOOT_"
+
+
+class BootNoiseFilter:
+    def __init__(self) -> None:
+        self._buf = bytearray()
+
+    def feed(self, data: bytes) -> bytes:
+        if not data:
+            return b""
+
+        self._buf += data
+        out = bytearray()
+
+        while self._buf:
+            removed = False
+            for ack in BOOT_ACKS:
+                if self._buf.startswith(ack):
+                    del self._buf[:len(ack)]
+                    removed = True
+                    break
+            if removed:
+                continue
+
+            if any(ack.startswith(bytes(self._buf)) for ack in BOOT_ACKS):
+                break
+
+            if self._buf.startswith(BOOT_PREFIX):
+                nl = self._buf.find(b"\n")
+                if nl < 0:
+                    if len(self._buf) < 80:
+                        break
+                    out.append(self._buf.pop(0))
+                    continue
+                del self._buf[:nl + 1]
+                continue
+
+            out.append(self._buf.pop(0))
+
+        return bytes(out)
 
 
 def available_ports() -> list[str]:
@@ -54,14 +97,22 @@ def upload_text_program(port: str, baud: int, path: str, boot_timeout: float, ac
 def run_cli(port: str, baud: int, upload: str | None, boot_timeout: float, ack_timeout: float) -> None:
     if upload:
         upload_text_program(port, baud, resolve_path(upload), boot_timeout, ack_timeout)
+
+    noise = BootNoiseFilter()
     with serial.Serial(port, baudrate=baud, timeout=0.02, write_timeout=2.0) as ser:
+        try:
+            ser.reset_input_buffer()
+        except Exception:
+            pass
         print(f"Adi UART Terminal: {port} @ {baud}. Ctrl+C kończy.")
         try:
             while True:
                 data = ser.read(4096)
                 if data:
-                    sys.stdout.write(data.decode("utf-8", errors="replace"))
-                    sys.stdout.flush()
+                    clean = noise.feed(data)
+                    if clean:
+                        sys.stdout.write(clean.decode("utf-8", errors="replace"))
+                        sys.stdout.flush()
                 time.sleep(0.005)
         except KeyboardInterrupt:
             print()
@@ -84,6 +135,7 @@ def run_gui(default_port: str | None, default_upload: str | None, default_baud: 
     status_var = tk.StringVar(value="Rozłączony")
 
     ser_ref: dict[str, serial.Serial | None] = {"ser": None}
+    noise = BootNoiseFilter()
 
     top = ttk.Frame(root, padding=8)
     top.pack(fill="x")
@@ -146,19 +198,26 @@ def run_gui(default_port: str | None, default_upload: str | None, default_baud: 
             except Exception:
                 pass
 
-    def open_serial() -> None:
+    def open_serial(clear_buffers: bool = True) -> None:
         close_serial()
         port = port_var.get().strip()
         if not port:
             raise ValueError("Brak portu COM")
         baud = current_baud()
-        ser_ref["ser"] = serial.Serial(port, baudrate=baud, timeout=0.01, write_timeout=2.0)
+        ser = serial.Serial(port, baudrate=baud, timeout=0.01, write_timeout=2.0)
+        ser_ref["ser"] = ser
+        if clear_buffers:
+            try:
+                ser.reset_input_buffer()
+                ser.reset_output_buffer()
+            except Exception:
+                pass
         status_var.set(f"Połączony: {port} @ {baud}")
         log(f"\n[OPEN] {port} @ {baud}\n")
 
     def connect() -> None:
         try:
-            open_serial()
+            open_serial(clear_buffers=True)
         except Exception as e:
             messagebox.showerror("Połączenie", str(e))
             status_var.set("Błąd połączenia")
@@ -179,14 +238,14 @@ def run_gui(default_port: str | None, default_upload: str | None, default_baud: 
             root.update_idletasks()
             upload_text_program(port, baud, path, boot_timeout, ack_timeout)
             log("[UPLOAD OK]\n")
-            open_serial()
+            open_serial(clear_buffers=True)
             status_var.set("Upload OK, terminal połączony")
         except SystemExit as e:
             status_var.set("Upload ERR")
             log(f"[UPLOAD ERR] {e}\n")
             messagebox.showerror("Upload", str(e))
             try:
-                open_serial()
+                open_serial(clear_buffers=True)
             except Exception:
                 pass
         except Exception as e:
@@ -194,7 +253,7 @@ def run_gui(default_port: str | None, default_upload: str | None, default_baud: 
             log(f"[UPLOAD ERR] {e}\n")
             messagebox.showerror("Upload", str(e))
             try:
-                open_serial()
+                open_serial(clear_buffers=True)
             except Exception:
                 pass
 
@@ -216,16 +275,18 @@ def run_gui(default_port: str | None, default_upload: str | None, default_baud: 
         ser = ser_ref["ser"]
         if ser is None or not ser.is_open:
             try:
-                open_serial()
+                open_serial(clear_buffers=True)
                 ser = ser_ref["ser"]
             except Exception as e:
                 messagebox.showerror("Wyślij", str(e))
                 return
+
         text = send_var.get()
         if add_lf:
             text += "\n"
         if not text:
             return
+
         data = text.encode("utf-8", errors="replace")
         try:
             ser.write(data)
@@ -249,7 +310,9 @@ def run_gui(default_port: str | None, default_upload: str | None, default_baud: 
             try:
                 data = ser.read(4096)
                 if data:
-                    log(data.decode("utf-8", errors="replace"))
+                    clean = noise.feed(data)
+                    if clean:
+                        log(clean.decode("utf-8", errors="replace"))
             except Exception as e:
                 log(f"\n[RX ERR] {e}\n")
                 disconnect()

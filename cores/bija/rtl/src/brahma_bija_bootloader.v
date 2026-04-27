@@ -2,12 +2,13 @@
 // brahma_bija_bootloader.v
 // UART bootloader dla Brahma-Bija.
 //
-// v1.3.4:
+// v1.4.3:
 //   - timeout albo ERR NIE wypuszcza CPU
 //   - CPU startuje dopiero po poprawnym ADI_BOOT_OK
 //   - po konfiguracji FPGA loader czeka w S_IDLE z hold_reset=1
 //   - kolejne ADI! podczas pracy zatrzymuje CPU i przejmuje RAM programu
 //   - naprawiony handshake TX: ACK nie gubi co drugiego znaku
+//   - S_VERSION ignoruje spóźnione bajty ADI! po READY
 // Verilog-2001 / Gowin-safe.
 // =============================================================================
 
@@ -211,7 +212,18 @@ module brahma_bija_bootloader #(
                     if (rx_valid) begin
                         touch_timeout;
                         if (rx_data == 8'd1) begin
+                            magic_idx <= 2'd0;
                             state <= S_COUNT0;
+                        end else if (
+                            rx_data == 8'h41 ||  // stale 'A' from repeated ADI!
+                            rx_data == 8'h44 ||  // stale 'D'
+                            rx_data == 8'h49 ||  // stale 'I'
+                            rx_data == 8'h21     // stale '!'
+                        ) begin
+                            // Host spams ADI! while waiting for READY. Some bytes can still be
+                            // in flight when we enter S_VERSION. Ignore them instead of turning
+                            // a valid upload into ADI_BOOT_ERR.
+                            state <= S_VERSION;
                         end else begin
                             ack_success <= 1'b0;
                             ack_index   <= 4'd0;
