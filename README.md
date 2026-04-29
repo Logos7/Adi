@@ -40,11 +40,13 @@ Adi/
         test_v14_macros_uart_rx.py
 
   examples/
-    00_basics/
-    04_uart/
-      echo_rx.sutra
-      command_led.sutra
-    05_fractals/
+    bija/
+      00_basics/
+      01_memory/
+      02_math/
+      03_complex/
+      04_uart/
+      05_fractals/
 
   sutra/
     sutra/
@@ -97,7 +99,7 @@ This tool is intended for graphical UART output and resolution/iteration control
 Use it for programs such as:
 
 ```text
-examples/05_fractals/*.sutra
+examples/bija/05_fractals/*.sutra
 ```
 
 ### Text UART terminal
@@ -111,7 +113,7 @@ py apps/Adi.UartTerminal/adi_uart_terminal.py
 Upload and open terminal:
 
 ```powershell
-py apps/Adi.UartTerminal/adi_uart_terminal.py COM9 examples/04_uart/echo_rx.sutra
+py apps/Adi.UartTerminal/adi_uart_terminal.py COM9 examples/bija/04_uart/echo_rx.sutra
 ```
 
 The text terminal does not parse `ADI0` graphics frames and does not patch width/height/iteration constants.
@@ -119,9 +121,9 @@ The text terminal does not parse `ADI0` graphics frames and does not patch width
 Use it for programs such as:
 
 ```text
-examples/04_uart/echo_rx.sutra
-examples/04_uart/command_led.sutra
-examples/00_basics/*.sutra
+examples/bija/04_uart/echo_rx.sutra
+examples/bija/04_uart/command_led.sutra
+examples/bija/00_basics/*.sutra
 ```
 
 ## Upload program manually
@@ -129,13 +131,13 @@ examples/00_basics/*.sutra
 Text program:
 
 ```powershell
-py tools/sutra_upload.py COM9 examples/04_uart/echo_rx.sutra --graphics off
+py tools/sutra_upload.py COM9 examples/bija/04_uart/echo_rx.sutra --graphics off
 ```
 
 Graphics/fractal program:
 
 ```powershell
-py tools/sutra_upload.py COM9 examples/05_fractals/julia_uart.sutra --width 96 --height 64 --max-iter 80 --graphics auto
+py tools/sutra_upload.py COM9 examples/bija/05_fractals/julia_uart.sutra --width 96 --height 64 --max-iter 80 --graphics auto
 ```
 
 ## UART bootloader behavior
@@ -250,7 +252,7 @@ move @r1+4, r0
 ### Echo RX
 
 ```powershell
-py apps/Adi.UartTerminal/adi_uart_terminal.py COM9 examples/04_uart/echo_rx.sutra
+py apps/Adi.UartTerminal/adi_uart_terminal.py COM9 examples/bija/04_uart/echo_rx.sutra
 ```
 
 Type text into the terminal input field. The FPGA should echo received characters back.
@@ -258,7 +260,7 @@ Type text into the terminal input field. The FPGA should echo received character
 ### Command LED
 
 ```powershell
-py apps/Adi.UartTerminal/adi_uart_terminal.py COM9 examples/04_uart/command_led.sutra
+py apps/Adi.UartTerminal/adi_uart_terminal.py COM9 examples/bija/04_uart/command_led.sutra
 ```
 
 This example is intended for simple runtime command control over UART.

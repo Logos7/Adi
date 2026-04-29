@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """
-Adi UART Viewer — odbiornik UART/uploader dla Brahma-Bija.
+Adi UART Viewer — UART receiver/uploader for Brahma-Bija.
 
 GUI:
     py apps/Adi.UartViewer/adi_uart_viewer.py
 
-CLI, obraz:
-    py apps/Adi.UartViewer/adi_uart_viewer.py COM9 --upload examples/05_fractals/julia_uart.sutra --width 96 --height 64 --max-iter 80 --scale 4
+CLI, image:
+    py apps/Adi.UartViewer/adi_uart_viewer.py COM9 --upload examples/bija/05_fractals/julia_uart.sutra --width 96 --height 64 --max-iter 80 --scale 4
 
-CLI, tekst:
+CLI, text:
     py apps/Adi.UartViewer/adi_uart_viewer.py COM9 --text
 
-Protokół ramek:
-    magic: 4 bajty  b"ADI0"
-    width: 1 bajt
-    height: 1 bajt
-    pixels: width*height bajtów
+Frame protocol:
+    magic: 4 bytes  b"ADI0"
+    width: 1 byte
+    height: 1 byte
+    pixels: width*height bytes
 """
 
 from __future__ import annotations
@@ -171,7 +171,7 @@ def run_frames(
     image_ref = {"img": None}
     frame_counter = {"n": 0}
 
-    file_var = tk.StringVar(value=upload or os.path.join("examples", "05_fractals", "julia_uart.sutra"))
+    file_var = tk.StringVar(value=upload or os.path.join("examples", "bija", "05_fractals", "julia_uart.sutra"))
     width_var = tk.StringVar(value=str(width if width is not None else 64))
     height_var = tk.StringVar(value=str(height if height is not None else 64))
     max_iter_var = tk.StringVar(value=str(max_iter))
@@ -189,7 +189,7 @@ def run_frames(
     def browse():
         path = filedialog.askopenfilename(
             title="Wybierz program Sutra",
-            initialdir=os.path.join(ROOT, "examples"),
+            initialdir=os.path.join(ROOT, "examples", "bija"),
             filetypes=[("Sutra", "*.sutra"), ("Wszystkie pliki", "*.*")],
         )
         if path:
@@ -339,7 +339,7 @@ def run_text_window(
     def browse():
         path = filedialog.askopenfilename(
             title="Wybierz program Sutra",
-            initialdir=os.path.join(ROOT, "examples"),
+            initialdir=os.path.join(ROOT, "examples", "bija"),
             filetypes=[("Sutra", "*.sutra"), ("Wszystkie pliki", "*.*")],
         )
         if path:
@@ -437,7 +437,7 @@ def run_launcher() -> None:
     ports = available_ports()
     port_var = tk.StringVar(value=choose_default_port(ports))
     baud_var = tk.StringVar(value="115200")
-    file_var = tk.StringVar(value=os.path.join("examples", "05_fractals", "julia_uart.sutra"))
+    file_var = tk.StringVar(value=os.path.join("examples", "bija", "05_fractals", "julia_uart.sutra"))
     width_var = tk.StringVar(value="64")
     height_var = tk.StringVar(value="64")
     scale_var = tk.StringVar(value="4")
@@ -472,7 +472,7 @@ def run_launcher() -> None:
     def browse():
         path = filedialog.askopenfilename(
             title="Wybierz program Sutra",
-            initialdir=os.path.join(ROOT, "examples"),
+            initialdir=os.path.join(ROOT, "examples", "bija"),
             filetypes=[("Sutra", "*.sutra"), ("Wszystkie pliki", "*.*")],
         )
         if path:

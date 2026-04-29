@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+"""
+Adi UART Terminal — text UART receiver/uploader for Brahma-Bija.
+
+GUI:
+    py apps/Adi.UartTerminal/adi_uart_terminal.py
+
+CLI:
+    py apps/Adi.UartTerminal/adi_uart_terminal.py COM9 examples/bija/04_uart/echo_rx.sutra
+"""
 from __future__ import annotations
 
 import argparse

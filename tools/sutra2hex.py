@@ -3,7 +3,7 @@
 sutra2hex — konwertuj plik .sutra do .hex (jeden 32-bit hex per linia, dla $readmemh).
 
 Użycie:
-    python tools/sutra2hex.py examples/05_fractals/mandelbrot_uart.sutra cores/bija/rtl/src/program.hex
+    python tools/sutra2hex.py examples/bija/05_fractals/mandelbrot_uart.sutra cores/bija/rtl/src/program.hex
     python tools/sutra2hex.py --list-instructions
 """
 

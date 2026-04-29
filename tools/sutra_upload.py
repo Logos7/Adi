@@ -3,10 +3,10 @@
 Sutra UART uploader dla Brahma-Bija bootloadera v1.4.3.
 
 Workflow bez resetu FPGA:
-    py tools/sutra_upload.py COM9 examples/04_uart/echo_rx.sutra --graphics off
+    py tools/sutra_upload.py COM9 examples/bija/04_uart/echo_rx.sutra --graphics off
 
 Parametryzacja przykładowych fraktali:
-    py tools/sutra_upload.py COM9 examples/05_fractals/mandelbrot_uart.sutra --width 96 --height 64 --max-iter 80
+    py tools/sutra_upload.py COM9 examples/bija/05_fractals/mandelbrot_uart.sutra --width 96 --height 64 --max-iter 80
 
 Protokół:
     1. host wysyła b"ADI!" aż FPGA odpowie b"ADI_BOOT_READY\n"
