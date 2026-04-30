@@ -8,14 +8,20 @@ Projekt Gowina:
 cores/bija/rtl/brahma_bija.gprj
 ```
 
-Aktualny `program.hex` jest tylko obrazem fallbackowym. Normalnie program Sutra można wgrywać przez UART bootloader bez przebudowy bitstreamu.
+Aktualny `program.hex` jest obrazem fallbackowym. Domyślnie jest to teraz program echo UART RX -> TX z:
+
+```text
+examples/bija/04_uart/echo_rx.sutra
+```
+
+Normalnie program Sutra można wgrywać przez UART bootloader bez przebudowy bitstreamu.
 
 ## Szybka przebudowa fallbackowego ROM
 
 Jeżeli chcesz zmienić `program.hex` i przebudować bitstream:
 
 ```powershell
-py tools\sutra2hex.py examples\bija\05_fractals\mandelbrot_uart.sutra cores\bija\rtl\src\program.hex
+py tools\sutra2hex.py examples\bija\04_uart\echo_rx.sutra cores\bija\rtl\src\program.hex
 ```
 
 Potem w Gowin najlepiej zrobić pełne odświeżenie:
@@ -64,7 +70,10 @@ W `brahma_bija_top.v` ustawione są obecnie:
 localparam [15:0] UART_CLKS_PER_BIT = 16'd234;
 localparam [15:0] BOOT_MAX_WORDS = 16'd1024;
 localparam [31:0] BOOT_BYTE_TIMEOUT_CLKS = 32'd270000000;
+localparam [31:0] BOOT_BLINK_HALF_PERIOD_CLKS = 32'd3375000;
 ```
+
+`BOOT_BLINK_HALF_PERIOD_CLKS` daje LED0 cztery pełne mrugnięcia na sekundę podczas oczekiwania bootloadera.
 
 ## UART bootloader
 
@@ -72,7 +81,7 @@ Po konfiguracji FPGA bootloader czeka na upload przez UART. Typowy przebieg:
 
 ```text
 FPGA configured
-LED0 świeci
+LED0 szybko mruga
 PC wysyła ADI!
 FPGA odpowiada ADI_BOOT_READY
 PC wysyła program
@@ -178,7 +187,7 @@ Jeżeli TX działa, ale bootloader nie odpowiada `ADI_BOOT_READY`, sprawdź kole
 2. Czy baud to 115200.
 3. Czy uart_rx jest poprawnie przypięty w .cst.
 4. Czy pin70 faktycznie trafia do RX FPGA na Twojej płytce.
-5. Czy LED0 świeci po konfiguracji FPGA.
+5. Czy LED0 szybko mruga po konfiguracji FPGA.
 6. Czy uploader spamuje ADI! do czasu odpowiedzi.
 ```
 
