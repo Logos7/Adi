@@ -1,8 +1,8 @@
-# Sutra VS Code extension
+# Sutra VS Code Extension
 
-Kolorowanie składni dla Sutra v1.2.
+Syntax highlighting for Sutra v1.2.
 
-Najważniejsze tokeny:
+## Main tokens
 
 ```asm
 move r0, π
@@ -11,11 +11,12 @@ move r2, &uart_tx
 move r3, @100
 move @uart_tx, 65
 move @led0, low
+
 cmp.feq b0, r1, 2.0, 0.0001
 fabs r4, r5
 ```
 
-Instalacja z katalogu projektu:
+## Installation from the project directory
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\install_sutra_vscode.ps1
