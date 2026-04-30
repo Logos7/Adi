@@ -3,10 +3,10 @@
 Adi UART Terminal — text UART receiver/uploader for Brahma-Bija.
 
 GUI:
-    py apps/Adi.UartTerminal/adi_uart_terminal.py
+    py apps/bija/uart_terminal.py
 
 CLI:
-    py apps/Adi.UartTerminal/adi_uart_terminal.py COM9 examples/bija/04_uart/echo_rx.sutra
+    py apps/bija/uart_terminal.py COM9 examples/bija/04_uart/echo_rx.sutra
 """
 from __future__ import annotations
 
@@ -170,7 +170,7 @@ def run_gui(default_port: str | None, default_upload: str | None, default_baud: 
     def browse() -> None:
         path = filedialog.askopenfilename(
             title="Wybierz program Sutra",
-            initialdir=os.path.join(ROOT, "examples"),
+            initialdir=os.path.join(ROOT, "examples", "bija"),
             filetypes=[("Sutra", "*.sutra"), ("Wszystkie pliki", "*.*")],
         )
         if path:

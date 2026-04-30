@@ -17,11 +17,11 @@ Adi is a small FPGA CPU / virtual machine project for Tang Nano 20K, written in 
 ```text
 Adi/
   apps/
-    Adi.UartViewer/
-      adi_uart_viewer.py
+    bija/
+      uart_viewer.py
+      uart_terminal.py
 
-    Adi.UartTerminal/
-      adi_uart_terminal.py
+    indra/
 
   cores/
     bija/
@@ -91,7 +91,7 @@ Remove-Item .\cores\bija\rtl\impl -Recurse -Force -ErrorAction SilentlyContinue
 Use this for framebuffer/fractal examples that emit `ADI0` frames:
 
 ```powershell
-py apps/Adi.UartViewer/adi_uart_viewer.py
+py apps/bija/uart_viewer.py
 ```
 
 This tool is intended for graphical UART output and resolution/iteration controls.
@@ -107,13 +107,13 @@ examples/bija/05_fractals/*.sutra
 Use this for normal text-based Sutra programs:
 
 ```powershell
-py apps/Adi.UartTerminal/adi_uart_terminal.py
+py apps/bija/uart_terminal.py
 ```
 
 Upload and open terminal:
 
 ```powershell
-py apps/Adi.UartTerminal/adi_uart_terminal.py COM9 examples/bija/04_uart/echo_rx.sutra
+py apps/bija/uart_terminal.py COM9 examples/bija/04_uart/echo_rx.sutra
 ```
 
 The text terminal does not parse `ADI0` graphics frames and does not patch width/height/iteration constants.
@@ -252,7 +252,7 @@ move @r1+4, r0
 ### Echo RX
 
 ```powershell
-py apps/Adi.UartTerminal/adi_uart_terminal.py COM9 examples/bija/04_uart/echo_rx.sutra
+py apps/bija/uart_terminal.py COM9 examples/bija/04_uart/echo_rx.sutra
 ```
 
 Type text into the terminal input field. The FPGA should echo received characters back.
@@ -260,7 +260,7 @@ Type text into the terminal input field. The FPGA should echo received character
 ### Command LED
 
 ```powershell
-py apps/Adi.UartTerminal/adi_uart_terminal.py COM9 examples/bija/04_uart/command_led.sutra
+py apps/bija/uart_terminal.py COM9 examples/bija/04_uart/command_led.sutra
 ```
 
 This example is intended for simple runtime command control over UART.
@@ -268,7 +268,7 @@ This example is intended for simple runtime command control over UART.
 ### Fractal viewer
 
 ```powershell
-py apps/Adi.UartViewer/adi_uart_viewer.py
+py apps/bija/uart_viewer.py
 ```
 
 Use the graphics viewer for programs that emit `ADI0` framebuffer frames.

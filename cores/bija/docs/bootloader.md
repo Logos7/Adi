@@ -25,19 +25,19 @@ Synthesize → Place & Route → Program
 Potem upload programu:
 
 ```powershell
-py tools\sutra_upload.py COM9 examples\05_fractals\julia_uart.sutra
+py tools\sutra_upload.py COM9 examples\bija\05_fractals\julia_uart.sutra
 ```
 
 Albo viewer z uploadem:
 
 ```powershell
-py apps\Adi.UartViewer\adi_uart_viewer.py COM9 --upload examples\05_fractals\julia_uart.sutra --scale 4
+py apps\bija\uart_viewer.py COM9 --upload examples\bija\05_fractals\julia_uart.sutra --scale 4
 ```
 
 Najwygodniej: odpal bez argumentów i wybierz port oraz plik w okienku:
 
 ```powershell
-py apps\Adi.UartViewer\adi_uart_viewer.py
+py apps\bija\uart_viewer.py
 ```
 
 ## Protokół v1.3.2

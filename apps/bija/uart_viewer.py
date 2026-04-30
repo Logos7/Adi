@@ -3,13 +3,13 @@
 Adi UART Viewer — UART receiver/uploader for Brahma-Bija.
 
 GUI:
-    py apps/Adi.UartViewer/adi_uart_viewer.py
+    py apps/bija/uart_viewer.py
 
 CLI, image:
-    py apps/Adi.UartViewer/adi_uart_viewer.py COM9 --upload examples/bija/05_fractals/julia_uart.sutra --width 96 --height 64 --max-iter 80 --scale 4
+    py apps/bija/uart_viewer.py COM9 --upload examples/bija/05_fractals/julia_uart.sutra --width 96 --height 64 --max-iter 80 --scale 4
 
 CLI, text:
-    py apps/Adi.UartViewer/adi_uart_viewer.py COM9 --text
+    py apps/bija/uart_viewer.py COM9 --text
 
 Frame protocol:
     magic: 4 bytes  b"ADI0"
