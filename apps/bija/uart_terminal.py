@@ -139,7 +139,7 @@ def run_gui(default_port: str | None, default_upload: str | None, default_baud: 
     ports = available_ports()
     port_var = tk.StringVar(value=default_port or choose_default_port(ports))
     baud_var = tk.StringVar(value=str(default_baud))
-    file_var = tk.StringVar(value=default_upload or os.path.join("examples", "04_uart", "echo_rx.sutra"))
+    file_var = tk.StringVar(value=default_upload or os.path.join("examples", "bija", "04_uart", "echo_rx.sutra"))
     send_var = tk.StringVar(value="")
     status_var = tk.StringVar(value="Rozłączony")
 

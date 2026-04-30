@@ -1,11 +1,21 @@
 # Brahma-Bija RTL
 
-RTL jest celowo napisany jako prosty **Verilog-2001** pod Gowin/Tang Nano 20K. Nie wymaga trybu SystemVerilog.
+RTL rdzenia Brahma-Bija jest celowo napisany jako prosty Verilog-2001 pod Gowin/Tang Nano 20K. Nie wymaga trybu SystemVerilog.
 
-Aktualny `program.hex` jest obrazem programu Sutra. Żeby zmienić program:
+Projekt Gowina:
+
+```text
+cores/bija/rtl/brahma_bija.gprj
+```
+
+Aktualny `program.hex` jest tylko obrazem fallbackowym. Normalnie program Sutra można wgrywać przez UART bootloader bez przebudowy bitstreamu.
+
+## Szybka przebudowa fallbackowego ROM
+
+Jeżeli chcesz zmienić `program.hex` i przebudować bitstream:
 
 ```powershell
-py tools\sutra2hex.py examples\05_fractals\mandelbrot_uart.sutra cores\bija\rtl\src\program.hex
+py tools\sutra2hex.py examples\bija\05_fractals\mandelbrot_uart.sutra cores\bija\rtl\src\program.hex
 ```
 
 Potem w Gowin najlepiej zrobić pełne odświeżenie:
@@ -13,21 +23,24 @@ Potem w Gowin najlepiej zrobić pełne odświeżenie:
 ```text
 zamknij Gowina
 usuń cores/bija/rtl/impl
-otwórz projekt
-Synthesize → Place & Route → Programmer
+otwórz cores/bija/rtl/brahma_bija.gprj
+Synthesize
+Place & Route
+Generate Bitstream
+Programmer
 ```
 
 Gowin potrafi trzymać stare artefakty, szczególnie gdy zmienił się tylko `program.hex`.
 
 ## Program ROM
 
-W `brahma_bija_core.v` program jest ładowany przez:
+W `brahma_bija_core.v` program fallbackowy jest ładowany przez:
 
 ```verilog
 $readmemh("src/program.hex", imem);
 ```
 
-Ścieżka jest względna względem projektu RTL Gowina. Nie dajemy ścieżki absolutnej, bo projekt ma być przenośny po rozpakowaniu w dowolnym katalogu.
+Ścieżka jest względna względem projektu RTL Gowina. Nie używamy ścieżek absolutnych, żeby projekt był przenośny.
 
 ## UART
 
@@ -35,29 +48,108 @@ $readmemh("src/program.hex", imem);
 baud: 115200
 format: 8N1
 clock: 27 MHz
-TX: pin69
+uart_tx: pin69
+uart_rx: pin70
 ```
 
-Sutra:
+Dla zegara 27 MHz i 115200 baud:
+
+```text
+27000000 / 115200 ~= 234
+```
+
+W `brahma_bija_top.v` ustawione są obecnie:
+
+```verilog
+localparam [15:0] UART_CLKS_PER_BIT = 16'd234;
+localparam [15:0] BOOT_MAX_WORDS = 16'd1024;
+localparam [31:0] BOOT_BYTE_TIMEOUT_CLKS = 32'd270000000;
+```
+
+## UART bootloader
+
+Po konfiguracji FPGA bootloader czeka na upload przez UART. Typowy przebieg:
+
+```text
+FPGA configured
+LED0 świeci
+PC wysyła ADI!
+FPGA odpowiada ADI_BOOT_READY
+PC wysyła program
+FPGA odpowiada ADI_BOOT_OK
+CPU startuje program
+```
+
+Jeżeli upload się nie uda, CPU powinien pozostać zatrzymany przez bootloader zamiast uruchamiać stary program.
+
+Upload bez Gowina:
+
+```powershell
+py tools\sutra_upload.py COM9 examples\bija\05_fractals\julia_uart.sutra --width 96 --height 64 --max-iter 80 --graphics auto
+```
+
+Viewer graficzny:
+
+```powershell
+py apps\bija\uart_viewer.py
+```
+
+Terminal tekstowy:
+
+```powershell
+py apps\bija\uart_terminal.py COM9 examples\bija\04_uart\echo_rx.sutra
+```
+
+## Runtime UART RX
+
+Program Sutra może odbierać bajty z PC podczas działania CPU.
+
+Ważne symbole:
+
+```text
+@uart_rx
+@uart_rx_ready
+@uart_tx
+@uart_ready
+```
+
+Minimalne echo:
 
 ```asm
-move @uart_tx, 65
-move b0, @uart_ready
+loop:
+    read_rx r0
+    write_tx r0
+    jump loop
 ```
 
-`@uart_ready` w RTL zwraca rzeczywisty stan nadajnika UART.
+Rozwinięte ręcznie:
+
+```asm
+loop:
+    move b0, @uart_rx_ready
+    (!b0) jump loop
+
+    move r0, @uart_rx
+
+wait_tx:
+    move b0, @uart_ready
+    (!b0) jump wait_tx
+
+    move @uart_tx, r0
+    jump loop
+```
 
 ## Bool/GPIO/LED
 
-Aktualny rdzeń ma:
+Rdzeń ma:
 
 ```text
 bool_mem[0..127]
 ```
 
-`@pinN` w Sutra oznacza **bool_mem[N]**. To nie jest automatyczne wyprowadzenie dowolnego fizycznego pinu FPGA. Fizyczne mapowanie jest zrobione w `brahma_bija_top.v`.
+`@pinN` w Sutra oznacza `bool_mem[N]`. To nie jest automatyczne wyprowadzenie dowolnego fizycznego pinu FPGA.
 
-Na Tang Nano 20K obecny top mapuje:
+Fizyczne mapowanie LED-ów jest w `brahma_bija_top.v`:
 
 ```text
 gpio_out[15] -> led[0] -> fizyczny pin15
@@ -68,44 +160,48 @@ gpio_out[19] -> led[4] -> fizyczny pin19
 gpio_out[20] -> led[5] -> fizyczny pin20
 ```
 
-LED-y są aktywne niskim stanem:
+LED-y na Tang Nano 20K są aktywne niskim stanem:
 
 ```asm
-move @led0, low    ; świeci
-move @led0, high   ; zgaszona
+move @led0, low
+move @led0, high
 ```
 
-## UART bootloader
+`low` świeci, `high` gasi.
 
-Od v1.3.1 top-level zawiera `uart_rx`, `uart_tx`, `uart_rx.v` i `brahma_bija_bootloader.v`.
+## Diagnostyka
 
-`program.hex` nadal jest inicjalnym fallbackiem przez `$readmemh("src/program.hex", imem)`, ale po uploadzie UART bootloader zapisuje nowe instrukcje do `imem` i resetuje CPU.
-
-Upload bez Gowina:
-
-```powershell
-py tools\sutra_upload.py COM9 examples_fractals\julia_uart.sutra
-```
-
-Viewer z GUI wybierania portu i pliku:
-
-```powershell
-py apps\Adi.UartViewerdi_uart_viewer.py
-```
-
-Parametry UART/bootloadera są w `src/brahma_bija_top.v`:
-
-```verilog
-localparam [15:0] UART_CLKS_PER_BIT = 16'd234;
-localparam [15:0] BOOT_MAX_WORDS = 16'd1024;
-localparam [31:0] BOOT_BYTE_TIMEOUT_CLKS = 32'd27000000;
-```
-
-Piny w `.cst`:
+Jeżeli TX działa, ale bootloader nie odpowiada `ADI_BOOT_READY`, sprawdź kolejno:
 
 ```text
-uart_tx = pin69
-uart_rx = pin70
+1. Czy PC używa właściwego COM.
+2. Czy baud to 115200.
+3. Czy uart_rx jest poprawnie przypięty w .cst.
+4. Czy pin70 faktycznie trafia do RX FPGA na Twojej płytce.
+5. Czy LED0 świeci po konfiguracji FPGA.
+6. Czy uploader spamuje ADI! do czasu odpowiedzi.
 ```
 
-Jeśli TX działa, ale bootloader nie odpowiada `ADI_BOOT_READY`, najpierw zweryfikuj `uart_rx` w constraintach/schemacie płytki.
+## Pliki RTL
+
+Najważniejsze pliki:
+
+```text
+cores/bija/rtl/src/brahma_bija_top.v
+cores/bija/rtl/src/brahma_bija_core.v
+cores/bija/rtl/src/brahma_bija_bootloader.v
+cores/bija/rtl/src/uart_rx.v
+cores/bija/rtl/src/uart_tx.v
+cores/bija/rtl/src/program.hex
+```
+
+Nie commitujemy artefaktów Gowina:
+
+```text
+cores/**/impl/
+*.fs
+*.bit
+*.bin
+*.rpt
+*.log
+```
