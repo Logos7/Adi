@@ -1,0 +1,13 @@
+; Sutra v1.4
+; LED sanity check.
+; Board LEDs are active-low: low = on, high = off.
+
+start:
+    move @led5, high
+
+loop:
+    move @led0, low
+    wait 13500000
+    move @led0, high
+    wait 13500000
+    jump loop

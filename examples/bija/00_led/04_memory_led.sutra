@@ -1,0 +1,32 @@
+; Sutra v1.4
+; Direct memory and indirect memory demo.
+; LED1 on means the direct memory check passed.
+; LED2 on means the indirect memory check passed.
+; low = on, high = off.
+
+start:
+    move @led0, low
+    move @led1, high
+    move @led2, high
+    move @led5, high
+
+    move r0, 123
+    move @10, r0
+    move r1, @10
+    cmp.eq b0, r1, 123
+
+    (b0) move @led1, low
+    (!b0) move @led5, low
+
+    move r2, 20
+    move r3, 77
+    move @r2, r3
+    move r4, @r2
+    cmp.eq b1, r4, 77
+
+    (b1) move @led2, low
+    (!b1) move @led5, low
+
+loop:
+    wait 27000000
+    jump loop

@@ -1,7 +1,21 @@
-; Sutra v1.4 â€” Tricorn / Mandelbar 64x64, maxIter=64
-; z = conjugate(z)^2 + c
+; Sutra v1.4
+; Emits ADI0 64x64 frame with maxIter=64.
+; Use apps/bija/uart_viewer.py.
+; LED0 = alive, LED3 = compute active, LED4 = frame output active.
+; low = on, high = off.
+
+
+; Julia set.
+; z0 = z, z1 = constant c = -0.8 + 0.156i.
+
 
 start:
+    move @led0, low
+    move @led3, low
+    move @led4, low
+    move @led5, high
+
+frame:
     move r0, 65
     write_tx r0
     move r0, 68
@@ -15,16 +29,19 @@ start:
     move r0, 64
     write_tx r0
 
+    move r2, -0.8
+    move r3, 0.156
+
     move r5, 0
-    move r3, -1.5
+    move r7, -1.5
 
 row_loop:
     move r4, 0
-    move r2, -2.0
+    move r6, -1.5
 
 col_loop:
-    move r0, 0.0
-    move r1, 0.0
+    fadd r0, r6, 0.0
+    fadd r1, r7, 0.0
     move r11, 0
 
 iter_loop:
@@ -32,7 +49,6 @@ iter_loop:
     bgt r8, 4.0, pixel_done
     bge r11, 64, pixel_done
 
-    fneg r1, r1
     cmul z0, z0, z0
     cadd z0, z0, z1
 
@@ -42,12 +58,13 @@ iter_loop:
 pixel_done:
     write_tx r11
 
-    fadd r2, r2, 0.046875
+    fadd r6, r6, 0.046875
     inc r4
     blt r4, 64, col_loop
 
-    fadd r3, r3, 0.046875
+    fadd r7, r7, 0.046875
     inc r5
     blt r5, 64, row_loop
 
-    jump start
+    move @led4, high
+    jump frame

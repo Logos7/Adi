@@ -1,0 +1,24 @@
+; Sutra v1.4
+; Complex macro demo.
+; z0 = 1 + 1i.
+; |z0|^2 should be close to 2.
+; LED1 on means the complex check passed.
+; low = on, high = off.
+
+start:
+    move @led0, low
+    move @led1, high
+    move @led5, high
+
+    move r0, 1.0
+    move r1, 1.0
+
+    cabs2 r8, z0
+    cmp.feq b0, r8, 2.0, 0.0001
+
+    (b0) move @led1, low
+    (!b0) move @led5, low
+
+loop:
+    wait 27000000
+    jump loop

@@ -299,14 +299,16 @@ def run_gui(defaults: ViewerDefaults) -> None:
                 return
 
             path, width, height, max_iter, _scale = current_params()
+            is_fractal = "fractals" in path.replace("\\", "/").lower()
+
             words = assemble_file(
                 path,
                 width=width,
                 height=height,
-                max_iter=max_iter,
+                max_iter=max_iter if is_fractal else None,
                 graphics="auto",
             )
-
+            
             status_var.set(f"Uploading: {os.path.basename(path)}")
             log(f"[UPLOAD] {path}\n")
             root.update_idletasks()

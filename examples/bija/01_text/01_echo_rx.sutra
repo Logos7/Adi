@@ -1,0 +1,19 @@
+; Sutra v1.4
+; UART echo.
+; Type text in apps/bija/uart_terminal.py and the CPU echoes each byte.
+; LED0 = alive, LED2 = RX/TX activity.
+; low = on, high = off.
+
+start:
+    move @led0, low
+    move @led2, high
+    move @led5, high
+
+loop:
+    read_rx r0
+
+    move @led2, low
+    write_tx r0
+    move @led2, high
+
+    jump loop

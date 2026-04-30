@@ -1,6 +1,15 @@
-; Sutra v1.4 â€” UART frame 64x64, pixel = x
+; Emits ADI0 frame: 'A' 'D' 'I' '0' 64 64, then 4096 pixel bytes.
+; Use apps/bija/uart_viewer.py.
+; LED0 = alive, LED4 = frame output active.
+; low = on, high = off.
+
 
 start:
+    move @led0, low
+    move @led4, low
+    move @led5, high
+
+frame:
     move r0, 65
     write_tx r0
     move r0, 68
@@ -15,8 +24,10 @@ start:
     write_tx r0
 
     move r5, 0
+
 row_loop:
     move r4, 0
+
 col_loop:
     move r0, r4
     write_tx r0
@@ -27,4 +38,7 @@ col_loop:
     inc r5
     blt r5, 64, row_loop
 
-    jump start
+    move @led4, high
+    wait 3000000
+    move @led4, low
+    jump frame

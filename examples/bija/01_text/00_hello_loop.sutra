@@ -1,0 +1,42 @@
+; Sutra v1.4
+; Text UART hello loop.
+; Use apps/bija/uart_terminal.py.
+; LED0 = alive, LED2 = TX activity.
+; low = on, high = off.
+
+start:
+    move @led0, low
+    move @led2, high
+    move @led5, high
+
+loop:
+    move @led2, low
+
+    move r0, 65
+    write_tx r0
+    move r0, 68
+    write_tx r0
+    move r0, 73
+    write_tx r0
+    move r0, 32
+    write_tx r0
+    move r0, 116
+    write_tx r0
+    move r0, 101
+    write_tx r0
+    move r0, 120
+    write_tx r0
+    move r0, 116
+    write_tx r0
+    move r0, 32
+    write_tx r0
+    move r0, 79
+    write_tx r0
+    move r0, 75
+    write_tx r0
+    move r0, 10
+    write_tx r0
+
+    move @led2, high
+    wait 27000000
+    jump loop

@@ -1,0 +1,29 @@
+; Sutra v1.4
+; Bool operations demo.
+; LED1 = b0 AND b1.
+; LED2 = b0 OR b1.
+; LED3 = b0 XOR b1.
+; low = on, high = off.
+
+start:
+    move @led0, low
+    move @led5, high
+
+loop:
+    move b0, true
+    move b1, false
+
+    band b2, b0, b1
+    bor  b3, b0, b1
+    bxor b4, b0, b1
+
+    bnot b2, b2
+    bnot b3, b3
+    bnot b4, b4
+
+    move @led1, b2
+    move @led2, b3
+    move @led3, b4
+
+    wait 27000000
+    jump loop
