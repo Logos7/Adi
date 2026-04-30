@@ -18,8 +18,9 @@ cores/**/*.tmp
 cores/**/*.bak
 
 # Editors
-.vscode/
-.idea/
+.vscode/*
+!.vscode/
+!.vscode/settings.json
 *.user
 *.suo
 

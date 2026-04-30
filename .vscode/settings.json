@@ -1,0 +1,14 @@
+{
+    "files.associations": {
+        "*.sutra": "sutra",
+        "*.cst": "tcl"
+    },
+    "python.analysis.extraPaths": [
+        "./tools",
+        "./sutra",
+        "./cores/bija"
+    ],
+    "files.exclude": {
+        "**/__pycache__": true
+    }
+}
