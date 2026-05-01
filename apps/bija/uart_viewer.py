@@ -8,7 +8,7 @@ Typical usage:
 
     py apps/bija/uart_viewer.py
 
-    py apps/bija/uart_viewer.py COM9 --upload examples/bija/05_fractals/julia_uart.sutra
+    py apps/bija/uart_viewer.py COM9 --upload examples/bija/fractals/julia_uart.sutra
 
 The text UART terminal is intentionally kept separate:
 
@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import colorsys
+import json
 import os
 import sys
 from dataclasses import dataclass
@@ -33,11 +34,60 @@ except ImportError:
     print("pySerial is missing. Install it with: py -m pip install pyserial", file=sys.stderr)
     raise SystemExit(2)
 
-from sutra_upload import assemble_file, upload_words_to_serial
+from sutra_upload import assemble_file, upload_words
 
 
-DEFAULT_SOURCE = os.path.join("examples", "bija", "05_fractals", "julia_uart.sutra")
+DEFAULT_SOURCE = os.path.join("examples", "bija", "fractals", "julia.sutra")
 MAGIC = b"ADI0"
+
+
+def app_state_file() -> str:
+    base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    return os.path.join(base, "Adi", "uart_viewer_state.json")
+
+
+def load_app_state() -> dict:
+    try:
+        with open(app_state_file(), "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_app_state(state: dict) -> None:
+    try:
+        path = app_state_file()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def default_browse_dir() -> str:
+    return os.path.join(ROOT, "examples", "bija")
+
+
+def load_last_sutra_dir() -> str:
+    state = load_app_state()
+    path = state.get("last_sutra_dir", "")
+
+    if isinstance(path, str) and os.path.isdir(path):
+        return path
+
+    return default_browse_dir()
+
+
+def save_last_sutra_dir(path: str) -> None:
+    if not path:
+        return
+
+    state = load_app_state()
+    state["last_sutra_dir"] = path
+    save_app_state(state)
 
 
 @dataclass
@@ -60,11 +110,13 @@ def available_ports() -> list[str]:
 
     def key(port: str) -> tuple[int, int | str]:
         upper = port.upper()
+
         if upper.startswith("COM"):
             try:
                 return 0, int(upper[3:])
             except ValueError:
                 return 0, 9999
+
         return 1, port
 
     return sorted(ports, key=key)
@@ -73,15 +125,19 @@ def available_ports() -> list[str]:
 def choose_default_port(ports: list[str]) -> str:
     if "COM9" in ports:
         return "COM9"
+
     if "COM8" in ports:
         return "COM8"
+
     return ports[0] if ports else "COM9"
 
 
 def resolve_path(path: str) -> str:
     path = path.strip()
+
     if not path:
         return os.path.join(ROOT, DEFAULT_SOURCE)
+
     return path if os.path.isabs(path) else os.path.join(ROOT, path)
 
 
@@ -97,21 +153,26 @@ def parse_int(value: str, name: str, min_value: int, max_value: int) -> int:
         x = int(value.strip())
     except Exception:
         raise ValueError(f"{name} must be an integer.")
+
     if x < min_value or x > max_value:
         raise ValueError(f"{name} must be in range {min_value}..{max_value}.")
+
     return x
 
 
 def optional_byte(value: str, name: str) -> int | None:
     text = value.strip()
+
     if not text:
         return None
+
     return parse_int(text, name, 1, 255)
 
 
 def mandelbrot_color(v: int, max_iter: int) -> str:
     if v >= max_iter:
         return "#000000"
+
     if v <= 0:
         return "#07133d"
 
@@ -120,13 +181,16 @@ def mandelbrot_color(v: int, max_iter: int) -> str:
     sat = 0.88
     val = 0.20 + 0.80 * (t ** 0.35)
     r, g, b = colorsys.hsv_to_rgb(hue, sat, val)
+
     return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
 
 
 def gray_color(v: int, max_iter: int) -> str:
     if v >= max_iter:
         return "#000000"
+
     x = int(255 * max(0, min(max_iter, v)) / max_iter)
+
     return f"#{x:02x}{x:02x}{x:02x}"
 
 
@@ -152,6 +216,7 @@ def run_gui(defaults: ViewerDefaults) -> None:
     status_var = tk.StringVar(value="Disconnected")
 
     ser_ref: dict[str, serial.Serial | None] = {"ser": None}
+    uploading_ref = {"active": False}
     buffer = bytearray()
     image_ref: dict[str, tk.PhotoImage | None] = {"img": None}
     frame_counter = {"n": 0}
@@ -163,6 +228,7 @@ def run_gui(defaults: ViewerDefaults) -> None:
     connection.pack(fill="x")
 
     ttk.Label(connection, text="Port").grid(row=0, column=0, sticky="w")
+
     port_box = ttk.Combobox(connection, textvariable=port_var, values=ports, width=16)
     port_box.grid(row=0, column=1, sticky="w", padx=(6, 12))
 
@@ -175,8 +241,10 @@ def run_gui(defaults: ViewerDefaults) -> None:
     def refresh_ports() -> None:
         new_ports = available_ports()
         port_box["values"] = new_ports
+
         if port_var.get() not in new_ports:
             port_var.set(choose_default_port(new_ports))
+
         log(f"[PORTS] {', '.join(new_ports) if new_ports else 'none'}\n")
 
     ttk.Button(connection, text="Refresh", command=refresh_ports).grid(row=0, column=2, sticky="w")
@@ -196,10 +264,12 @@ def run_gui(defaults: ViewerDefaults) -> None:
     def browse() -> None:
         path = filedialog.askopenfilename(
             title="Select Sutra program",
-            initialdir=os.path.join(ROOT, "examples", "bija"),
+            initialdir=load_last_sutra_dir(),
             filetypes=[("Sutra", "*.sutra"), ("All files", "*.*")],
         )
+
         if path:
+            save_last_sutra_dir(os.path.dirname(path))
             file_var.set(as_repo_path(path))
 
     ttk.Button(program, text="Browse", command=browse).grid(row=0, column=2, sticky="e")
@@ -244,34 +314,45 @@ def run_gui(defaults: ViewerDefaults) -> None:
         height = optional_byte(height_var.get(), "Height")
         max_iter = parse_int(max_iter_var.get(), "Max iter", 1, 255)
         scale = parse_int(scale_var.get(), "Scale", 1, 32)
+
         return path, width, height, max_iter, scale
 
     def close_serial() -> None:
         ser = ser_ref["ser"]
         ser_ref["ser"] = None
+
         if ser is not None:
             try:
                 ser.close()
             except Exception:
                 pass
 
-    def connect() -> None:
-        try:
-            close_serial()
-            port = port_var.get().strip()
-            if not port:
-                raise ValueError("Port is empty.")
-            baud = current_baud()
-            ser = serial.Serial(port, baudrate=baud, timeout=0.01, write_timeout=2.0)
-            ser_ref["ser"] = ser
+    def open_serial(clear_buffers: bool = True) -> None:
+        close_serial()
+
+        port = port_var.get().strip()
+
+        if not port:
+            raise ValueError("Port is empty.")
+
+        baud = current_baud()
+        ser = serial.Serial(port, baudrate=baud, timeout=0.01, write_timeout=2.0)
+        ser_ref["ser"] = ser
+
+        if clear_buffers:
             try:
                 ser.reset_input_buffer()
                 ser.reset_output_buffer()
             except Exception:
                 pass
-            buffer.clear()
-            status_var.set(f"Connected: {port} @ {baud}")
-            log(f"[OPEN] {port} @ {baud}\n")
+
+        buffer.clear()
+        status_var.set(f"Connected: {port} @ {baud}")
+        log(f"[OPEN] {port} @ {baud}\n")
+
+    def connect() -> None:
+        try:
+            open_serial(clear_buffers=True)
         except Exception as e:
             status_var.set("Connection error")
             messagebox.showerror("Connection", str(e))
@@ -290,16 +371,22 @@ def run_gui(defaults: ViewerDefaults) -> None:
         status_var.set("Cleared")
 
     def upload() -> None:
+        if uploading_ref["active"]:
+            return
+
+        uploading_ref["active"] = True
+
         try:
-            if ser_ref["ser"] is None or not ser_ref["ser"].is_open:
-                connect()
+            port = port_var.get().strip()
 
-            ser = ser_ref["ser"]
-            if ser is None:
-                return
+            if not port:
+                raise ValueError("Port is empty.")
 
+            baud = current_baud()
             path, width, height, max_iter, _scale = current_params()
             is_fractal = "fractals" in path.replace("\\", "/").lower()
+
+            close_serial()
 
             words = assemble_file(
                 path,
@@ -308,19 +395,14 @@ def run_gui(defaults: ViewerDefaults) -> None:
                 max_iter=max_iter if is_fractal else None,
                 graphics="auto",
             )
-            
+
             status_var.set(f"Uploading: {os.path.basename(path)}")
             log(f"[UPLOAD] {path}\n")
             root.update_idletasks()
 
-            try:
-                ser.reset_input_buffer()
-                ser.reset_output_buffer()
-            except Exception:
-                pass
-
-            upload_words_to_serial(
-                ser,
+            upload_words(
+                port,
+                baud,
                 words,
                 boot_timeout=defaults.boot_timeout,
                 ack_timeout=defaults.ack_timeout,
@@ -328,16 +410,34 @@ def run_gui(defaults: ViewerDefaults) -> None:
 
             buffer.clear()
             frame_counter["n"] = 0
+
+            open_serial(clear_buffers=False)
+
             status_var.set("Upload OK. Waiting for ADI0 frames...")
             log("[UPLOAD OK]\n")
+
         except SystemExit as e:
             status_var.set("Upload failed")
             log(f"[UPLOAD ERR] {e}\n")
             messagebox.showerror("Upload", str(e))
+
+            try:
+                open_serial(clear_buffers=True)
+            except Exception:
+                pass
+
         except Exception as e:
             status_var.set("Upload failed")
             log(f"[UPLOAD ERR] {e}\n")
             messagebox.showerror("Upload", str(e))
+
+            try:
+                open_serial(clear_buffers=True)
+            except Exception:
+                pass
+
+        finally:
+            uploading_ref["active"] = False
 
     ttk.Button(connection_buttons, text="Connect", command=connect).pack(side="left")
     ttk.Button(connection_buttons, text="Disconnect", command=disconnect).pack(side="left", padx=(6, 0))
@@ -346,24 +446,33 @@ def run_gui(defaults: ViewerDefaults) -> None:
     ttk.Button(actions, text="Clear", command=clear).pack(side="left", padx=(6, 0))
 
     def pump() -> None:
+        if uploading_ref["active"]:
+            root.after(10, pump)
+            return
+
         ser = ser_ref["ser"]
+
         if ser is not None and ser.is_open:
             try:
                 data = ser.read(4096)
+
                 if data:
                     buffer.extend(data)
                     parse_frames()
             except Exception as e:
                 log(f"[RX ERR] {e}\n")
                 disconnect()
+
         root.after(10, pump)
 
     def parse_frames() -> None:
         while True:
             magic_pos = buffer.find(MAGIC)
+
             if magic_pos < 0:
                 if len(buffer) > 3:
                     del buffer[:-3]
+
                 return
 
             if magic_pos > 0:
@@ -380,6 +489,7 @@ def run_gui(defaults: ViewerDefaults) -> None:
                 continue
 
             needed = 6 + width * height
+
             if len(buffer) < needed:
                 return
 
@@ -399,10 +509,12 @@ def run_gui(defaults: ViewerDefaults) -> None:
         img = tk.PhotoImage(width=width, height=height)
 
         rows = []
+
         for y in range(height):
             start = y * width
             row = [color_fn(pixels[start + x], max_iter) for x in range(width)]
             rows.append("{" + " ".join(row) + "}")
+
         img.put(" ".join(rows))
 
         image_ref["img"] = img.zoom(scale, scale)
@@ -450,10 +562,13 @@ def main() -> None:
 
     if not 1 <= args.width <= 255:
         raise SystemExit("width must be in range 1..255.")
+
     if not 1 <= args.height <= 255:
         raise SystemExit("height must be in range 1..255.")
+
     if not 1 <= args.max_iter <= 255:
         raise SystemExit("max-iter must be in range 1..255.")
+
     if not 1 <= args.scale <= 32:
         raise SystemExit("scale must be in range 1..32.")
 

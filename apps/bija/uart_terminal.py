@@ -8,16 +8,17 @@ Typical usage:
 
     py apps/bija/uart_terminal.py
 
-    py apps/bija/uart_terminal.py COM9 examples/bija/04_uart/echo_rx.sutra
+    py apps/bija/uart_terminal.py COM9 examples/bija/basics/echo_rx.sutra
 
 CLI mode:
 
-    py apps/bija/uart_terminal.py COM9 examples/bija/04_uart/echo_rx.sutra --no-gui
+    py apps/bija/uart_terminal.py COM9 examples/bija/basics/echo_rx.sutra --no-gui
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 import time
@@ -38,8 +39,57 @@ from sutra_upload import ACK_ERR, ACK_OK, ACK_READY, assemble_file, upload_words
 BOOT_ACKS = (ACK_READY, ACK_OK, ACK_ERR)
 BOOT_PREFIX = b"ADI_BOOT_"
 FRAME_MAGIC = b"ADI0"
-DEFAULT_SOURCE = os.path.join("examples", "bija", "04_uart", "echo_rx.sutra")
+DEFAULT_SOURCE = os.path.join("examples", "bija", "basics", "echo_rx.sutra")
 MAX_TERMINAL_CHARS = 200_000
+
+
+def app_state_file() -> str:
+    base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    return os.path.join(base, "Adi", "uart_terminal_state.json")
+
+
+def load_app_state() -> dict:
+    try:
+        with open(app_state_file(), "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_app_state(state: dict) -> None:
+    try:
+        path = app_state_file()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def default_browse_dir() -> str:
+    return os.path.join(ROOT, "examples", "bija")
+
+
+def load_last_sutra_dir() -> str:
+    state = load_app_state()
+    path = state.get("last_sutra_dir", "")
+
+    if isinstance(path, str) and os.path.isdir(path):
+        return path
+
+    return default_browse_dir()
+
+
+def save_last_sutra_dir(path: str) -> None:
+    if not path:
+        return
+
+    state = load_app_state()
+    state["last_sutra_dir"] = path
+    save_app_state(state)
 
 
 class TerminalRxFilter:
@@ -336,8 +386,8 @@ def run_gui(
 
     def trim_terminal() -> None:
         try:
-            chars = int(float(terminal.index("end-1c").split(".")[0]))
-            if chars > 8000:
+            chars = len(terminal.get("1.0", "end-1c"))
+            if chars > MAX_TERMINAL_CHARS:
                 terminal.delete("1.0", "2000.0")
         except Exception:
             pass
@@ -359,11 +409,12 @@ def run_gui(
     def browse() -> None:
         path = filedialog.askopenfilename(
             title="Select Sutra program",
-            initialdir=os.path.join(ROOT, "examples", "bija"),
+            initialdir=load_last_sutra_dir(),
             filetypes=[("Sutra", "*.sutra"), ("All files", "*.*")],
         )
 
         if path:
+            save_last_sutra_dir(os.path.dirname(path))
             file_var.set(as_repo_path(path))
 
     def current_baud() -> int:
