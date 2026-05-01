@@ -1,0 +1,38 @@
+; Emits ADI0 frame: 'A' 'D' 'I' '0' 64 64, then 4096 pixel bytes.
+; Use apps/bija/uart_viewer.py.
+
+frame:
+    move r0, 65
+    write_tx r0
+    move r0, 68
+    write_tx r0
+    move r0, 73
+    write_tx r0
+    move r0, 48
+    write_tx r0
+    move r0, 64
+    write_tx r0
+    move r0, 64
+    write_tx r0
+
+    move r5, 0
+
+row_loop:
+    move r4, 0
+
+col_loop:
+    isub r6, r4, 32
+    isub r7, r5, 32
+    imul r6, r6, r6
+    imul r7, r7, r7
+    iadd r0, r6, r7
+    shr r0, r0, 5
+    write_tx r0
+
+    inc r4
+    blt r4, 64, col_loop
+
+    inc r5
+    blt r5, 64, row_loop
+
+    jump frame
