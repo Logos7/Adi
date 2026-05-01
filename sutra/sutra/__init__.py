@@ -9,6 +9,7 @@ Brahma-Bija v1.4:
 - r0..r31 are real GPRs; t0..t7 are aliases for r24..r31 (scratch/volatile),
 - move dst, src is shared by word and bool values,
 - call/return use the hardware return stack in RTL,
+- fbclear/fbplot/fberase/fbpresent operate on a packed 64x64 1-bit framebuffer in data_mem,
 - cadd/csub/cmul/cabs2 and branch/wait/min/max are assembler macros.
 """
 
@@ -34,6 +35,10 @@ OPCODE_LOAD_BR = 0x23
 OPCODE_SAVE_BR = 0x24
 
 OPCODE_WAIT = 0x30
+OPCODE_FBCLEAR = 0x31
+OPCODE_FBPLOT = 0x32
+OPCODE_FBERASE = 0x33
+OPCODE_FBPRESENT = 0x34
 OPCODE_JUMP = 0x38
 OPCODE_CALL = 0x39
 OPCODE_RETURN = 0x3A
@@ -920,6 +925,27 @@ def assemble_instruction(mnemonic: str, operands: list[str], pred: int = PRED_AL
         if len(operands) != 0:
             raise AssemblerError("return does not take operands")
         return [encode_r_format(OPCODE_RETURN, pred=pred)]
+
+    if m == "FBCLEAR":
+        if len(operands) != 1:
+            raise AssemblerError("fbclear requires 1 operand: fbclear rBase")
+        base = parse_register(operands[0])
+        return [encode_r_format(OPCODE_FBCLEAR, base, 0, 0, 0, pred)]
+
+    if m == "FBPRESENT":
+        if len(operands) != 1:
+            raise AssemblerError("fbpresent requires 1 operand: fbpresent rBase")
+        base = parse_register(operands[0])
+        return [encode_r_format(OPCODE_FBPRESENT, base, 0, 0, 0, pred)]
+
+    if m in ("FBPLOT", "FBERASE"):
+        if len(operands) != 3:
+            raise AssemblerError(f"{m.lower()} requires 3 operands: {m.lower()} rBase, rX, rY")
+        base = parse_register(operands[0])
+        x = parse_register(operands[1])
+        y = parse_register(operands[2])
+        opcode = OPCODE_FBPLOT if m == "FBPLOT" else OPCODE_FBERASE
+        return [encode_r_format(opcode, base, x, y, 0, pred)]
 
     if m in ("CADD", "CSUB", "CMUL", "CABS2"):
         return encode_complex_macro(m, operands, pred)

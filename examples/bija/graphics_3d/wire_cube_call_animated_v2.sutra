@@ -1,0 +1,995 @@
+; Sutra v1.4 - large animated perspective wireframe cube.
+; Requires Brahma-Bija RTL and assembler with call/return support.
+; ADI0 viewer protocol: every animation step sends a full 64x64 frame.
+; Projection is precomputed; Sutra tests line equations while streaming pixels.
+; The animation ping-pongs through eight small-angle frames to avoid a hard wrap jump.
+
+start:
+    call send_frame_0
+    call send_frame_1
+    call send_frame_2
+    call send_frame_3
+    call send_frame_4
+    call send_frame_5
+    call send_frame_6
+    call send_frame_7
+    call send_frame_6
+    call send_frame_5
+    call send_frame_4
+    call send_frame_3
+    call send_frame_2
+    call send_frame_1
+    jump start
+
+send_frame_0:
+    call send_header
+    move r5, 0
+row_loop_0:
+    move r4, 0
+col_loop_0:
+    call cube_pixel_0
+    move r0, r11
+    call put_byte
+    inc r4
+    blt r4, 64, col_loop_0
+    inc r5
+    blt r5, 64, row_loop_0
+    return
+
+cube_pixel_0:
+    move r11, 0
+    ; edge 0: (7,44) -> (51,48)
+    move r6, 7
+    move r7, 44
+    move r8, 51
+    move r9, 48
+    move r10, 44
+    move r12, 48
+    call test_line
+    ; edge 1: (51,48) -> (51,9)
+    move r6, 51
+    move r7, 48
+    move r8, 51
+    move r9, 9
+    move r10, 9
+    move r12, 48
+    call test_line
+    ; edge 2: (14,7) -> (51,9)
+    move r6, 14
+    move r7, 7
+    move r8, 51
+    move r9, 9
+    move r10, 7
+    move r12, 9
+    call test_line
+    ; edge 3: (7,44) -> (14,7)
+    move r6, 7
+    move r7, 44
+    move r8, 14
+    move r9, 7
+    move r10, 7
+    move r12, 44
+    call test_line
+    ; edge 4: (18,47) -> (45,50)
+    move r6, 18
+    move r7, 47
+    move r8, 45
+    move r9, 50
+    move r10, 47
+    move r12, 50
+    call test_line
+    ; edge 5: (45,50) -> (46,24)
+    move r6, 45
+    move r7, 50
+    move r8, 46
+    move r9, 24
+    move r10, 24
+    move r12, 50
+    call test_line
+    ; edge 6: (21,23) -> (46,24)
+    move r6, 21
+    move r7, 23
+    move r8, 46
+    move r9, 24
+    move r10, 23
+    move r12, 24
+    call test_line
+    ; edge 7: (18,47) -> (21,23)
+    move r6, 18
+    move r7, 47
+    move r8, 21
+    move r9, 23
+    move r10, 23
+    move r12, 47
+    call test_line
+    ; edge 8: (7,44) -> (18,47)
+    move r6, 7
+    move r7, 44
+    move r8, 18
+    move r9, 47
+    move r10, 44
+    move r12, 47
+    call test_line
+    ; edge 9: (45,50) -> (51,48)
+    move r6, 45
+    move r7, 50
+    move r8, 51
+    move r9, 48
+    move r10, 48
+    move r12, 50
+    call test_line
+    ; edge 10: (46,24) -> (51,9)
+    move r6, 46
+    move r7, 24
+    move r8, 51
+    move r9, 9
+    move r10, 9
+    move r12, 24
+    call test_line
+    ; edge 11: (14,7) -> (21,23)
+    move r6, 14
+    move r7, 7
+    move r8, 21
+    move r9, 23
+    move r10, 7
+    move r12, 23
+    call test_line
+    return
+
+send_frame_1:
+    call send_header
+    move r5, 0
+row_loop_1:
+    move r4, 0
+col_loop_1:
+    call cube_pixel_1
+    move r0, r11
+    call put_byte
+    inc r4
+    blt r4, 64, col_loop_1
+    inc r5
+    blt r5, 64, row_loop_1
+    return
+
+cube_pixel_1:
+    move r11, 0
+    ; edge 0: (5,43) -> (48,47)
+    move r6, 5
+    move r7, 43
+    move r8, 48
+    move r9, 47
+    move r10, 43
+    move r12, 47
+    call test_line
+    ; edge 1: (48,47) -> (49,8)
+    move r6, 48
+    move r7, 47
+    move r8, 49
+    move r9, 8
+    move r10, 8
+    move r12, 47
+    call test_line
+    ; edge 2: (13,8) -> (49,8)
+    move r6, 13
+    move r7, 8
+    move r8, 49
+    move r9, 8
+    move r10, 8
+    move r12, 8
+    call test_line
+    ; edge 3: (5,43) -> (13,8)
+    move r6, 5
+    move r7, 43
+    move r8, 13
+    move r9, 8
+    move r10, 8
+    move r12, 43
+    call test_line
+    ; edge 4: (19,48) -> (47,51)
+    move r6, 19
+    move r7, 48
+    move r8, 47
+    move r9, 51
+    move r10, 48
+    move r12, 51
+    call test_line
+    ; edge 5: (47,51) -> (48,24)
+    move r6, 47
+    move r7, 51
+    move r8, 48
+    move r9, 24
+    move r10, 24
+    move r12, 51
+    call test_line
+    ; edge 6: (23,24) -> (48,24)
+    move r6, 23
+    move r7, 24
+    move r8, 48
+    move r9, 24
+    move r10, 24
+    move r12, 24
+    call test_line
+    ; edge 7: (19,48) -> (23,24)
+    move r6, 19
+    move r7, 48
+    move r8, 23
+    move r9, 24
+    move r10, 24
+    move r12, 48
+    call test_line
+    ; edge 8: (5,43) -> (19,48)
+    move r6, 5
+    move r7, 43
+    move r8, 19
+    move r9, 48
+    move r10, 43
+    move r12, 48
+    call test_line
+    ; edge 9: (47,51) -> (48,47)
+    move r6, 47
+    move r7, 51
+    move r8, 48
+    move r9, 47
+    move r10, 47
+    move r12, 51
+    call test_line
+    ; edge 10: (48,24) -> (49,8)
+    move r6, 48
+    move r7, 24
+    move r8, 49
+    move r9, 8
+    move r10, 8
+    move r12, 24
+    call test_line
+    ; edge 11: (13,8) -> (23,24)
+    move r6, 13
+    move r7, 8
+    move r8, 23
+    move r9, 24
+    move r10, 8
+    move r12, 24
+    call test_line
+    return
+
+send_frame_2:
+    call send_header
+    move r5, 0
+row_loop_2:
+    move r4, 0
+col_loop_2:
+    call cube_pixel_2
+    move r0, r11
+    call put_byte
+    inc r4
+    blt r4, 64, col_loop_2
+    inc r5
+    blt r5, 64, row_loop_2
+    return
+
+cube_pixel_2:
+    move r11, 0
+    ; edge 0: (4,42) -> (44,46)
+    move r6, 4
+    move r7, 42
+    move r8, 44
+    move r9, 46
+    move r10, 42
+    move r12, 46
+    call test_line
+    ; edge 1: (44,46) -> (47,6)
+    move r6, 44
+    move r7, 46
+    move r8, 47
+    move r9, 6
+    move r10, 6
+    move r12, 46
+    call test_line
+    ; edge 2: (13,9) -> (47,6)
+    move r6, 13
+    move r7, 9
+    move r8, 47
+    move r9, 6
+    move r10, 6
+    move r12, 9
+    call test_line
+    ; edge 3: (4,42) -> (13,9)
+    move r6, 4
+    move r7, 42
+    move r8, 13
+    move r9, 9
+    move r10, 9
+    move r12, 42
+    call test_line
+    ; edge 4: (21,48) -> (48,51)
+    move r6, 21
+    move r7, 48
+    move r8, 48
+    move r9, 51
+    move r10, 48
+    move r12, 51
+    call test_line
+    ; edge 5: (48,51) -> (50,24)
+    move r6, 48
+    move r7, 51
+    move r8, 50
+    move r9, 24
+    move r10, 24
+    move r12, 51
+    call test_line
+    ; edge 6: (26,25) -> (50,24)
+    move r6, 26
+    move r7, 25
+    move r8, 50
+    move r9, 24
+    move r10, 24
+    move r12, 25
+    call test_line
+    ; edge 7: (21,48) -> (26,25)
+    move r6, 21
+    move r7, 48
+    move r8, 26
+    move r9, 25
+    move r10, 25
+    move r12, 48
+    call test_line
+    ; edge 8: (4,42) -> (21,48)
+    move r6, 4
+    move r7, 42
+    move r8, 21
+    move r9, 48
+    move r10, 42
+    move r12, 48
+    call test_line
+    ; edge 9: (44,46) -> (48,51)
+    move r6, 44
+    move r7, 46
+    move r8, 48
+    move r9, 51
+    move r10, 46
+    move r12, 51
+    call test_line
+    ; edge 10: (47,6) -> (50,24)
+    move r6, 47
+    move r7, 6
+    move r8, 50
+    move r9, 24
+    move r10, 6
+    move r12, 24
+    call test_line
+    ; edge 11: (13,9) -> (26,25)
+    move r6, 13
+    move r7, 9
+    move r8, 26
+    move r9, 25
+    move r10, 9
+    move r12, 25
+    call test_line
+    return
+
+send_frame_3:
+    call send_header
+    move r5, 0
+row_loop_3:
+    move r4, 0
+col_loop_3:
+    call cube_pixel_3
+    move r0, r11
+    call put_byte
+    inc r4
+    blt r4, 64, col_loop_3
+    inc r5
+    blt r5, 64, row_loop_3
+    return
+
+cube_pixel_3:
+    move r11, 0
+    ; edge 0: (3,42) -> (39,46)
+    move r6, 3
+    move r7, 42
+    move r8, 39
+    move r9, 46
+    move r10, 42
+    move r12, 46
+    call test_line
+    ; edge 1: (39,46) -> (45,5)
+    move r6, 39
+    move r7, 46
+    move r8, 45
+    move r9, 5
+    move r10, 5
+    move r12, 46
+    call test_line
+    ; edge 2: (13,10) -> (45,5)
+    move r6, 13
+    move r7, 10
+    move r8, 45
+    move r9, 5
+    move r10, 5
+    move r12, 10
+    call test_line
+    ; edge 3: (3,42) -> (13,10)
+    move r6, 3
+    move r7, 42
+    move r8, 13
+    move r9, 10
+    move r10, 10
+    move r12, 42
+    call test_line
+    ; edge 4: (23,48) -> (49,52)
+    move r6, 23
+    move r7, 48
+    move r8, 49
+    move r9, 52
+    move r10, 48
+    move r12, 52
+    call test_line
+    ; edge 5: (49,52) -> (52,24)
+    move r6, 49
+    move r7, 52
+    move r8, 52
+    move r9, 24
+    move r10, 24
+    move r12, 52
+    call test_line
+    ; edge 6: (28,25) -> (52,24)
+    move r6, 28
+    move r7, 25
+    move r8, 52
+    move r9, 24
+    move r10, 24
+    move r12, 25
+    call test_line
+    ; edge 7: (23,48) -> (28,25)
+    move r6, 23
+    move r7, 48
+    move r8, 28
+    move r9, 25
+    move r10, 25
+    move r12, 48
+    call test_line
+    ; edge 8: (3,42) -> (23,48)
+    move r6, 3
+    move r7, 42
+    move r8, 23
+    move r9, 48
+    move r10, 42
+    move r12, 48
+    call test_line
+    ; edge 9: (39,46) -> (49,52)
+    move r6, 39
+    move r7, 46
+    move r8, 49
+    move r9, 52
+    move r10, 46
+    move r12, 52
+    call test_line
+    ; edge 10: (45,5) -> (52,24)
+    move r6, 45
+    move r7, 5
+    move r8, 52
+    move r9, 24
+    move r10, 5
+    move r12, 24
+    call test_line
+    ; edge 11: (13,10) -> (28,25)
+    move r6, 13
+    move r7, 10
+    move r8, 28
+    move r9, 25
+    move r10, 10
+    move r12, 25
+    call test_line
+    return
+
+send_frame_4:
+    call send_header
+    move r5, 0
+row_loop_4:
+    move r4, 0
+col_loop_4:
+    call cube_pixel_4
+    move r0, r11
+    call put_byte
+    inc r4
+    blt r4, 64, col_loop_4
+    inc r5
+    blt r5, 64, row_loop_4
+    return
+
+cube_pixel_4:
+    move r11, 0
+    ; edge 0: (4,42) -> (35,46)
+    move r6, 4
+    move r7, 42
+    move r8, 35
+    move r9, 46
+    move r10, 42
+    move r12, 46
+    call test_line
+    ; edge 1: (35,46) -> (42,4)
+    move r6, 35
+    move r7, 46
+    move r8, 42
+    move r9, 4
+    move r10, 4
+    move r12, 46
+    call test_line
+    ; edge 2: (14,12) -> (42,4)
+    move r6, 14
+    move r7, 12
+    move r8, 42
+    move r9, 4
+    move r10, 4
+    move r12, 12
+    call test_line
+    ; edge 3: (4,42) -> (14,12)
+    move r6, 4
+    move r7, 42
+    move r8, 14
+    move r9, 12
+    move r10, 12
+    move r12, 42
+    call test_line
+    ; edge 4: (25,48) -> (50,52)
+    move r6, 25
+    move r7, 48
+    move r8, 50
+    move r9, 52
+    move r10, 48
+    move r12, 52
+    call test_line
+    ; edge 5: (50,52) -> (53,23)
+    move r6, 50
+    move r7, 52
+    move r8, 53
+    move r9, 23
+    move r10, 23
+    move r12, 52
+    call test_line
+    ; edge 6: (30,25) -> (53,23)
+    move r6, 30
+    move r7, 25
+    move r8, 53
+    move r9, 23
+    move r10, 23
+    move r12, 25
+    call test_line
+    ; edge 7: (25,48) -> (30,25)
+    move r6, 25
+    move r7, 48
+    move r8, 30
+    move r9, 25
+    move r10, 25
+    move r12, 48
+    call test_line
+    ; edge 8: (4,42) -> (25,48)
+    move r6, 4
+    move r7, 42
+    move r8, 25
+    move r9, 48
+    move r10, 42
+    move r12, 48
+    call test_line
+    ; edge 9: (35,46) -> (50,52)
+    move r6, 35
+    move r7, 46
+    move r8, 50
+    move r9, 52
+    move r10, 46
+    move r12, 52
+    call test_line
+    ; edge 10: (42,4) -> (53,23)
+    move r6, 42
+    move r7, 4
+    move r8, 53
+    move r9, 23
+    move r10, 4
+    move r12, 23
+    call test_line
+    ; edge 11: (14,12) -> (30,25)
+    move r6, 14
+    move r7, 12
+    move r8, 30
+    move r9, 25
+    move r10, 12
+    move r12, 25
+    call test_line
+    return
+
+send_frame_5:
+    call send_header
+    move r5, 0
+row_loop_5:
+    move r4, 0
+col_loop_5:
+    call cube_pixel_5
+    move r0, r11
+    call put_byte
+    inc r4
+    blt r4, 64, col_loop_5
+    inc r5
+    blt r5, 64, row_loop_5
+    return
+
+cube_pixel_5:
+    move r11, 0
+    ; edge 0: (4,42) -> (30,46)
+    move r6, 4
+    move r7, 42
+    move r8, 30
+    move r9, 46
+    move r10, 42
+    move r12, 46
+    call test_line
+    ; edge 1: (30,46) -> (39,4)
+    move r6, 30
+    move r7, 46
+    move r8, 39
+    move r9, 4
+    move r10, 4
+    move r12, 46
+    call test_line
+    ; edge 2: (14,13) -> (39,4)
+    move r6, 14
+    move r7, 13
+    move r8, 39
+    move r9, 4
+    move r10, 4
+    move r12, 13
+    call test_line
+    ; edge 3: (4,42) -> (14,13)
+    move r6, 4
+    move r7, 42
+    move r8, 14
+    move r9, 13
+    move r10, 13
+    move r12, 42
+    call test_line
+    ; edge 4: (27,48) -> (51,52)
+    move r6, 27
+    move r7, 48
+    move r8, 51
+    move r9, 52
+    move r10, 48
+    move r12, 52
+    call test_line
+    ; edge 5: (51,52) -> (55,22)
+    move r6, 51
+    move r7, 52
+    move r8, 55
+    move r9, 22
+    move r10, 22
+    move r12, 52
+    call test_line
+    ; edge 6: (32,25) -> (55,22)
+    move r6, 32
+    move r7, 25
+    move r8, 55
+    move r9, 22
+    move r10, 22
+    move r12, 25
+    call test_line
+    ; edge 7: (27,48) -> (32,25)
+    move r6, 27
+    move r7, 48
+    move r8, 32
+    move r9, 25
+    move r10, 25
+    move r12, 48
+    call test_line
+    ; edge 8: (4,42) -> (27,48)
+    move r6, 4
+    move r7, 42
+    move r8, 27
+    move r9, 48
+    move r10, 42
+    move r12, 48
+    call test_line
+    ; edge 9: (30,46) -> (51,52)
+    move r6, 30
+    move r7, 46
+    move r8, 51
+    move r9, 52
+    move r10, 46
+    move r12, 52
+    call test_line
+    ; edge 10: (39,4) -> (55,22)
+    move r6, 39
+    move r7, 4
+    move r8, 55
+    move r9, 22
+    move r10, 4
+    move r12, 22
+    call test_line
+    ; edge 11: (14,13) -> (32,25)
+    move r6, 14
+    move r7, 13
+    move r8, 32
+    move r9, 25
+    move r10, 13
+    move r12, 25
+    call test_line
+    return
+
+send_frame_6:
+    call send_header
+    move r5, 0
+row_loop_6:
+    move r4, 0
+col_loop_6:
+    call cube_pixel_6
+    move r0, r11
+    call put_byte
+    inc r4
+    blt r4, 64, col_loop_6
+    inc r5
+    blt r5, 64, row_loop_6
+    return
+
+cube_pixel_6:
+    move r11, 0
+    ; edge 0: (6,43) -> (25,47)
+    move r6, 6
+    move r7, 43
+    move r8, 25
+    move r9, 47
+    move r10, 43
+    move r12, 47
+    call test_line
+    ; edge 1: (25,47) -> (35,4)
+    move r6, 25
+    move r7, 47
+    move r8, 35
+    move r9, 4
+    move r10, 4
+    move r12, 47
+    call test_line
+    ; edge 2: (14,14) -> (35,4)
+    move r6, 14
+    move r7, 14
+    move r8, 35
+    move r9, 4
+    move r10, 4
+    move r12, 14
+    call test_line
+    ; edge 3: (6,43) -> (14,14)
+    move r6, 6
+    move r7, 43
+    move r8, 14
+    move r9, 14
+    move r10, 14
+    move r12, 43
+    call test_line
+    ; edge 4: (30,47) -> (52,52)
+    move r6, 30
+    move r7, 47
+    move r8, 52
+    move r9, 52
+    move r10, 47
+    move r12, 52
+    call test_line
+    ; edge 5: (52,52) -> (56,21)
+    move r6, 52
+    move r7, 52
+    move r8, 56
+    move r9, 21
+    move r10, 21
+    move r12, 52
+    call test_line
+    ; edge 6: (34,24) -> (56,21)
+    move r6, 34
+    move r7, 24
+    move r8, 56
+    move r9, 21
+    move r10, 21
+    move r12, 24
+    call test_line
+    ; edge 7: (30,47) -> (34,24)
+    move r6, 30
+    move r7, 47
+    move r8, 34
+    move r9, 24
+    move r10, 24
+    move r12, 47
+    call test_line
+    ; edge 8: (6,43) -> (30,47)
+    move r6, 6
+    move r7, 43
+    move r8, 30
+    move r9, 47
+    move r10, 43
+    move r12, 47
+    call test_line
+    ; edge 9: (25,47) -> (52,52)
+    move r6, 25
+    move r7, 47
+    move r8, 52
+    move r9, 52
+    move r10, 47
+    move r12, 52
+    call test_line
+    ; edge 10: (35,4) -> (56,21)
+    move r6, 35
+    move r7, 4
+    move r8, 56
+    move r9, 21
+    move r10, 4
+    move r12, 21
+    call test_line
+    ; edge 11: (14,14) -> (34,24)
+    move r6, 14
+    move r7, 14
+    move r8, 34
+    move r9, 24
+    move r10, 14
+    move r12, 24
+    call test_line
+    return
+
+send_frame_7:
+    call send_header
+    move r5, 0
+row_loop_7:
+    move r4, 0
+col_loop_7:
+    call cube_pixel_7
+    move r0, r11
+    call put_byte
+    inc r4
+    blt r4, 64, col_loop_7
+    inc r5
+    blt r5, 64, row_loop_7
+    return
+
+cube_pixel_7:
+    move r11, 0
+    ; edge 0: (8,43) -> (22,49)
+    move r6, 8
+    move r7, 43
+    move r8, 22
+    move r9, 49
+    move r10, 43
+    move r12, 49
+    call test_line
+    ; edge 1: (22,49) -> (30,4)
+    move r6, 22
+    move r7, 49
+    move r8, 30
+    move r9, 4
+    move r10, 4
+    move r12, 49
+    call test_line
+    ; edge 2: (14,15) -> (30,4)
+    move r6, 14
+    move r7, 15
+    move r8, 30
+    move r9, 4
+    move r10, 4
+    move r12, 15
+    call test_line
+    ; edge 3: (8,43) -> (14,15)
+    move r6, 8
+    move r7, 43
+    move r8, 14
+    move r9, 15
+    move r10, 15
+    move r12, 43
+    call test_line
+    ; edge 4: (32,47) -> (53,52)
+    move r6, 32
+    move r7, 47
+    move r8, 53
+    move r9, 52
+    move r10, 47
+    move r12, 52
+    call test_line
+    ; edge 5: (53,52) -> (57,19)
+    move r6, 53
+    move r7, 52
+    move r8, 57
+    move r9, 19
+    move r10, 19
+    move r12, 52
+    call test_line
+    ; edge 6: (36,23) -> (57,19)
+    move r6, 36
+    move r7, 23
+    move r8, 57
+    move r9, 19
+    move r10, 19
+    move r12, 23
+    call test_line
+    ; edge 7: (32,47) -> (36,23)
+    move r6, 32
+    move r7, 47
+    move r8, 36
+    move r9, 23
+    move r10, 23
+    move r12, 47
+    call test_line
+    ; edge 8: (8,43) -> (32,47)
+    move r6, 8
+    move r7, 43
+    move r8, 32
+    move r9, 47
+    move r10, 43
+    move r12, 47
+    call test_line
+    ; edge 9: (22,49) -> (53,52)
+    move r6, 22
+    move r7, 49
+    move r8, 53
+    move r9, 52
+    move r10, 49
+    move r12, 52
+    call test_line
+    ; edge 10: (30,4) -> (57,19)
+    move r6, 30
+    move r7, 4
+    move r8, 57
+    move r9, 19
+    move r10, 4
+    move r12, 19
+    call test_line
+    ; edge 11: (14,15) -> (36,23)
+    move r6, 14
+    move r7, 15
+    move r8, 36
+    move r9, 23
+    move r10, 15
+    move r12, 23
+    call test_line
+    return
+
+send_header:
+    move r0, 65
+    call put_byte
+    move r0, 68
+    call put_byte
+    move r0, 73
+    call put_byte
+    move r0, 48
+    call put_byte
+    move r0, 64
+    call put_byte
+    move r0, 64
+    call put_byte
+    return
+
+put_byte:
+    write_tx r0
+    return
+
+test_line:
+    beq r11, 48, test_line_done
+    blt r4, r6, test_line_done
+    bgt r4, r8, test_line_done
+    blt r5, r10, test_line_done
+    bgt r5, r12, test_line_done
+
+    isub r13, r8, r6
+    isub r14, r9, r7
+    isub r15, r4, r6
+    isub r16, r5, r7
+    imul r17, r14, r15
+    imul r18, r13, r16
+    isub r19, r17, r18
+    bge r19, 0, cross_abs_done
+    isub r19, 0, r19
+cross_abs_done:
+    move r20, r14
+    bge r20, 0, dy_abs_done
+    isub r20, 0, r20
+dy_abs_done:
+    bge r13, r20, use_dx_as_limit
+    jump limit_ready
+use_dx_as_limit:
+    move r20, r13
+limit_ready:
+    shr r20, r20, 2
+    ble r19, r20, test_line_set
+    return
+test_line_set:
+    move r11, 48
+test_line_done:
+    return

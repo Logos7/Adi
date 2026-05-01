@@ -1,0 +1,35 @@
+; Continuous 64x64 1-bit framebuffer test.
+
+main:
+    move r20, 256
+
+loop:
+    fbclear r20
+
+    move r1, 0
+    move r2, 0
+    call draw_diag_down
+
+    move r1, 0
+    move r2, 63
+    call draw_diag_up
+
+    fbpresent r20
+    wait 12000
+    jump loop
+
+draw_diag_down:
+    fbplot r20, r1, r2
+    iadd r1, r1, 1
+    iadd r2, r2, 1
+    cmp.lt b0, r1, 64
+    jump_if b0, draw_diag_down
+    return
+
+draw_diag_up:
+    fbplot r20, r1, r2
+    iadd r1, r1, 1
+    isub r2, r2, 1
+    cmp.lt b0, r1, 64
+    jump_if b0, draw_diag_up
+    return
