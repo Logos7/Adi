@@ -220,4 +220,10 @@ The goal is to keep the system understandable while still making it powerful eno
 
 ## License
 
-See the repository license file.
+Adi is released under the Adi Non-Commercial Attribution License.
+
+You may use, copy, modify, and fork this project for personal, educational, research, and non-commercial purposes.
+
+Commercial use requires explicit written permission from the author.
+
+See [LICENSE](LICENSE).
