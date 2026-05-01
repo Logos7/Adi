@@ -3,48 +3,20 @@
   "name": "Sutra",
   "scopeName": "source.sutra",
   "patterns": [
-    {
-      "include": "#comments"
-    },
-    {
-      "include": "#labels"
-    },
-    {
-      "include": "#predicates"
-    },
-    {
-      "include": "#compare-instructions"
-    },
-    {
-      "include": "#macro-instructions"
-    },
-    {
-      "include": "#core-instructions"
-    },
-    {
-      "include": "#address-values"
-    },
-    {
-      "include": "#memory"
-    },
-    {
-      "include": "#complex-registers"
-    },
-    {
-      "include": "#bool-registers"
-    },
-    {
-      "include": "#registers"
-    },
-    {
-      "include": "#bool-constants"
-    },
-    {
-      "include": "#math-constants"
-    },
-    {
-      "include": "#numbers"
-    }
+    { "include": "#comments" },
+    { "include": "#labels" },
+    { "include": "#predicates" },
+    { "include": "#compare-instructions" },
+    { "include": "#macro-instructions" },
+    { "include": "#core-instructions" },
+    { "include": "#address-values" },
+    { "include": "#memory" },
+    { "include": "#complex-registers" },
+    { "include": "#bool-registers" },
+    { "include": "#registers" },
+    { "include": "#bool-constants" },
+    { "include": "#math-constants" },
+    { "include": "#numbers" }
   ],
   "repository": {
     "comments": {
@@ -54,13 +26,11 @@
     "labels": {
       "match": "^\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*:",
       "captures": {
-        "1": {
-          "name": "entity.name.function.label.sutra"
-        }
+        "1": { "name": "entity.name.function.label.sutra" }
       }
     },
     "core-instructions": {
-      "match": "(?i)\\b(move|band|bor|bxor|bnot|iadd|fadd|isub|fsub|iand|ior|ixor|inot|shl|shr|sar|imul|fmul|itof|ftoi|fabs|cadd|csub|cmul|cabs2|jump|jmp|wait|nop|halt)\\b",
+      "match": "(?i)\\b(move|band|bor|bxor|bnot|iadd|fadd|isub|fsub|iand|ior|ixor|inot|shl|shr|sar|imul|fmul|itof|ftoi|fabs|cadd|csub|cmul|cabs2|jump|jmp|call|return|wait|nop|halt)\\b",
       "name": "keyword.control.sutra"
     },
     "compare-instructions": {
