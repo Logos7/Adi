@@ -1,328 +1,223 @@
 # Adi
 
-Adi is a small FPGA CPU / virtual machine project for Tang Nano 20K, written in Verilog, with a tiny Sutra assembler, UART bootloader, graphics UART viewer and text UART terminal.
+**Adi** is an experimental FPGA computing playground built around a custom soft CPU, a small assembler, UART tooling, and visual demos running directly on hardware.
 
-## Current status
+At the center of the project is **Brahma**, a custom CPU core, and **Sutra**, a minimal assembly language used to write programs for it.
 
-- FPGA target: Sipeed Tang Nano 20K / Gowin GW2AR
-- UART bootloader works
-- Programs can be uploaded without rebuilding the bitstream
-- Runtime UART RX is available through `@uart_rx` and `@uart_rx_ready`
-- Text UART terminal is separated from the graphics viewer
-- Text and framebuffer-style UART examples are supported
-- Sutra macro pack is available for branches, UART waits, min/max and convenience operations
+<p align="center">
+  <img src="docs/images/julia.png" alt="Adi fractal demo 1" width="32%">
+  <img src="docs/images/mandelbrot.png" alt="Adi fractal demo 2" width="32%">
+</p>
 
-## Project layout
+<p align="center">
+  <em>UART viewer screenshots.</em>
+</p>
 
-```text
-Adi/
-  apps/
-    bija/
-      uart_viewer.py
-      uart_terminal.py
+---
 
-    indra/
+## What is this?
 
-  cores/
-    bija/
-      docs/
-        isa.md
+Adi is a hardware/software experiment for learning, testing, and building small computing systems from the ground up.
 
-      rtl/
-        brahma_bija.gprj
-        src/
-          *.v
+It includes:
 
-      sim/
-        __init__.py
+- a custom soft CPU implemented in Verilog,
+- a small assembler called **Sutra**,
+- a UART bootloader for uploading programs to FPGA hardware,
+- Python tools for upload, terminal I/O, and graphical frame viewing,
+- example programs written in Sutra,
+- simulator and assembler tests,
+- GitHub Actions CI for regression checks.
 
-      tests/
-        test_v14_macros_uart_rx.py
+The project is intentionally experimental. The architecture, instruction set, examples, and tooling are still evolving.
 
-  examples/
-    bija/
-      00_basics/
-      01_memory/
-      02_math/
-      03_complex/
-      04_uart/
-      05_fractals/
+---
 
-  sutra/
-    sutra/
-      __init__.py
+## Main components
 
-  tools/
-    sutra_upload.py
-    sutra-vscode/
+### Brahma
 
-  README.md
-  .gitignore
-  .gitattributes
-```
+**Brahma** is the custom CPU core.
 
-## Build FPGA bitstream
+It is designed as a small, understandable soft CPU that can run on FPGA hardware and be extended step by step. The current focus is not maximum performance, but clarity, experimentation, and building a complete working stack.
 
-Open in Gowin:
+### Sutra
 
-```text
-cores/bija/rtl/brahma_bija.gprj
-```
+**Sutra** is the assembly language used to write programs for Brahma.
 
-Then run:
+It supports labels, instructions, memory-mapped I/O, and a growing set of helper patterns/macros for safer hardware interaction.
 
-```text
-Synthesize
-Place & Route
-Generate Bitstream
-Programmer
-```
+### UART bootloader
 
-Before rebuilding, it is usually safest to remove the old Gowin implementation output:
+The FPGA design can wait for a host-side upload over UART.
+
+The Python tools repeatedly send the `ADI!` handshake until the FPGA replies with `READY`, then upload the assembled program words.
+
+### Viewer and terminal tools
+
+Adi currently has two main host-side tools:
+
+- a text UART terminal,
+- an ADI0 graphical frame viewer.
+
+The terminal is useful for text-based experiments.  
+The viewer is useful for graphical programs, including fractals and simple framebuffer-style demos.
+
+---
+
+## Quick start
+
+Clone the repository:
 
 ```powershell
-Remove-Item .\cores\bija\rtl\impl -Recurse -Force -ErrorAction SilentlyContinue
+git clone https://github.com/Logos7/Adi.git
+cd Adi
 ```
 
-## Tools
-
-### Graphics viewer
-
-Use this for framebuffer/fractal examples that emit `ADI0` frames:
+Install development dependencies:
 
 ```powershell
-py apps/bija/uart_viewer.py
+py -m pip install -r requirements-dev.txt
 ```
 
-This tool is intended for graphical UART output and resolution/iteration controls.
+Run tests:
 
-Use it for programs such as:
-
-```text
-examples/bija/05_fractals/*.sutra
+```powershell
+py -m pytest -q cores/bija/tests
 ```
 
-### Text UART terminal
-
-Use this for normal text-based Sutra programs:
+Run the UART terminal:
 
 ```powershell
 py apps/bija/uart_terminal.py
 ```
 
-Upload and open terminal:
-
-```powershell
-py apps/bija/uart_terminal.py COM9 examples/bija/04_uart/echo_rx.sutra
-```
-
-The text terminal does not parse `ADI0` graphics frames and does not patch width/height/iteration constants.
-
-Use it for programs such as:
-
-```text
-examples/bija/04_uart/echo_rx.sutra
-examples/bija/04_uart/command_led.sutra
-examples/bija/basics/*.sutra
-```
-
-## Upload program manually
-
-Text program:
-
-```powershell
-py tools/sutra_upload.py COM9 examples/bija/04_uart/echo_rx.sutra --graphics off
-```
-
-Graphics/fractal program:
-
-```powershell
-py tools/sutra_upload.py COM9 examples/bija/05_fractals/julia_uart.sutra --width 96 --height 64 --max-iter 80 --graphics auto
-```
-
-## UART bootloader behavior
-
-After programming the FPGA bitstream, the bootloader waits for the PC uploader.
-
-Expected behavior:
-
-```text
-FPGA configured
-LED0 stays on
-PC sends ADI!
-FPGA replies ADI_BOOT_READY
-PC uploads program
-FPGA replies ADI_BOOT_OK
-CPU starts program
-```
-
-If the upload fails, the CPU should remain held by the bootloader instead of starting an old program.
-
-## Runtime UART RX
-
-Runtime UART RX allows a Sutra program to receive bytes from the PC while it is already running.
-
-Important symbols:
-
-```asm
-@uart_rx
-@uart_rx_ready
-@uart_tx
-@uart_ready
-```
-
-Minimal echo example:
-
-```asm
-loop:
-    read_rx r0
-    write_tx r0
-    jump loop
-```
-
-Expanded manually:
-
-```asm
-loop:
-    move b0, @uart_rx_ready
-    (!b0) jump loop
-
-    move r0, @uart_rx
-
-wait_tx:
-    move b0, @uart_ready
-    (!b0) jump wait_tx
-
-    move @uart_tx, r0
-    jump loop
-```
-
-## Sutra v1.4 macro pack
-
-Convenience UART macros:
-
-```asm
-wait_rx
-read_rx r0
-wait_uart
-write_tx r0
-```
-
-Branch macros:
-
-```asm
-jump_if b0, label
-jump_if_not b0, label
-
-beq r0, r1, label
-bne r0, r1, label
-blt r0, r1, label
-ble r0, r1, label
-bgt r0, r1, label
-bge r0, r1, label
-```
-
-Convenience arithmetic macros:
-
-```asm
-inc r0
-dec r0
-neg r0, r1
-fneg r0, r1
-```
-
-Min/max macros:
-
-```asm
-imin r0, r1, r2
-imax r0, r1, r2
-fmin r0, r1, r2
-fmax r0, r1, r2
-```
-
-Indexed memory syntax:
-
-```asm
-move r0, @r1+4
-move @r1+4, r0
-```
-
-## Examples
-
-### Echo RX
-
-```powershell
-py apps/bija/uart_terminal.py COM9 examples/bija/04_uart/echo_rx.sutra
-```
-
-Type text into the terminal input field. The FPGA should echo received characters back.
-
-### Command LED
-
-```powershell
-py apps/bija/uart_terminal.py COM9 examples/bija/04_uart/command_led.sutra
-```
-
-This example is intended for simple runtime command control over UART.
-
-### Fractal viewer
+Run the graphical UART viewer:
 
 ```powershell
 py apps/bija/uart_viewer.py
 ```
 
-Use the graphics viewer for programs that emit `ADI0` framebuffer frames.
-
-## Development workflow
-
-Work on a feature branch:
+Upload a Sutra example through the viewer:
 
 ```powershell
-git switch -c feature/some-change
+py apps/bija/uart_viewer.py COM9 --upload examples/bija/fractals/julia_uart.sutra
 ```
 
-Check changes:
+Adjust `COM9` to match your own serial port.
 
-```powershell
-git status
-git diff --stat
-```
+---
 
-Commit changes:
+## Examples
 
-```powershell
-git add .
-git commit -m "Describe the change"
-```
-
-Merge after testing:
-
-```powershell
-git switch main
-git merge feature/some-change
-```
-
-Tag stable versions:
-
-```powershell
-git tag v1.4.1
-git push
-git push origin v1.4.1
-```
-
-## Notes
-
-Generated Gowin implementation files are intentionally not committed.
-
-Do not commit:
+Sutra examples live under:
 
 ```text
-cores/**/impl/
-*.fs
-*.bit
-*.bin
-*.rpt
-*.log
+examples/bija
 ```
 
-Bitstreams should be published separately as release artifacts, not stored directly in the repository history.
+The exact folder structure is allowed to change as the project evolves.
+
+The test suite automatically discovers `.sutra` files under the examples directory, so new examples should be picked up without adding one test per file.
+
+A good example should:
+
+- assemble cleanly,
+- avoid direct unsafe UART writes,
+- be short enough to understand,
+- demonstrate one clear idea,
+- work either in the simulator, on FPGA hardware, or in one of the UART tools.
+
+---
+
+## Testing
+
+Run the full current test suite with:
+
+```powershell
+py -m pytest -q cores/bija/tests
+```
+
+The tests cover the assembler, simulator behavior, CPU-level functionality, and example compilation.
+
+Python sources can also be syntax-checked with:
+
+```powershell
+py -m compileall -q sutra cores/bija/sim tools apps/bija
+```
+
+GitHub Actions runs the test suite automatically on pushes and pull requests.
+
+---
+
+## Typical development loop
+
+For hardware experiments:
+
+```powershell
+py apps/bija/uart_viewer.py COM9 --upload examples/bija/fractals/julia_uart.sutra
+```
+
+For text UART experiments:
+
+```powershell
+py apps/bija/uart_terminal.py
+```
+
+For regression checks:
+
+```powershell
+py -m pytest -q cores/bija/tests
+```
+
+For Git cleanup before committing:
+
+```powershell
+git status --short
+```
+
+---
+
+## Current status
+
+Adi is currently in an early experimental stage.
+
+Working areas include:
+
+- custom CPU design,
+- assembler development,
+- UART upload flow,
+- simulator tests,
+- graphical UART output,
+- fractal and graphics examples,
+- CI-based regression testing.
+
+Still evolving:
+
+- instruction set design,
+- example organization,
+- documentation,
+- macro conventions,
+- graphics protocol,
+- CPU architecture extensions,
+- future cores and experiments.
+
+---
+
+## Philosophy
+
+Adi is not just a single CPU or a single tool.
+
+It is a small universe for exploring how computation can be built layer by layer:
+
+```text
+logic gates → CPU → assembler → programs → graphics → interaction
+```
+
+The goal is to keep the system understandable while still making it powerful enough to produce visible, exciting results on real FPGA hardware.
+
+---
+
+## License
+
+See the repository license file.
