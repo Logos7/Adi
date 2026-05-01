@@ -1,26 +1,52 @@
 from pathlib import Path
+
+import pytest
+
 from sutra import assemble, flatten_program
 
 
 ROOT = Path(__file__).resolve().parents[3]
-EXAMPLES = ROOT / 'examples'
+EXAMPLES = ROOT / "examples" / "bija"
 
 
-def test_all_examples_compile():
-    files = sorted(EXAMPLES.rglob('*.sutra'))
-    assert files
-    for path in files:
-        src = path.read_text(encoding='utf-8')
-        words = flatten_program(assemble(src))
-        assert words, str(path)
+def sutra_examples():
+    return sorted(
+        path
+        for path in EXAMPLES.rglob("*.sutra")
+        if path.is_file()
+    )
 
 
-def test_examples_use_safe_uart_tx_macro():
+EXAMPLE_FILES = sutra_examples()
+
+
+def example_id(path: Path) -> str:
+    return path.relative_to(ROOT).as_posix()
+
+
+def read(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("path", EXAMPLE_FILES, ids=example_id)
+def test_sutra_example_assembles(path: Path):
+    words = flatten_program(assemble(read(path)))
+
+    assert words
+
+
+@pytest.mark.parametrize("path", EXAMPLE_FILES, ids=example_id)
+def test_sutra_example_does_not_write_uart_tx_directly(path: Path):
     offenders = []
-    for path in sorted(EXAMPLES.rglob('*.sutra')):
-        text = path.read_text(encoding='utf-8')
-        for no, line in enumerate(text.splitlines(), start=1):
-            code = line.split(';', 1)[0].strip().lower()
-            if code.startswith('move @uart_tx'):
-                offenders.append(f'{path.relative_to(ROOT)}:{no}: {line.strip()}')
-    assert offenders == []
+
+    for line_no, line in enumerate(read(path).splitlines(), start=1):
+        code = line.split(";", 1)[0].strip().lower()
+
+        if code.startswith("move @uart_tx"):
+            offenders.append(f"{line_no}: {line.strip()}")
+
+    assert offenders == [], "\n".join(offenders)
+
+
+def test_sutra_examples_exist():
+    assert EXAMPLE_FILES

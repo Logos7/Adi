@@ -123,7 +123,7 @@ Use it for programs such as:
 ```text
 examples/bija/04_uart/echo_rx.sutra
 examples/bija/04_uart/command_led.sutra
-examples/bija/00_basics/*.sutra
+examples/bija/basics/*.sutra
 ```
 
 ## Upload program manually
