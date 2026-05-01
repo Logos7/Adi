@@ -20,6 +20,10 @@ OPCODE_LOAD_BR = 0x23
 OPCODE_SAVE_BR = 0x24
 
 OPCODE_WAIT = 0x30
+OPCODE_FBCLEAR = 0x31
+OPCODE_FBPLOT = 0x32
+OPCODE_FBERASE = 0x33
+OPCODE_FBPRESENT = 0x34
 OPCODE_JUMP = 0x38
 OPCODE_CALL = 0x39
 OPCODE_RETURN = 0x3A
@@ -42,6 +46,7 @@ FUNCT_FADD = 0x0D
 FUNCT_FSUB = 0x0E
 FUNCT_FABS = 0x0F
 FUNCT_MOV = 0x10
+FUNCT_FDIV = 0x11
 
 FUNCT_BAND = 0x00
 FUNCT_BOR = 0x01
@@ -67,6 +72,7 @@ ALU_FUNCT_NAMES = {
     FUNCT_INOT: "inot",
     FUNCT_IMUL: "imul",
     FUNCT_FMUL: "fmul",
+    FUNCT_FDIV: "fdiv",
     FUNCT_ITOF: "itof",
     FUNCT_FTOI: "ftoi",
     FUNCT_SHL: "shl",
@@ -94,7 +100,7 @@ BOOL_FUNCT_NAMES = {
 }
 
 MASK32 = 0xFFFFFFFF
-DATA_MEM_SIZE = 256
+DATA_MEM_SIZE = 512
 UART_TX_ADDR = 0xF0
 UART_RX_ADDR = 0xF1
 UART_READY_BOOL_ADDR = 0x80
@@ -169,6 +175,21 @@ def fmul_q7_25(a: int, b: int) -> int:
     return (to_signed32(a) * to_signed32(b)) >> 25
 
 
+def fdiv_q7_25(a: int, b: int) -> int:
+    sa = to_signed32(a)
+    sb = to_signed32(b)
+    if sb == 0:
+        raise ZeroDivisionError("fdiv by zero")
+    q = (abs(sa) << 25) // abs(sb)
+    if (sa < 0) ^ (sb < 0):
+        if q > 0x80000000:
+            raise OverflowError("fdiv overflow")
+        return (-q) & MASK32
+    if q > 0x7FFFFFFF:
+        raise OverflowError("fdiv overflow")
+    return q & MASK32
+
+
 def reg_name(num: int) -> str:
     if 24 <= num <= 31:
         return f"t{num - 24}"
@@ -238,7 +259,7 @@ class CPU:
         raise RuntimeError(f"Niepoprawny numer bool do zapisu: {num}")
 
     def read_data_mem(self, addr: int) -> int:
-        addr8 = addr & 0xFF
+        addr8 = addr & 0x1FF
         if addr8 == UART_RX_ADDR:
             value = self.uart_rx_data & 0xFF
             self.uart_rx_ready = 0
@@ -246,7 +267,7 @@ class CPU:
         return self.data_mem[addr8]
 
     def write_data_mem(self, addr: int, value: int):
-        addr8 = addr & 0xFF
+        addr8 = addr & 0x1FF
         if addr8 == UART_TX_ADDR:
             self.uart_tx_bytes.append(value & 0xFF)
             return
@@ -342,7 +363,7 @@ class CPU:
             self.pc += 1
         elif opcode == OPCODE_SAVE_M:
             addr = self.read_register(field_rs(word)) + field_i_imm(word)
-            if (addr & 0xFF) == UART_TX_ADDR and not self.uart_tx_ready:
+            if (addr & 0x1FF) == UART_TX_ADDR and not self.uart_tx_ready:
                 self.cycle_count += 1
                 return
             self.write_data_mem(addr, self.read_register(field_rd(word)))
@@ -352,7 +373,7 @@ class CPU:
             self.pc += 1
         elif opcode == OPCODE_SAVE_MD:
             addr = field_md_imm(word)
-            if (addr & 0xFF) == UART_TX_ADDR and not self.uart_tx_ready:
+            if (addr & 0x1FF) == UART_TX_ADDR and not self.uart_tx_ready:
                 self.cycle_count += 1
                 return
             self.write_data_mem(addr, self.read_register(field_rd(word)))
@@ -374,6 +395,32 @@ class CPU:
             self.pc += 1
         elif opcode == OPCODE_WAIT:
             self.wait_remaining = self.read_register(field_rs(word))
+            self.pc += 1
+        elif opcode == OPCODE_FBCLEAR:
+            base = self.read_register(field_rd(word)) & 0x1FF
+            for i in range(128):
+                self.data_mem[(base + i) & 0x1FF] = 0
+            self.pc += 1
+        elif opcode == OPCODE_FBPLOT or opcode == OPCODE_FBERASE:
+            base = self.read_register(field_rd(word)) & 0x1FF
+            x = self.read_register(field_rs(word))
+            y = self.read_register(field_rt(word))
+            if 0 <= x < 64 and 0 <= y < 64:
+                pixel = (y << 6) + x
+                addr = (base + (pixel >> 5)) & 0x1FF
+                mask = 1 << (pixel & 31)
+                if opcode == OPCODE_FBPLOT:
+                    self.data_mem[addr] = (self.data_mem[addr] | mask) & MASK32
+                else:
+                    self.data_mem[addr] = (self.data_mem[addr] & ~mask) & MASK32
+            self.pc += 1
+        elif opcode == OPCODE_FBPRESENT:
+            base = self.read_register(field_rd(word)) & 0x1FF
+            self.uart_tx_bytes.extend([65, 68, 73, 48, 64, 64])
+            for word_index in range(128):
+                w = self.data_mem[(base + word_index) & 0x1FF]
+                for bit in range(32):
+                    self.uart_tx_bytes.append(48 if (w >> bit) & 1 else 0)
             self.pc += 1
         elif opcode == OPCODE_JUMP:
             self.pc += 1 + field_j_offset(word)
@@ -416,6 +463,8 @@ class CPU:
             result = to_signed32(a) * to_signed32(b)
         elif funct == FUNCT_FMUL:
             result = fmul_q7_25(a, b)
+        elif funct == FUNCT_FDIV:
+            result = fdiv_q7_25(a, b)
         elif funct == FUNCT_ITOF:
             result = to_signed32(a) << 25
         elif funct == FUNCT_FTOI:
@@ -559,6 +608,18 @@ def disassemble(word: int, second_word: int = None) -> str:
 
     if opcode == OPCODE_WAIT:
         return f"{pred}wait {reg_name(field_rs(word))}"
+
+    if opcode == OPCODE_FBCLEAR:
+        return f"{pred}fbclear {reg_name(field_rd(word))}"
+
+    if opcode == OPCODE_FBPLOT:
+        return f"{pred}fbplot {reg_name(field_rd(word))}, {reg_name(field_rs(word))}, {reg_name(field_rt(word))}"
+
+    if opcode == OPCODE_FBERASE:
+        return f"{pred}fberase {reg_name(field_rd(word))}, {reg_name(field_rs(word))}, {reg_name(field_rt(word))}"
+
+    if opcode == OPCODE_FBPRESENT:
+        return f"{pred}fbpresent {reg_name(field_rd(word))}"
 
     if opcode == OPCODE_JUMP:
         return f"{pred}jump {field_j_offset(word):+d}"

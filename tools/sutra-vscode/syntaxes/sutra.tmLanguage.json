@@ -30,7 +30,7 @@
       }
     },
     "core-instructions": {
-      "match": "(?i)\\b(move|band|bor|bxor|bnot|iadd|fadd|isub|fsub|iand|ior|ixor|inot|shl|shr|sar|imul|fmul|itof|ftoi|fabs|cadd|csub|cmul|cabs2|jump|jmp|call|return|fbclear|fbplot|fberase|fbpresent|wait|nop|halt)\\b",
+      "match": "(?i)\\b(move|band|bor|bxor|bnot|iadd|fadd|isub|fsub|iand|ior|ixor|inot|shl|shr|sar|imul|fmul|fdiv|itof|ftoi|fabs|cadd|csub|cmul|cabs2|jump|jmp|call|return|fbclear|fbplot|fberase|fbpresent|wait|nop|halt)\\b",
       "name": "keyword.control.sutra"
     },
     "compare-instructions": {

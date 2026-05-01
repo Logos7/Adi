@@ -82,6 +82,7 @@ module brahma_bija_core (
     localparam [6:0] FUNCT_FSUB = 7'h0E;
     localparam [6:0] FUNCT_FABS = 7'h0F;
     localparam [6:0] FUNCT_MOV  = 7'h10;
+    localparam [6:0] FUNCT_FDIV = 7'h11;
 
     localparam [6:0] FUNCT_BAND = 7'h00;
     localparam [6:0] FUNCT_BOR  = 7'h01;
@@ -115,6 +116,7 @@ module brahma_bija_core (
     localparam [4:0] S_FB_PRESENT_WAIT2  = 5'd12;
     localparam [4:0] S_FB_PRESENT_PIXELS = 5'd13;
     localparam [4:0] S_FB_PRESENT_TX_DRAIN = 5'd14;
+    localparam [4:0] S_FDIV_STEP          = 5'd15;
 
     reg [4:0] state;
 
@@ -166,6 +168,19 @@ module brahma_bija_core (
     reg [31:0] addr32_work;
     reg [11:0] fb_pixel_work;
     reg [4:0] return_index_work;
+
+    reg [4:0] fdiv_dst_reg;
+    reg fdiv_sign;
+    reg [63:0] fdiv_dividend;
+    reg [31:0] fdiv_divisor;
+    reg [63:0] fdiv_quotient;
+    reg [32:0] fdiv_remainder;
+    reg [6:0] fdiv_count;
+    reg [31:0] fdiv_abs_a_work;
+    reg [31:0] fdiv_abs_b_work;
+    reg [32:0] fdiv_remainder_shifted;
+    reg [32:0] fdiv_remainder_next;
+    reg [63:0] fdiv_quotient_next;
 
     integer i;
 
@@ -408,6 +423,18 @@ module brahma_bija_core (
             addr32_work <= 32'd0;
             fb_pixel_work <= 12'd0;
             return_index_work <= 5'd0;
+            fdiv_dst_reg <= 5'd0;
+            fdiv_sign <= 1'b0;
+            fdiv_dividend <= 64'd0;
+            fdiv_divisor <= 32'd0;
+            fdiv_quotient <= 64'd0;
+            fdiv_remainder <= 33'd0;
+            fdiv_count <= 7'd0;
+            fdiv_abs_a_work <= 32'd0;
+            fdiv_abs_b_work <= 32'd0;
+            fdiv_remainder_shifted <= 33'd0;
+            fdiv_remainder_next <= 33'd0;
+            fdiv_quotient_next <= 64'd0;
 
             for (i = 0; i < 32; i = i + 1) begin
                 gpr[i] <= 32'd0;
@@ -461,30 +488,48 @@ module brahma_bija_core (
                             end
 
                             OP_ALU_R: begin
-                                if (rd_field <= 5'd31) begin
-                                    case (funct)
-                                        FUNCT_IADD: gpr[rd_field] <= rs_value + rt_value;
-                                        FUNCT_FADD: gpr[rd_field] <= rs_value + rt_value;
-                                        FUNCT_ISUB: gpr[rd_field] <= rs_value - rt_value;
-                                        FUNCT_FSUB: gpr[rd_field] <= rs_value - rt_value;
-                                        FUNCT_FABS: gpr[rd_field] <= (rs_value[31] ? (~rs_value + 32'd1) : rs_value);
-                                        FUNCT_MOV:  gpr[rd_field] <= rs_value;
-                                        FUNCT_IAND: gpr[rd_field] <= rs_value & rt_value;
-                                        FUNCT_IOR:  gpr[rd_field] <= rs_value | rt_value;
-                                        FUNCT_IXOR: gpr[rd_field] <= rs_value ^ rt_value;
-                                        FUNCT_INOT: gpr[rd_field] <= ~rs_value;
-                                        FUNCT_IMUL: gpr[rd_field] <= imul32(rs_value, rt_value);
-                                        FUNCT_FMUL: gpr[rd_field] <= fmul_q7_25(rs_value, rt_value);
-                                        FUNCT_ITOF: gpr[rd_field] <= rs_value << 25;
-                                        FUNCT_FTOI: gpr[rd_field] <= $signed(rs_value) >>> 25;
-                                        FUNCT_SHL:  gpr[rd_field] <= rs_value << rt_field;
-                                        FUNCT_SHR:  gpr[rd_field] <= rs_value >> rt_field;
-                                        FUNCT_SAR:  gpr[rd_field] <= $signed(rs_value) >>> rt_field;
-                                        default: ;
-                                    endcase
+                                if (funct == FUNCT_FDIV) begin
+                                    if (rt_value == 32'd0) begin
+                                        state <= S_HALT;
+                                    end else begin
+                                        fdiv_abs_a_work = rs_value[31] ? (~rs_value + 32'd1) : rs_value;
+                                        fdiv_abs_b_work = rt_value[31] ? (~rt_value + 32'd1) : rt_value;
+
+                                        fdiv_dst_reg <= rd_field;
+                                        fdiv_sign <= rs_value[31] ^ rt_value[31];
+                                        fdiv_dividend <= {7'd0, fdiv_abs_a_work, 25'd0};
+                                        fdiv_divisor <= fdiv_abs_b_work;
+                                        fdiv_quotient <= 64'd0;
+                                        fdiv_remainder <= 33'd0;
+                                        fdiv_count <= 7'd64;
+                                        state <= S_FDIV_STEP;
+                                    end
+                                end else begin
+                                    if (rd_field <= 5'd31) begin
+                                        case (funct)
+                                            FUNCT_IADD: gpr[rd_field] <= rs_value + rt_value;
+                                            FUNCT_FADD: gpr[rd_field] <= rs_value + rt_value;
+                                            FUNCT_ISUB: gpr[rd_field] <= rs_value - rt_value;
+                                            FUNCT_FSUB: gpr[rd_field] <= rs_value - rt_value;
+                                            FUNCT_FABS: gpr[rd_field] <= (rs_value[31] ? (~rs_value + 32'd1) : rs_value);
+                                            FUNCT_MOV:  gpr[rd_field] <= rs_value;
+                                            FUNCT_IAND: gpr[rd_field] <= rs_value & rt_value;
+                                            FUNCT_IOR:  gpr[rd_field] <= rs_value | rt_value;
+                                            FUNCT_IXOR: gpr[rd_field] <= rs_value ^ rt_value;
+                                            FUNCT_INOT: gpr[rd_field] <= ~rs_value;
+                                            FUNCT_IMUL: gpr[rd_field] <= imul32(rs_value, rt_value);
+                                            FUNCT_FMUL: gpr[rd_field] <= fmul_q7_25(rs_value, rt_value);
+                                            FUNCT_ITOF: gpr[rd_field] <= rs_value << 25;
+                                            FUNCT_FTOI: gpr[rd_field] <= $signed(rs_value) >>> 25;
+                                            FUNCT_SHL:  gpr[rd_field] <= rs_value << rt_field;
+                                            FUNCT_SHR:  gpr[rd_field] <= rs_value >> rt_field;
+                                            FUNCT_SAR:  gpr[rd_field] <= $signed(rs_value) >>> rt_field;
+                                            default: ;
+                                        endcase
+                                    end
+                                    pc <= pc + 32'd1;
+                                    state <= S_FETCH;
                                 end
-                                pc <= pc + 32'd1;
-                                state <= S_FETCH;
                             end
 
                             OP_CMP_R: begin
@@ -861,6 +906,44 @@ module brahma_bija_core (
                                 state <= S_FB_PRESENT_PIXELS;
                             end
                         end
+                    end
+                end
+
+                S_FDIV_STEP: begin
+                    fdiv_remainder_shifted = {fdiv_remainder[31:0], fdiv_dividend[63]};
+
+                    if (fdiv_remainder_shifted >= {1'b0, fdiv_divisor}) begin
+                        fdiv_remainder_next = fdiv_remainder_shifted - {1'b0, fdiv_divisor};
+                        fdiv_quotient_next = {fdiv_quotient[62:0], 1'b1};
+                    end else begin
+                        fdiv_remainder_next = fdiv_remainder_shifted;
+                        fdiv_quotient_next = {fdiv_quotient[62:0], 1'b0};
+                    end
+
+                    fdiv_remainder <= fdiv_remainder_next;
+                    fdiv_quotient <= fdiv_quotient_next;
+                    fdiv_dividend <= {fdiv_dividend[62:0], 1'b0};
+
+                    if (fdiv_count == 7'd1) begin
+                        if (!fdiv_sign) begin
+                            if (fdiv_quotient_next[63:31] != 33'd0) begin
+                                state <= S_HALT;
+                            end else begin
+                                gpr[fdiv_dst_reg] <= fdiv_quotient_next[31:0];
+                                pc <= pc + 32'd1;
+                                state <= S_FETCH;
+                            end
+                        end else begin
+                            if ((fdiv_quotient_next[63:32] != 32'd0) || (fdiv_quotient_next[31:0] > 32'h8000_0000)) begin
+                                state <= S_HALT;
+                            end else begin
+                                gpr[fdiv_dst_reg] <= (~fdiv_quotient_next[31:0]) + 32'd1;
+                                pc <= pc + 32'd1;
+                                state <= S_FETCH;
+                            end
+                        end
+                    end else begin
+                        fdiv_count <= fdiv_count - 7'd1;
                     end
                 end
 
