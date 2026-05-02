@@ -21,13 +21,7 @@
 ; - fbpresent r20 sends ADI0 64x64 frame
 
 main:
- move @led0, low
- move @led1, high
- move @led2, high
- move @led3, high
- move @led4, high
- move @led5, high
-
+ 
  move r20, 256
  move r21, 0
  move r22, 64
@@ -38,7 +32,6 @@ main:
  move r19, 16
 
 main_loop:
- move @led4, low
 
  fbclear r20
 
@@ -47,8 +40,6 @@ main_loop:
  call draw_edges
 
  fbpresent r20
-
- move @led4, high
 
  iadd r18, r18, 1
  iand r18, r18, 63
@@ -519,4 +510,3 @@ init_sin_lut:
  move @r23, -0.098017
 
  return
- 

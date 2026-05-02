@@ -1,19 +1,4 @@
 #!/usr/bin/env python3
-"""
-Adi UART Viewer
-
-Single-window ADI0 frame viewer for Brahma-Bija.
-
-Typical usage:
-
-    py apps/bija/uart_viewer.py
-
-    py apps/bija/uart_viewer.py COM9 --upload examples/bija/fractals/julia_uart.sutra
-
-The text UART terminal is intentionally kept separate:
-
-    py apps/bija/uart_terminal.py
-"""
 
 from __future__ import annotations
 
@@ -21,7 +6,6 @@ import argparse
 import colorsys
 import json
 import os
-import time
 import sys
 from dataclasses import dataclass
 
@@ -32,14 +16,16 @@ try:
     import serial
     from serial.tools import list_ports
 except ImportError:
-    print("pySerial is missing. Install it with: py -m pip install pyserial", file=sys.stderr)
+    print("pySerial is missing.", file=sys.stderr)
+    print("Install it with: py -m pip install pyserial", file=sys.stderr)
     raise SystemExit(2)
 
 from sutra_upload import assemble_file, upload_words
 
-
 DEFAULT_SOURCE = os.path.join("examples", "bija", "fractals", "julia.sutra")
-MAGIC = b"ADI0"
+MAGIC_ADI0 = b"ADI0"
+MAGIC_ADI1 = b"ADI1"
+MAGICS = (MAGIC_ADI0, MAGIC_ADI1)
 
 PALETTES: list[tuple[str, str]] = [
     ("classic", "Classic"),
@@ -59,77 +45,6 @@ PALETTE_LABEL_BY_KEY = {key: label for key, label in PALETTES}
 DEFAULT_PALETTE = "classic"
 
 
-def app_state_file() -> str:
-    base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
-    return os.path.join(base, "Adi", "uart_viewer_state.json")
-
-
-def load_app_state() -> dict:
-    try:
-        with open(app_state_file(), "r", encoding="utf-8") as f:
-            data = json.load(f)
-
-        return data if isinstance(data, dict) else {}
-    except Exception:
-        return {}
-
-
-def save_app_state(state: dict) -> None:
-    try:
-        path = app_state_file()
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(state, f, ensure_ascii=False, indent=2)
-    except Exception:
-        pass
-
-
-def default_browse_dir() -> str:
-    return os.path.join(ROOT, "examples", "bija")
-
-
-def load_last_sutra_dir() -> str:
-    state = load_app_state()
-    path = state.get("last_sutra_dir", "")
-
-    if isinstance(path, str) and os.path.isdir(path):
-        return path
-
-    return default_browse_dir()
-
-
-def save_last_sutra_dir(path: str) -> None:
-    if not path:
-        return
-
-    state = load_app_state()
-    state["last_sutra_dir"] = path
-    save_app_state(state)
-
-
-def normalize_palette(value: str | None) -> str:
-    if not value:
-        return DEFAULT_PALETTE
-
-    text = value.strip()
-
-    if text in PALETTE_KEYS:
-        return text
-
-    lowered = text.lower()
-
-    for key, label in PALETTES:
-        if lowered == label.lower():
-            return key
-
-    return DEFAULT_PALETTE
-
-
-def palette_label(value: str | None) -> str:
-    return PALETTE_LABEL_BY_KEY.get(normalize_palette(value), PALETTE_LABEL_BY_KEY[DEFAULT_PALETTE])
-
-
 @dataclass
 class ViewerDefaults:
     port: str | None
@@ -145,18 +60,77 @@ class ViewerDefaults:
     ack_timeout: float
 
 
+def app_state_file() -> str:
+    base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    return os.path.join(base, "Adi", "uart_viewer_state.json")
+
+
+def load_app_state() -> dict:
+    try:
+        with open(app_state_file(), "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_app_state(state: dict) -> None:
+    try:
+        path = app_state_file()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def default_browse_dir() -> str:
+    return os.path.join(ROOT, "examples", "bija")
+
+
+def load_last_sutra_dir() -> str:
+    state = load_app_state()
+    path = state.get("last_sutra_dir", "")
+    if isinstance(path, str) and os.path.isdir(path):
+        return path
+    return default_browse_dir()
+
+
+def save_last_sutra_dir(path: str) -> None:
+    if not path:
+        return
+    state = load_app_state()
+    state["last_sutra_dir"] = path
+    save_app_state(state)
+
+
+def normalize_palette(value: str | None) -> str:
+    if not value:
+        return DEFAULT_PALETTE
+    text = value.strip()
+    if text in PALETTE_KEYS:
+        return text
+    lowered = text.lower()
+    for key, label in PALETTES:
+        if lowered == label.lower():
+            return key
+    return DEFAULT_PALETTE
+
+
+def palette_label(value: str | None) -> str:
+    return PALETTE_LABEL_BY_KEY.get(normalize_palette(value), PALETTE_LABEL_BY_KEY[DEFAULT_PALETTE])
+
+
 def available_ports() -> list[str]:
     ports = [p.device for p in list_ports.comports()]
 
     def key(port: str) -> tuple[int, int | str]:
         upper = port.upper()
-
         if upper.startswith("COM"):
             try:
                 return 0, int(upper[3:])
             except ValueError:
                 return 0, 9999
-
         return 1, port
 
     return sorted(ports, key=key)
@@ -165,19 +139,15 @@ def available_ports() -> list[str]:
 def choose_default_port(ports: list[str]) -> str:
     if "COM9" in ports:
         return "COM9"
-
     if "COM8" in ports:
         return "COM8"
-
     return ports[0] if ports else "COM9"
 
 
 def resolve_path(path: str) -> str:
     path = path.strip()
-
     if not path:
         return os.path.join(ROOT, DEFAULT_SOURCE)
-
     return path if os.path.isabs(path) else os.path.join(ROOT, path)
 
 
@@ -193,19 +163,15 @@ def parse_int(value: str, name: str, min_value: int, max_value: int) -> int:
         x = int(value.strip())
     except Exception:
         raise ValueError(f"{name} must be an integer.")
-
     if x < min_value or x > max_value:
         raise ValueError(f"{name} must be in range {min_value}..{max_value}.")
-
     return x
 
 
 def optional_byte(value: str, name: str) -> int | None:
     text = value.strip()
-
     if not text:
         return None
-
     return parse_int(text, name, 1, 255)
 
 
@@ -218,56 +184,43 @@ def rgb_hex(rgb: tuple[int, int, int]) -> str:
     return f"#{r:02x}{g:02x}{b:02x}"
 
 
-def hex_to_rgb(color: str) -> tuple[int, int, int]:
-    return int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
-
-
 def lerp(a: int, b: int, t: float) -> int:
     return int(a + (b - a) * t)
 
 
 def gradient_color(stops: list[tuple[float, tuple[int, int, int]]], t: float) -> tuple[int, int, int]:
     t = clamp01(t)
-
     if t <= stops[0][0]:
         return stops[0][1]
-
     for i in range(1, len(stops)):
         left_t, left_rgb = stops[i - 1]
         right_t, right_rgb = stops[i]
-
         if t <= right_t:
             local = 0.0 if right_t == left_t else (t - left_t) / (right_t - left_t)
-
             return (
                 lerp(left_rgb[0], right_rgb[0], local),
                 lerp(left_rgb[1], right_rgb[1], local),
                 lerp(left_rgb[2], right_rgb[2], local),
             )
-
     return stops[-1][1]
 
 
 def classic_palette(v: int, max_iter: int) -> tuple[int, int, int]:
     if v >= max_iter:
         return 0, 0, 0
-
     if v <= 0:
         return 7, 19, 61
-
     t = clamp01(v / max_iter)
     hue = 0.68 - 0.68 * (t ** 0.82)
     sat = 0.88
     val = 0.20 + 0.80 * (t ** 0.35)
     r, g, b = colorsys.hsv_to_rgb(hue, sat, val)
-
     return int(r * 255), int(g * 255), int(b * 255)
 
 
 def palette_rgb(v: int, max_iter: int, palette: str) -> tuple[int, int, int]:
     if v >= max_iter:
         return 0, 0, 0
-
     if max_iter <= 1:
         t = 0.0
     else:
@@ -373,23 +326,22 @@ def palette_rgb(v: int, max_iter: int, palette: str) -> tuple[int, int, int]:
     return classic_palette(v, max_iter)
 
 
-def palette_color(v: int, max_iter: int, palette: str) -> str:
-    return rgb_hex(palette_rgb(v, max_iter, palette))
+def frame_pixel_rgb(v: int, max_iter: int, palette: str, frame_kind: bytes) -> tuple[int, int, int]:
+    if frame_kind == MAGIC_ADI1:
+        return (255, 255, 255) if v else (0, 0, 0)
+    return palette_rgb(v, max_iter, palette)
 
 
 def copy_rgb_to_windows_clipboard(width: int, height: int, rgb: bytes) -> None:
     if os.name != "nt":
         raise RuntimeError("Image clipboard copy is currently implemented only for Windows.")
-
     if width <= 0 or height <= 0:
         raise RuntimeError("Invalid image size.")
-
     if len(rgb) != width * height * 3:
         raise RuntimeError("Invalid RGB buffer size.")
 
     import ctypes
     import struct
-    import time
 
     user32 = ctypes.windll.user32
     kernel32 = ctypes.windll.kernel32
@@ -414,21 +366,18 @@ def copy_rgb_to_windows_clipboard(width: int, height: int, rgb: bytes) -> None:
 
     cf_dib = 8
     gmem_moveable = 0x0002
-
     row_stride = ((width * 3 + 3) // 4) * 4
     padding = row_stride - width * 3
-    pixel_data = bytearray()
 
+    pixel_data = bytearray()
     for y in range(height - 1, -1, -1):
         row_start = y * width * 3
-
         for x in range(width):
             i = row_start + x * 3
             r = rgb[i]
             g = rgb[i + 1]
             b = rgb[i + 2]
             pixel_data.extend((b, g, r))
-
         if padding:
             pixel_data.extend(b"\x00" * padding)
 
@@ -441,55 +390,70 @@ def copy_rgb_to_windows_clipboard(width: int, height: int, rgb: bytes) -> None:
         24,
         0,
         len(pixel_data),
-        0,
-        0,
+        2835,
+        2835,
         0,
         0,
     )
 
     dib = header + bytes(pixel_data)
+    handle = kernel32.GlobalAlloc(gmem_moveable, len(dib))
+    if not handle:
+        raise RuntimeError("GlobalAlloc failed.")
 
-    opened = False
+    locked = kernel32.GlobalLock(handle)
+    if not locked:
+        kernel32.GlobalFree(handle)
+        raise RuntimeError("GlobalLock failed.")
 
-    for _ in range(10):
-        if user32.OpenClipboard(None):
-            opened = True
-            break
+    ctypes.memmove(locked, dib, len(dib))
+    kernel32.GlobalUnlock(handle)
 
-        time.sleep(0.05)
-
-    if not opened:
-        raise RuntimeError("Could not open Windows clipboard.")
-
-    hglob = None
+    if not user32.OpenClipboard(None):
+        kernel32.GlobalFree(handle)
+        raise RuntimeError("OpenClipboard failed.")
 
     try:
-        hglob = kernel32.GlobalAlloc(gmem_moveable, len(dib))
-
-        if not hglob:
-            raise RuntimeError("GlobalAlloc failed.")
-
-        ptr = kernel32.GlobalLock(hglob)
-
-        if not ptr:
-            raise RuntimeError("GlobalLock failed.")
-
-        ctypes.memmove(ptr, dib, len(dib))
-        kernel32.GlobalUnlock(hglob)
-
-        if not user32.EmptyClipboard():
-            raise RuntimeError("EmptyClipboard failed.")
-
-        if not user32.SetClipboardData(cf_dib, hglob):
+        user32.EmptyClipboard()
+        if not user32.SetClipboardData(cf_dib, handle):
+            kernel32.GlobalFree(handle)
             raise RuntimeError("SetClipboardData failed.")
-
-        hglob = None
-
+        handle = None
     finally:
         user32.CloseClipboard()
+        if handle:
+            kernel32.GlobalFree(handle)
 
-        if hglob:
-            kernel32.GlobalFree(hglob)
+
+def unpack_adi1_payload(width: int, height: int, payload: bytes) -> bytes:
+    total = width * height
+    out = bytearray(total)
+    i = 0
+
+    for byte in payload:
+        for shift in range(7, -1, -1):
+            if i >= total:
+                return bytes(out)
+            out[i] = 1 if ((byte >> shift) & 1) else 0
+            i += 1
+
+    return bytes(out)
+
+
+def find_next_magic(buffer: bytearray) -> tuple[int, bytes] | None:
+    best_pos = -1
+    best_magic = b""
+
+    for magic in MAGICS:
+        pos = buffer.find(magic)
+        if pos >= 0 and (best_pos < 0 or pos < best_pos):
+            best_pos = pos
+            best_magic = magic
+
+    if best_pos < 0:
+        return None
+
+    return best_pos, best_magic
 
 
 def run_gui(defaults: ViewerDefaults) -> None:
@@ -519,7 +483,6 @@ def run_gui(defaults: ViewerDefaults) -> None:
     image_ref: dict[str, tk.PhotoImage | None] = {"img": None}
     display_frame_ref: dict[str, int | bytes | None] = {"width": 0, "height": 0, "rgb": None}
     frame_counter = {"n": 0}
-    fps_ref = {"last_t": time.perf_counter(), "last_frame": 0, "fps": 0.0}
 
     outer = ttk.Frame(root, padding=10)
     outer.pack(fill="both", expand=True)
@@ -528,7 +491,6 @@ def run_gui(defaults: ViewerDefaults) -> None:
     connection.pack(fill="x")
 
     ttk.Label(connection, text="Port").grid(row=0, column=0, sticky="w")
-
     port_box = ttk.Combobox(connection, textvariable=port_var, values=ports, width=16)
     port_box.grid(row=0, column=1, sticky="w", padx=(6, 12))
 
@@ -541,10 +503,8 @@ def run_gui(defaults: ViewerDefaults) -> None:
     def refresh_ports() -> None:
         new_ports = available_ports()
         port_box["values"] = new_ports
-
         if port_var.get() not in new_ports:
             port_var.set(choose_default_port(new_ports))
-
         log(f"[PORTS] {', '.join(new_ports) if new_ports else 'none'}\n")
 
     ttk.Button(connection, text="Refresh", command=refresh_ports).grid(row=0, column=2, sticky="w")
@@ -567,7 +527,6 @@ def run_gui(defaults: ViewerDefaults) -> None:
             initialdir=load_last_sutra_dir(),
             filetypes=[("Sutra", "*.sutra"), ("All files", "*.*")],
         )
-
         if path:
             save_last_sutra_dir(os.path.dirname(path))
             file_var.set(as_repo_path(path))
@@ -575,7 +534,7 @@ def run_gui(defaults: ViewerDefaults) -> None:
     ttk.Button(program, text="Browse", command=browse).grid(row=0, column=2, sticky="e")
     program.columnconfigure(1, weight=1)
 
-    render = ttk.LabelFrame(outer, text="ADI0 frame settings", padding=8)
+    render = ttk.LabelFrame(outer, text="ADI0 / ADI1 frame settings", padding=8)
     render.pack(fill="x", pady=(10, 0))
 
     ttk.Label(render, text="Width").grid(row=0, column=0, sticky="w")
@@ -620,13 +579,11 @@ def run_gui(defaults: ViewerDefaults) -> None:
         max_iter = parse_int(max_iter_var.get(), "Max iter", 1, 255)
         scale = parse_int(scale_var.get(), "Scale", 1, 32)
         palette = current_palette()
-
         return path, width, height, max_iter, scale, palette
 
     def close_serial() -> None:
         ser = ser_ref["ser"]
         ser_ref["ser"] = None
-
         if ser is not None:
             try:
                 ser.close()
@@ -635,25 +592,19 @@ def run_gui(defaults: ViewerDefaults) -> None:
 
     def open_serial(clear_buffers: bool = True) -> None:
         close_serial()
-
         port = port_var.get().strip()
-
         if not port:
             raise ValueError("Port is empty.")
-
         baud = current_baud()
         ser = serial.Serial(port, baudrate=baud, timeout=0.01, write_timeout=2.0)
         ser_ref["ser"] = ser
-
         if clear_buffers:
             try:
                 ser.reset_input_buffer()
                 ser.reset_output_buffer()
             except Exception:
                 pass
-
         buffer.clear()
-        reset_fps_counter()
         status_var.set(f"Connected: {port} @ {baud}")
         log(f"[OPEN] {port} @ {baud}\n")
 
@@ -669,16 +620,9 @@ def run_gui(defaults: ViewerDefaults) -> None:
         status_var.set("Disconnected")
         log("[CLOSE]\n")
 
-    def reset_fps_counter() -> None:
-        fps_ref["last_t"] = time.perf_counter()
-        fps_ref["last_frame"] = frame_counter["n"]
-        fps_ref["fps"] = 0.0
-        root.title("Adi UART Viewer - 0.0 FPS")
-
     def clear() -> None:
         buffer.clear()
         frame_counter["n"] = 0
-        reset_fps_counter()
         image_ref["img"] = None
         display_frame_ref["width"] = 0
         display_frame_ref["height"] = 0
@@ -750,13 +694,13 @@ def run_gui(defaults: ViewerDefaults) -> None:
 
         try:
             port = port_var.get().strip()
-
             if not port:
                 raise ValueError("Port is empty.")
 
             baud = current_baud()
             path, width, height, max_iter, _scale, _palette = current_params()
-            is_fractal = "fractals" in path.replace("\\", "/").lower()
+            normalized_path = path.replace("\\", "/").lower()
+            is_fractal = "fractals" in normalized_path
 
             close_serial()
 
@@ -782,18 +726,15 @@ def run_gui(defaults: ViewerDefaults) -> None:
 
             buffer.clear()
             frame_counter["n"] = 0
-            reset_fps_counter()
-
             open_serial(clear_buffers=False)
 
-            status_var.set("Upload OK. Waiting for ADI0 frames...")
+            status_var.set("Upload OK. Waiting for ADI0 / ADI1 frames...")
             log("[UPLOAD OK]\n")
 
         except SystemExit as e:
             status_var.set("Upload failed")
             log(f"[UPLOAD ERR] {e}\n")
             messagebox.showerror("Upload", str(e))
-
             try:
                 open_serial(clear_buffers=True)
             except Exception:
@@ -803,7 +744,6 @@ def run_gui(defaults: ViewerDefaults) -> None:
             status_var.set("Upload failed")
             log(f"[UPLOAD ERR] {e}\n")
             messagebox.showerror("Upload", str(e))
-
             try:
                 open_serial(clear_buffers=True)
             except Exception:
@@ -826,11 +766,9 @@ def run_gui(defaults: ViewerDefaults) -> None:
             return
 
         ser = ser_ref["ser"]
-
         if ser is not None and ser.is_open:
             try:
                 data = ser.read(4096)
-
                 if data:
                     buffer.extend(data)
                     parse_frames()
@@ -842,13 +780,14 @@ def run_gui(defaults: ViewerDefaults) -> None:
 
     def parse_frames() -> None:
         while True:
-            magic_pos = buffer.find(MAGIC)
+            found = find_next_magic(buffer)
 
-            if magic_pos < 0:
+            if found is None:
                 if len(buffer) > 3:
                     del buffer[:-3]
-
                 return
+
+            magic_pos, magic = found
 
             if magic_pos > 0:
                 del buffer[:magic_pos]
@@ -863,16 +802,31 @@ def run_gui(defaults: ViewerDefaults) -> None:
                 del buffer[:4]
                 continue
 
-            needed = 6 + width * height
+            pixel_count = width * height
 
-            if len(buffer) < needed:
-                return
+            if magic == MAGIC_ADI0:
+                needed = 6 + pixel_count
+                if len(buffer) < needed:
+                    return
+                pixels = bytes(buffer[6:needed])
+                del buffer[:needed]
+                draw_frame(width, height, pixels, magic)
+                continue
 
-            pixels = bytes(buffer[6:needed])
-            del buffer[:needed]
-            draw_frame(width, height, pixels)
+            if magic == MAGIC_ADI1:
+                packed_count = (pixel_count + 7) // 8
+                needed = 6 + packed_count
+                if len(buffer) < needed:
+                    return
+                packed = bytes(buffer[6:needed])
+                pixels = unpack_adi1_payload(width, height, packed)
+                del buffer[:needed]
+                draw_frame(width, height, pixels, magic)
+                continue
 
-    def draw_frame(width: int, height: int, pixels: bytes) -> None:
+            del buffer[:4]
+
+    def draw_frame(width: int, height: int, pixels: bytes, frame_kind: bytes) -> None:
         try:
             max_iter = parse_int(max_iter_var.get(), "Max iter", 1, 255)
             scale = parse_int(scale_var.get(), "Scale", 1, 32)
@@ -883,8 +837,8 @@ def run_gui(defaults: ViewerDefaults) -> None:
             palette = defaults.palette
 
         img = tk.PhotoImage(width=width, height=height)
-
         rows = []
+
         display_width = width * scale
         display_height = height * scale
         rgb_bytes = bytearray(display_width * display_height * 3)
@@ -895,7 +849,7 @@ def run_gui(defaults: ViewerDefaults) -> None:
             row_rgb = []
 
             for x in range(width):
-                rgb = palette_rgb(pixels[start + x], max_iter, palette)
+                rgb = frame_pixel_rgb(pixels[start + x], max_iter, palette, frame_kind)
                 row_hex.append(rgb_hex(rgb))
                 row_rgb.append(rgb)
 
@@ -903,7 +857,6 @@ def run_gui(defaults: ViewerDefaults) -> None:
 
             for sy in range(scale):
                 dest = ((y * scale + sy) * display_width) * 3
-
                 for r, g, b in row_rgb:
                     for _ in range(scale):
                         rgb_bytes[dest] = r
@@ -924,19 +877,13 @@ def run_gui(defaults: ViewerDefaults) -> None:
 
         frame_counter["n"] += 1
 
-        now = time.perf_counter()
-        elapsed = now - fps_ref["last_t"]
-
-        if elapsed >= 0.5:
-            frames = frame_counter["n"] - fps_ref["last_frame"]
-            fps_ref["fps"] = frames / elapsed if elapsed > 0 else 0.0
-            fps_ref["last_t"] = now
-            fps_ref["last_frame"] = frame_counter["n"]
-            root.title(f"Adi UART Viewer - {fps_ref['fps']:.1f} FPS")
+        kind = frame_kind.decode("ascii", errors="replace")
+        raw_size = width * height if frame_kind == MAGIC_ADI0 else (width * height + 7) // 8
 
         status_var.set(
-            f"Frame #{frame_counter['n']}: {width}x{height}, scale={scale}, image={display_width}x{display_height}, "
-            f"palette={palette_label(palette)}, {len(pixels)} bytes, maxIter={max_iter}, fps={fps_ref['fps']:.1f}"
+            f"Frame #{frame_counter['n']}: {kind}, {width}x{height}, "
+            f"scale={scale}, image={display_width}x{display_height}, "
+            f"palette={palette_label(palette)}, payload={raw_size} bytes, maxIter={max_iter}"
         )
 
     def on_close() -> None:
@@ -958,9 +905,9 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("port", nargs="?", help="COM port, for example COM9. Without a port, the GUI opens disconnected.")
     parser.add_argument("--baud", type=int, default=115200)
-    parser.add_argument("--upload", help="Sutra program to upload before receiving ADI0 frames.")
-    parser.add_argument("--width", type=int, default=64, help="ADI0 frame width, 1..255.")
-    parser.add_argument("--height", type=int, default=64, help="ADI0 frame height, 1..255.")
+    parser.add_argument("--upload", help="Sutra program to upload before receiving ADI0 / ADI1 frames.")
+    parser.add_argument("--width", type=int, default=64, help="Frame width, 1..255.")
+    parser.add_argument("--height", type=int, default=64, help="Frame height, 1..255.")
     parser.add_argument("--max-iter", type=int, default=64, help="Iteration value treated as interior color, 1..255.")
     parser.add_argument("--scale", type=int, default=4)
     parser.add_argument("--palette", choices=PALETTE_KEYS, default=DEFAULT_PALETTE)
@@ -1007,3 +954,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    
