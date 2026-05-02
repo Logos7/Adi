@@ -31,33 +31,34 @@ module brahma_bija_core (
     // Opcodes
     // -------------------------------------------------------------------------
 
-    localparam [5:0] OP_NOP       = 6'h00;
-    localparam [5:0] OP_ALU_R     = 6'h01;
-    localparam [5:0] OP_CMP_R     = 6'h02;
+    localparam [5:0] OP_NOP        = 6'h00;
+    localparam [5:0] OP_ALU_R      = 6'h01;
+    localparam [5:0] OP_CMP_R      = 6'h02;
 
-    localparam [5:0] OP_LOAD_I    = 6'h10;
-    localparam [5:0] OP_LOAD_L    = 6'h11;
-    localparam [5:0] OP_LOAD_M    = 6'h12;
-    localparam [5:0] OP_SAVE_M    = 6'h13;
-    localparam [5:0] OP_LOAD_MD   = 6'h14;
-    localparam [5:0] OP_SAVE_MD   = 6'h15;
+    localparam [5:0] OP_LOAD_I     = 6'h10;
+    localparam [5:0] OP_LOAD_L     = 6'h11;
+    localparam [5:0] OP_LOAD_M     = 6'h12;
+    localparam [5:0] OP_SAVE_M     = 6'h13;
+    localparam [5:0] OP_LOAD_MD    = 6'h14;
+    localparam [5:0] OP_SAVE_MD    = 6'h15;
 
-    localparam [5:0] OP_SAVE_BI   = 6'h20;
-    localparam [5:0] OP_LOAD_BI   = 6'h21;
-    localparam [5:0] OP_BOOL_R    = 6'h22;
-    localparam [5:0] OP_LOAD_BR   = 6'h23;
-    localparam [5:0] OP_SAVE_BR   = 6'h24;
+    localparam [5:0] OP_SAVE_BI    = 6'h20;
+    localparam [5:0] OP_LOAD_BI    = 6'h21;
+    localparam [5:0] OP_BOOL_R     = 6'h22;
+    localparam [5:0] OP_LOAD_BR    = 6'h23;
+    localparam [5:0] OP_SAVE_BR    = 6'h24;
 
-    localparam [5:0] OP_WAIT      = 6'h30;
-    localparam [5:0] OP_FBCLEAR   = 6'h31;
-    localparam [5:0] OP_FBPLOT    = 6'h32;
-    localparam [5:0] OP_FBERASE   = 6'h33;
-    localparam [5:0] OP_FBPRESENT = 6'h34;
+    localparam [5:0] OP_WAIT       = 6'h30;
+    localparam [5:0] OP_FBCLEAR    = 6'h31;
+    localparam [5:0] OP_FBPLOT     = 6'h32;
+    localparam [5:0] OP_FBERASE    = 6'h33;
+    localparam [5:0] OP_FBPRESENT  = 6'h34;
+    localparam [5:0] OP_FBPRESENT1 = 6'h35;
 
-    localparam [5:0] OP_JUMP      = 6'h38;
-    localparam [5:0] OP_CALL      = 6'h39;
-    localparam [5:0] OP_RETURN    = 6'h3A;
-    localparam [5:0] OP_HALT      = 6'h3F;
+    localparam [5:0] OP_JUMP       = 6'h38;
+    localparam [5:0] OP_CALL       = 6'h39;
+    localparam [5:0] OP_RETURN     = 6'h3A;
+    localparam [5:0] OP_HALT       = 6'h3F;
 
     localparam [8:0] UART_TX_ADDR = 9'h0F0;
     localparam [8:0] UART_RX_ADDR = 9'h0F1;
@@ -101,22 +102,22 @@ module brahma_bija_core (
     // FSM states
     // -------------------------------------------------------------------------
 
-    localparam [4:0] S_FETCH             = 5'd0;
-    localparam [4:0] S_FETCH2            = 5'd1;
-    localparam [4:0] S_EXECUTE           = 5'd2;
-    localparam [4:0] S_WAIT              = 5'd3;
-    localparam [4:0] S_HALT              = 5'd4;
-    localparam [4:0] S_LOAD_WAIT         = 5'd5;
-    localparam [4:0] S_LOAD_DONE         = 5'd6;
-    localparam [4:0] S_FB_CLEAR          = 5'd7;
-    localparam [4:0] S_FB_RMW_WAIT       = 5'd8;
-    localparam [4:0] S_FB_RMW_WRITE      = 5'd9;
-    localparam [4:0] S_FB_PRESENT_HEADER = 5'd10;
-    localparam [4:0] S_FB_PRESENT_WAIT1  = 5'd11;
-    localparam [4:0] S_FB_PRESENT_WAIT2  = 5'd12;
-    localparam [4:0] S_FB_PRESENT_PIXELS = 5'd13;
+    localparam [4:0] S_FETCH               = 5'd0;
+    localparam [4:0] S_FETCH2              = 5'd1;
+    localparam [4:0] S_EXECUTE             = 5'd2;
+    localparam [4:0] S_WAIT                = 5'd3;
+    localparam [4:0] S_HALT                = 5'd4;
+    localparam [4:0] S_LOAD_WAIT           = 5'd5;
+    localparam [4:0] S_LOAD_DONE           = 5'd6;
+    localparam [4:0] S_FB_CLEAR            = 5'd7;
+    localparam [4:0] S_FB_RMW_WAIT         = 5'd8;
+    localparam [4:0] S_FB_RMW_WRITE        = 5'd9;
+    localparam [4:0] S_FB_PRESENT_HEADER   = 5'd10;
+    localparam [4:0] S_FB_PRESENT_WAIT1    = 5'd11;
+    localparam [4:0] S_FB_PRESENT_WAIT2    = 5'd12;
+    localparam [4:0] S_FB_PRESENT_PIXELS   = 5'd13;
     localparam [4:0] S_FB_PRESENT_TX_DRAIN = 5'd14;
-    localparam [4:0] S_FDIV_STEP          = 5'd15;
+    localparam [4:0] S_FDIV_STEP           = 5'd15;
 
     reg [4:0] state;
 
@@ -162,6 +163,7 @@ module brahma_bija_core (
     reg fb_set_bit;
     reg [2:0] fb_header_index;
     reg fb_tx_kind;
+    reg fb_present_packed;
 
     reg [8:0] addr9_work;
     reg [13:0] addr14_work;
@@ -375,15 +377,30 @@ module brahma_bija_core (
 
     function [7:0] fb_header_byte;
         input [2:0] index;
+        input packed_format;
         begin
             case (index)
                 3'd0: fb_header_byte = 8'd65; // A
                 3'd1: fb_header_byte = 8'd68; // D
                 3'd2: fb_header_byte = 8'd73; // I
-                3'd3: fb_header_byte = 8'd48; // 0
+                3'd3: fb_header_byte = packed_format ? 8'd49 : 8'd48; // 1 / 0
                 3'd4: fb_header_byte = 8'd64; // width
                 3'd5: fb_header_byte = 8'd64; // height
                 default: fb_header_byte = 8'd0;
+            endcase
+        end
+    endfunction
+
+    function [7:0] fb_pack_byte;
+        input [31:0] word;
+        input [1:0] byte_index;
+        begin
+            case (byte_index)
+                2'd0: fb_pack_byte = {word[0],  word[1],  word[2],  word[3],  word[4],  word[5],  word[6],  word[7]};
+                2'd1: fb_pack_byte = {word[8],  word[9],  word[10], word[11], word[12], word[13], word[14], word[15]};
+                2'd2: fb_pack_byte = {word[16], word[17], word[18], word[19], word[20], word[21], word[22], word[23]};
+                2'd3: fb_pack_byte = {word[24], word[25], word[26], word[27], word[28], word[29], word[30], word[31]};
+                default: fb_pack_byte = 8'd0;
             endcase
         end
     endfunction
@@ -418,6 +435,7 @@ module brahma_bija_core (
             fb_set_bit <= 1'b0;
             fb_header_index <= 3'd0;
             fb_tx_kind <= 1'b0;
+            fb_present_packed <= 1'b0;
             addr9_work <= 9'd0;
             addr14_work <= 14'd0;
             addr32_work <= 32'd0;
@@ -455,8 +473,6 @@ module brahma_bija_core (
             uart_tx_valid <= 1'b0;
             data_we <= 1'b0;
 
-            // UART RX has a one-byte buffer. If software does not read it quickly
-            // enough, a newer byte overwrites the older byte by design.
             if (uart_rx_valid) begin
                 uart_rx_buf <= uart_rx_data;
                 uart_rx_pending <= 1'b1;
@@ -748,9 +764,10 @@ module brahma_bija_core (
                                 end
                             end
 
-                            OP_FBPRESENT: begin
+                            OP_FBPRESENT, OP_FBPRESENT1: begin
                                 fb_base <= rd_value[8:0];
                                 fb_header_index <= 3'd0;
+                                fb_present_packed <= (opcode == OP_FBPRESENT1);
                                 state <= S_FB_PRESENT_HEADER;
                             end
 
@@ -849,7 +866,7 @@ module brahma_bija_core (
 
                 S_FB_PRESENT_HEADER: begin
                     if (uart_tx_ready) begin
-                        uart_tx_data <= fb_header_byte(fb_header_index);
+                        uart_tx_data <= fb_header_byte(fb_header_index, fb_present_packed);
                         uart_tx_valid <= 1'b1;
                         fb_tx_kind <= 1'b0;
                         state <= S_FB_PRESENT_TX_DRAIN;
@@ -868,11 +885,16 @@ module brahma_bija_core (
 
                 S_FB_PRESENT_PIXELS: begin
                     if (uart_tx_ready) begin
-                        if (fb_word[fb_bit_index]) begin
-                            uart_tx_data <= 8'd48;
+                        if (fb_present_packed) begin
+                            uart_tx_data <= fb_pack_byte(fb_word, fb_bit_index[4:3]);
                         end else begin
-                            uart_tx_data <= 8'd0;
+                            if (fb_word[fb_bit_index]) begin
+                                uart_tx_data <= 8'd48;
+                            end else begin
+                                uart_tx_data <= 8'd0;
+                            end
                         end
+
                         uart_tx_valid <= 1'b1;
                         fb_tx_kind <= 1'b1;
                         state <= S_FB_PRESENT_TX_DRAIN;
@@ -892,18 +914,34 @@ module brahma_bija_core (
                                 state <= S_FB_PRESENT_HEADER;
                             end
                         end else begin
-                            if (fb_bit_index == 5'd31) begin
-                                if (fb_word_index == 7'd127) begin
-                                    pc <= pc + 32'd1;
-                                    state <= S_FETCH;
+                            if (fb_present_packed) begin
+                                if (fb_bit_index == 5'd24) begin
+                                    if (fb_word_index == 7'd127) begin
+                                        pc <= pc + 32'd1;
+                                        state <= S_FETCH;
+                                    end else begin
+                                        fb_word_index <= fb_word_index + 7'd1;
+                                        data_rd_addr <= fb_base + {2'b00, fb_word_index + 7'd1};
+                                        state <= S_FB_PRESENT_WAIT1;
+                                    end
                                 end else begin
-                                    fb_word_index <= fb_word_index + 7'd1;
-                                    data_rd_addr <= fb_base + {2'b00, fb_word_index + 7'd1};
-                                    state <= S_FB_PRESENT_WAIT1;
+                                    fb_bit_index <= fb_bit_index + 5'd8;
+                                    state <= S_FB_PRESENT_PIXELS;
                                 end
                             end else begin
-                                fb_bit_index <= fb_bit_index + 5'd1;
-                                state <= S_FB_PRESENT_PIXELS;
+                                if (fb_bit_index == 5'd31) begin
+                                    if (fb_word_index == 7'd127) begin
+                                        pc <= pc + 32'd1;
+                                        state <= S_FETCH;
+                                    end else begin
+                                        fb_word_index <= fb_word_index + 7'd1;
+                                        data_rd_addr <= fb_base + {2'b00, fb_word_index + 7'd1};
+                                        state <= S_FB_PRESENT_WAIT1;
+                                    end
+                                end else begin
+                                    fb_bit_index <= fb_bit_index + 5'd1;
+                                    state <= S_FB_PRESENT_PIXELS;
+                                end
                             end
                         end
                     end

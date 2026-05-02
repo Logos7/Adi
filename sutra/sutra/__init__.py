@@ -39,6 +39,7 @@ OPCODE_FBCLEAR = 0x31
 OPCODE_FBPLOT = 0x32
 OPCODE_FBERASE = 0x33
 OPCODE_FBPRESENT = 0x34
+OPCODE_FBPRESENT1 = 0x35
 OPCODE_JUMP = 0x38
 OPCODE_CALL = 0x39
 OPCODE_RETURN = 0x3A
@@ -934,11 +935,12 @@ def assemble_instruction(mnemonic: str, operands: list[str], pred: int = PRED_AL
         base = parse_register(operands[0])
         return [encode_r_format(OPCODE_FBCLEAR, base, 0, 0, 0, pred)]
 
-    if m == "FBPRESENT":
+    if m in ("FBPRESENT", "FBPRESENT1"):
         if len(operands) != 1:
-            raise AssemblerError("fbpresent requires 1 operand: fbpresent rBase")
+            raise AssemblerError(f"{m.lower()} requires 1 operand: {m.lower()} rBase")
         base = parse_register(operands[0])
-        return [encode_r_format(OPCODE_FBPRESENT, base, 0, 0, 0, pred)]
+        opcode = OPCODE_FBPRESENT if m == "FBPRESENT" else OPCODE_FBPRESENT1
+        return [encode_r_format(opcode, base, 0, 0, 0, pred)]
 
     if m in ("FBPLOT", "FBERASE"):
         if len(operands) != 3:
