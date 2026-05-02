@@ -7,6 +7,7 @@ import colorsys
 import json
 import os
 import sys
+import time
 from dataclasses import dataclass
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -483,6 +484,7 @@ def run_gui(defaults: ViewerDefaults) -> None:
     image_ref: dict[str, tk.PhotoImage | None] = {"img": None}
     display_frame_ref: dict[str, int | bytes | None] = {"width": 0, "height": 0, "rgb": None}
     frame_counter = {"n": 0}
+    frame_timing = {"last": None, "fps": 0.0}
 
     outer = ttk.Frame(root, padding=10)
     outer.pack(fill="both", expand=True)
@@ -605,6 +607,8 @@ def run_gui(defaults: ViewerDefaults) -> None:
             except Exception:
                 pass
         buffer.clear()
+        frame_timing["last"] = None
+        frame_timing["fps"] = 0.0
         status_var.set(f"Connected: {port} @ {baud}")
         log(f"[OPEN] {port} @ {baud}\n")
 
@@ -623,6 +627,8 @@ def run_gui(defaults: ViewerDefaults) -> None:
     def clear() -> None:
         buffer.clear()
         frame_counter["n"] = 0
+        frame_timing["last"] = None
+        frame_timing["fps"] = 0.0
         image_ref["img"] = None
         display_frame_ref["width"] = 0
         display_frame_ref["height"] = 0
@@ -726,6 +732,8 @@ def run_gui(defaults: ViewerDefaults) -> None:
 
             buffer.clear()
             frame_counter["n"] = 0
+            frame_timing["last"] = None
+            frame_timing["fps"] = 0.0
             open_serial(clear_buffers=False)
 
             status_var.set("Upload OK. Waiting for ADI0 / ADI1 frames...")
@@ -875,14 +883,30 @@ def run_gui(defaults: ViewerDefaults) -> None:
         canvas.delete("all")
         canvas.create_image(0, 0, image=image_ref["img"], anchor="nw")
 
+        now = time.perf_counter()
+        last = frame_timing["last"]
+        fps = frame_timing["fps"]
+
+        if isinstance(last, float):
+            dt = now - last
+            if dt > 0.0:
+                instant_fps = 1.0 / dt
+                if fps <= 0.0:
+                    fps = instant_fps
+                else:
+                    fps = (fps * 0.85) + (instant_fps * 0.15)
+                frame_timing["fps"] = fps
+
+        frame_timing["last"] = now
         frame_counter["n"] += 1
 
         kind = frame_kind.decode("ascii", errors="replace")
         raw_size = width * height if frame_kind == MAGIC_ADI0 else (width * height + 7) // 8
+        fps_text = "warming" if fps <= 0.0 else f"{fps:.1f}"
 
         status_var.set(
             f"Frame #{frame_counter['n']}: {kind}, {width}x{height}, "
-            f"scale={scale}, image={display_width}x{display_height}, "
+            f"FPS={fps_text}, scale={scale}, image={display_width}x{display_height}, "
             f"palette={palette_label(palette)}, payload={raw_size} bytes, maxIter={max_iter}"
         )
 
