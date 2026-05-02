@@ -3,89 +3,258 @@
   "name": "Sutra",
   "scopeName": "source.sutra",
   "patterns": [
-    { "include": "#comments" },
-    { "include": "#labels" },
-    { "include": "#predicates" },
-    { "include": "#compare-instructions" },
-    { "include": "#macro-instructions" },
-    { "include": "#core-instructions" },
-    { "include": "#address-values" },
-    { "include": "#memory" },
-    { "include": "#complex-registers" },
-    { "include": "#bool-registers" },
-    { "include": "#registers" },
-    { "include": "#bool-constants" },
-    { "include": "#math-constants" },
-    { "include": "#numbers" }
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#label-definitions"
+    },
+    {
+      "include": "#label-references"
+    },
+    {
+      "include": "#predicates"
+    },
+    {
+      "include": "#compare-instructions"
+    },
+    {
+      "include": "#flow-instructions"
+    },
+    {
+      "include": "#transfer-instructions"
+    },
+    {
+      "include": "#integer-instructions"
+    },
+    {
+      "include": "#fixed-instructions"
+    },
+    {
+      "include": "#bool-instructions"
+    },
+    {
+      "include": "#complex-macro-instructions"
+    },
+    {
+      "include": "#uart-macro-instructions"
+    },
+    {
+      "include": "#math-macro-instructions"
+    },
+    {
+      "include": "#framebuffer-instructions"
+    },
+    {
+      "include": "#address-values"
+    },
+    {
+      "include": "#memory"
+    },
+    {
+      "include": "#complex-registers"
+    },
+    {
+      "include": "#bool-registers"
+    },
+    {
+      "include": "#scratch-registers"
+    },
+    {
+      "include": "#registers"
+    },
+    {
+      "include": "#bool-constants"
+    },
+    {
+      "include": "#math-constants"
+    },
+    {
+      "include": "#numbers"
+    }
   ],
   "repository": {
     "comments": {
       "match": ";.*$",
       "name": "comment.line.semicolon.sutra"
     },
-    "labels": {
+    "label-definitions": {
       "match": "^\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*:",
       "captures": {
-        "1": { "name": "entity.name.function.label.sutra" }
+        "1": {
+          "name": "entity.name.label.definition.sutra"
+        }
       }
     },
-    "core-instructions": {
-      "match": "(?i)\\b(move|band|bor|bxor|bnot|iadd|fadd|isub|fsub|iand|ior|ixor|inot|shl|shr|sar|imul|fmul|fdiv|itof|ftoi|fabs|cadd|csub|cmul|cabs2|jump|jmp|call|return|fbclear|fbplot|fberase|fbpresent|wait|nop|halt)\\b",
-      "name": "keyword.control.sutra"
-    },
-    "compare-instructions": {
-      "match": "(?i)\\b(cmp\\.(?:eq|ne|lt|le|gt|ge|feq))\\b",
-      "name": "keyword.operator.comparison.sutra"
-    },
-    "macro-instructions": {
-      "match": "(?i)\\b(wait_rx|read_rx|wait_uart|write_tx|jump_if|jump_if_not|beq|bne|blt|ble|bgt|bge|inc|dec|neg|fneg|imin|imax|fmin|fmax)\\b",
-      "name": "support.function.macro.sutra"
+    "label-references": {
+      "patterns": [
+        {
+          "match": "(?i)\\b(jump|jmp|call)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": {
+              "name": "keyword.control.flow.sutra"
+            },
+            "2": {
+              "name": "variable.other.label.reference.sutra"
+            }
+          }
+        },
+        {
+          "match": "(?i)\\b(jump_if|jump_if_not)\\s+([bB][0-7])\\s*,\\s*([A-Za-z_][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": {
+              "name": "keyword.control.flow.sutra"
+            },
+            "2": {
+              "name": "variable.other.register.bool.sutra"
+            },
+            "3": {
+              "name": "variable.other.label.reference.sutra"
+            }
+          }
+        },
+        {
+          "match": "(?i)\\b(beq|bne|blt|ble|bgt|bge)\\s+([^,;\\n]+,\\s*[^,;\\n]+,\\s*)([A-Za-z_][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": {
+              "name": "keyword.control.flow.sutra"
+            },
+            "3": {
+              "name": "variable.other.label.reference.sutra"
+            }
+          }
+        }
+      ]
     },
     "predicates": {
       "match": "\\(\\s*!?\\s*[bB][0-7]\\s*\\)",
       "name": "keyword.operator.predicate.sutra"
     },
+    "compare-instructions": {
+      "match": "(?i)\\b(cmp\\.(?:eq|ne|lt|le|gt|ge|feq))\\b",
+      "name": "keyword.operator.comparison.sutra"
+    },
+    "flow-instructions": {
+      "match": "(?i)\\b(jump|jmp|call|return|jump_if|jump_if_not|beq|bne|blt|ble|bgt|bge|wait|nop|halt)\\b",
+      "name": "keyword.control.flow.sutra"
+    },
+    "transfer-instructions": {
+      "match": "(?i)\\b(move)\\b",
+      "name": "keyword.other.transfer.sutra"
+    },
+    "integer-instructions": {
+      "match": "(?i)\\b(iadd|isub|imul|iand|ior|ixor|inot|shl|shr|sar)\\b",
+      "name": "keyword.operator.integer.sutra"
+    },
+    "fixed-instructions": {
+      "match": "(?i)\\b(fadd|fsub|fmul|fdiv|itof|ftoi|fabs)\\b",
+      "name": "keyword.operator.fixed.sutra"
+    },
+    "bool-instructions": {
+      "match": "(?i)\\b(band|bor|bxor|bnot)\\b",
+      "name": "keyword.operator.bool.sutra"
+    },
+    "complex-macro-instructions": {
+      "match": "(?i)\\b(cadd|csub|cmul|cabs2)\\b",
+      "name": "support.function.macro.complex.sutra"
+    },
+    "uart-macro-instructions": {
+      "match": "(?i)\\b(wait_rx|read_rx|wait_uart|write_tx)\\b",
+      "name": "support.function.macro.uart.sutra"
+    },
+    "math-macro-instructions": {
+      "match": "(?i)\\b(inc|dec|neg|fneg|imin|imax|fmin|fmax)\\b",
+      "name": "support.function.macro.math.sutra"
+    },
+    "framebuffer-instructions": {
+      "match": "(?i)\\b(fbclear|fbplot|fberase|fbpresent|fbpresent1)\\b",
+      "name": "support.function.framebuffer.sutra"
+    },
     "address-values": {
-      "match": "&(?:[A-Za-z_][A-Za-z0-9_]*|pin[0-9]+|inpin[0-9]+|0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+)",
-      "name": "constant.other.address.sutra"
+      "patterns": [
+        {
+          "match": "(?i)&(?:uart_tx|uart_rx|uart_ready|uart_tx_ready|uart_rx_ready)\\b",
+          "name": "constant.other.address.mmio.sutra"
+        },
+        {
+          "match": "(?i)&(?:led[0-5]|pin[0-9]+|inpin[0-9]+)\\b",
+          "name": "constant.other.address.gpio.sutra"
+        },
+        {
+          "match": "&(?:[A-Za-z_][A-Za-z0-9_]*|0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+)",
+          "name": "constant.other.address.sutra"
+        }
+      ]
     },
     "memory": {
-      "match": "@(?:[rR](?:[12]?[0-9]|3[01])(?:[+-][0-9]+)?|[tT][0-7](?:[+-][0-9]+)?|[A-Za-z_][A-Za-z0-9_]*|pin[0-9]+|inpin[0-9]+|0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+)",
-      "name": "storage.modifier.memory.sutra"
+      "patterns": [
+        {
+          "match": "(?i)@(?:uart_tx|uart_rx|uart_ready|uart_tx_ready|uart_rx_ready)\\b",
+          "name": "storage.modifier.memory.mmio.sutra"
+        },
+        {
+          "match": "(?i)@(?:led[0-5]|pin[0-9]+|inpin[0-9]+)\\b",
+          "name": "storage.modifier.memory.gpio.sutra"
+        },
+        {
+          "match": "(?i)@(?:r(?:[12]?[0-9]|3[01])|t[0-7])(?:[+-][0-9]+)?\\b",
+          "name": "storage.modifier.memory.register.sutra"
+        },
+        {
+          "match": "@(?:[A-Za-z_][A-Za-z0-9_]*|0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+)",
+          "name": "storage.modifier.memory.sutra"
+        }
+      ]
     },
     "registers": {
-      "match": "(?i)\\b(r(?:[12]?[0-9]|3[01])|t[0-7])\\b",
-      "name": "variable.parameter.register.sutra"
+      "match": "(?i)\\b(r(?:[12]?[0-9]|3[01]))\\b",
+      "name": "variable.other.register.gpr.sutra"
+    },
+    "scratch-registers": {
+      "match": "(?i)\\b(t[0-7])\\b",
+      "name": "variable.other.register.scratch.sutra"
     },
     "complex-registers": {
       "match": "(?i)\\b(z(?:[0-9]|1[0-5]))\\b",
-      "name": "variable.parameter.complex.sutra"
+      "name": "variable.other.register.complex.sutra"
     },
     "bool-registers": {
       "match": "(?i)\\b(b[0-7])\\b",
-      "name": "variable.parameter.bool.sutra"
+      "name": "variable.other.register.bool.sutra"
     },
     "bool-constants": {
       "match": "(?i)\\b(true|false|high|low)\\b",
       "name": "constant.language.bool.sutra"
     },
     "math-constants": {
-      "match": "(?i)(?:\\b(pi|tau|phi|e|half|sqrt[0-9.]*|sqrt\\([^)]*\\)|ln2|ln10|log2e|log10e|inv_pi|inv_tau|inv_sqrt2|silver|golden|one|zero|two)\\b|[πτεφ½]|√[A-Za-z0-9_.]+)",
-      "name": "constant.numeric.symbolic.sutra"
+      "patterns": [
+        {
+          "match": "(?i)\\b(zero|one|neg_one|minus_one|fzero|f_zero|fone|f_one|fneg_one|f_neg_one|half|two|pi|half_pi|quarter_pi|tau|inv_pi|inv_tau|e|inv_e|ln2|ln_2|ln10|ln_10|log2e|log2_e|log10e|log10_e|sqrt2|sqrt_2|sqrt3|sqrt_3|sqrt5|sqrt_5|inv_sqrt2|phi|golden|golden_ratio|silver|silver_ratio)\\b",
+          "name": "constant.numeric.symbolic.sutra"
+        },
+        {
+          "match": "(?:[πτεφ½]|√[A-Za-z0-9_.]+|sqrt\\([^)]*\\)|(?i:sqrt[0-9.]+)|2π|2\\*π|π/2|π/4|1/π|1/τ|1/e|1/√2|(?i:2pi|2\\*pi|pi/2|pi/4|1/pi|1/tau|1/e|1/sqrt2))",
+          "name": "constant.numeric.symbolic.sutra"
+        }
+      ]
     },
     "numbers": {
       "patterns": [
         {
-          "match": "\\b0[xX][0-9a-fA-F]+\\b",
-          "name": "constant.numeric.hex.sutra"
+          "match": "(?<![A-Za-z0-9_])[-+]?0[xX][0-9a-fA-F]+\\b",
+          "name": "constant.numeric.integer.hex.sutra"
         },
         {
-          "match": "\\b0[bB][01]+\\b",
-          "name": "constant.numeric.binary.sutra"
+          "match": "(?<![A-Za-z0-9_])[-+]?0[bB][01]+\\b",
+          "name": "constant.numeric.integer.binary.sutra"
         },
         {
-          "match": "-?\\b[0-9]+(?:\\.[0-9]+)?\\b",
-          "name": "constant.numeric.decimal.sutra"
+          "match": "(?<![A-Za-z0-9_])[-+]?[0-9]+\\.[0-9]+\\b",
+          "name": "constant.numeric.fixed.sutra"
+        },
+        {
+          "match": "(?<![A-Za-z0-9_])[-+]?[0-9]+\\b",
+          "name": "constant.numeric.integer.decimal.sutra"
         }
       ]
     }
