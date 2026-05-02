@@ -21,6 +21,7 @@ import argparse
 import colorsys
 import json
 import os
+import time
 import sys
 from dataclasses import dataclass
 
@@ -518,6 +519,7 @@ def run_gui(defaults: ViewerDefaults) -> None:
     image_ref: dict[str, tk.PhotoImage | None] = {"img": None}
     display_frame_ref: dict[str, int | bytes | None] = {"width": 0, "height": 0, "rgb": None}
     frame_counter = {"n": 0}
+    fps_ref = {"last_t": time.perf_counter(), "last_frame": 0, "fps": 0.0}
 
     outer = ttk.Frame(root, padding=10)
     outer.pack(fill="both", expand=True)
@@ -651,6 +653,7 @@ def run_gui(defaults: ViewerDefaults) -> None:
                 pass
 
         buffer.clear()
+        reset_fps_counter()
         status_var.set(f"Connected: {port} @ {baud}")
         log(f"[OPEN] {port} @ {baud}\n")
 
@@ -666,9 +669,16 @@ def run_gui(defaults: ViewerDefaults) -> None:
         status_var.set("Disconnected")
         log("[CLOSE]\n")
 
+    def reset_fps_counter() -> None:
+        fps_ref["last_t"] = time.perf_counter()
+        fps_ref["last_frame"] = frame_counter["n"]
+        fps_ref["fps"] = 0.0
+        root.title("Adi UART Viewer - 0.0 FPS")
+
     def clear() -> None:
         buffer.clear()
         frame_counter["n"] = 0
+        reset_fps_counter()
         image_ref["img"] = None
         display_frame_ref["width"] = 0
         display_frame_ref["height"] = 0
@@ -772,6 +782,7 @@ def run_gui(defaults: ViewerDefaults) -> None:
 
             buffer.clear()
             frame_counter["n"] = 0
+            reset_fps_counter()
 
             open_serial(clear_buffers=False)
 
@@ -912,9 +923,20 @@ def run_gui(defaults: ViewerDefaults) -> None:
         canvas.create_image(0, 0, image=image_ref["img"], anchor="nw")
 
         frame_counter["n"] += 1
+
+        now = time.perf_counter()
+        elapsed = now - fps_ref["last_t"]
+
+        if elapsed >= 0.5:
+            frames = frame_counter["n"] - fps_ref["last_frame"]
+            fps_ref["fps"] = frames / elapsed if elapsed > 0 else 0.0
+            fps_ref["last_t"] = now
+            fps_ref["last_frame"] = frame_counter["n"]
+            root.title(f"Adi UART Viewer - {fps_ref['fps']:.1f} FPS")
+
         status_var.set(
             f"Frame #{frame_counter['n']}: {width}x{height}, scale={scale}, image={display_width}x{display_height}, "
-            f"palette={palette_label(palette)}, {len(pixels)} bytes, maxIter={max_iter}"
+            f"palette={palette_label(palette)}, {len(pixels)} bytes, maxIter={max_iter}, fps={fps_ref['fps']:.1f}"
         )
 
     def on_close() -> None:

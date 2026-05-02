@@ -1,0 +1,14 @@
+main:
+    wait 50000
+
+    move r1, 6.0
+    move r2, 1.5
+    fdiv r3, r1, r2
+    ftoi r4, r3
+
+    iadd r4, r4, 48    ; ASCII digit: 4 -> '4'
+
+loop:
+    write_tx r4
+    wait 500000
+    jump loop

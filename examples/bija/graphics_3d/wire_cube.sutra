@@ -1,372 +1,522 @@
-; Wire cube demo using 64x64 1-bit framebuffer.
+; Sutra v1.4
+; Perspective wireframe cube using 64x64 1-bit framebuffer.
+;
 ; Requires:
-;   call / return
-;   fbclear / fbplot / fberase / fbpresent
+; - call / return
+; - data_mem as BRAM
+; - fbclear / fbplot / fbpresent
+; - fmul / fdiv / ftoi
 ;
 ; Framebuffer:
-;   r20 = base word address in data_mem
-;   data_mem[256..383] used as 64x64 1bpp buffer.
+; - r20 = framebuffer base word address
+; - data_mem[256..383] used as packed 64x64 1bpp framebuffer
+;
+; Runtime memory map:
+; - data_mem[0..63]   = sin LUT, 64 entries, Q7.25
+; - data_mem[64..79]  = projected vertices, x/y pairs
+;
+; Frame style:
+; - fbclear r20
+; - draw into framebuffer with fbplot
+; - fbpresent r20 sends ADI0 64x64 frame
 
 main:
-    move r20, 256
+ move @led0, low
+ move @led1, high
+ move @led2, high
+ move @led3, high
+ move @led4, high
+ move @led5, high
 
-loop:
-    fbclear r20
-    call frame_0
-    fbpresent r20
-    wait 12000
+ move r20, 256
+ move r21, 0
+ move r22, 64
 
-    fbclear r20
-    call frame_1
-    fbpresent r20
-    wait 12000
+ call init_sin_lut
 
-    fbclear r20
-    call frame_2
-    fbpresent r20
-    wait 12000
+ move r18, 0
+ move r19, 16
 
-    fbclear r20
-    call frame_3
-    fbpresent r20
-    wait 12000
+main_loop:
+ move @led4, low
 
-    jump loop
+ fbclear r20
 
+ call load_angles
+ call project_cube
+ call draw_edges
 
-; ------------------------------------------------------------
-; Frame 0
-; ------------------------------------------------------------
+ fbpresent r20
 
-frame_0:
-    ; front square
-    move r1, 14
-    move r2, 18
-    move r3, 28
-    call hline
+ move @led4, high
 
-    move r1, 14
-    move r2, 46
-    move r3, 28
-    call hline
+ iadd r18, r18, 1
+ iand r18, r18, 63
 
-    move r1, 14
-    move r2, 18
-    move r3, 28
-    call vline
+ iadd r19, r19, 2
+ iand r19, r19, 63
 
-    move r1, 42
-    move r2, 18
-    move r3, 28
-    call vline
-
-    ; back square
-    move r1, 24
-    move r2, 10
-    move r3, 28
-    call hline
-
-    move r1, 24
-    move r2, 38
-    move r3, 28
-    call hline
-
-    move r1, 24
-    move r2, 10
-    move r3, 28
-    call vline
-
-    move r1, 52
-    move r2, 10
-    move r3, 28
-    call vline
-
-    ; connectors
-    move r1, 14
-    move r2, 18
-    move r3, 10
-    call diag_up_right
-
-    move r1, 42
-    move r2, 18
-    move r3, 10
-    call diag_up_right
-
-    move r1, 14
-    move r2, 46
-    move r3, 10
-    call diag_up_right
-
-    move r1, 42
-    move r2, 46
-    move r3, 10
-    call diag_up_right
-
-    return
-
+ wait 3000
+ jump main_loop
 
 ; ------------------------------------------------------------
-; Frame 1
+; Angle loading
 ; ------------------------------------------------------------
+; r18 = angle X, 0..63
+; r19 = angle Y, 0..63
+;
+; outputs:
+; r10 = sinX
+; r11 = cosX
+; r12 = sinY
+; r13 = cosY
 
-frame_1:
-    ; front square
-    move r1, 18
-    move r2, 15
-    move r3, 28
-    call hline
+load_angles:
+ iadd r23, r21, r18
+ move r10, @r23
 
-    move r1, 18
-    move r2, 49
-    move r3, 28
-    call hline
+ iadd r23, r18, 16
+ iand r23, r23, 63
+ iadd r23, r21, r23
+ move r11, @r23
 
-    move r1, 18
-    move r2, 15
-    move r3, 34
-    call vline
+ iadd r23, r21, r19
+ move r12, @r23
 
-    move r1, 46
-    move r2, 15
-    move r3, 34
-    call vline
+ iadd r23, r19, 16
+ iand r23, r23, 63
+ iadd r23, r21, r23
+ move r13, @r23
 
-    ; back square, shifted left/down
-    move r1, 11
-    move r2, 21
-    move r3, 28
-    call hline
-
-    move r1, 11
-    move r2, 55
-    move r3, 28
-    call hline
-
-    move r1, 11
-    move r2, 21
-    move r3, 34
-    call vline
-
-    move r1, 39
-    move r2, 21
-    move r3, 34
-    call vline
-
-    ; connectors
-    move r1, 11
-    move r2, 21
-    move r3, 7
-    call diag_up_right
-
-    move r1, 39
-    move r2, 21
-    move r3, 7
-    call diag_up_right
-
-    move r1, 11
-    move r2, 55
-    move r3, 7
-    call diag_up_right
-
-    move r1, 39
-    move r2, 55
-    move r3, 7
-    call diag_up_right
-
-    return
-
+ return
 
 ; ------------------------------------------------------------
-; Frame 2
+; Project all 8 cube vertices
 ; ------------------------------------------------------------
 
-frame_2:
-    ; front square
-    move r1, 22
-    move r2, 13
-    move r3, 24
-    call hline
+project_cube:
+ move r17, 64
+ move r0, -1.0
+ move r1, -1.0
+ move r2, -1.0
+ call project_vertex
 
-    move r1, 22
-    move r2, 51
-    move r3, 24
-    call hline
+ move r17, 66
+ move r0, 1.0
+ move r1, -1.0
+ move r2, -1.0
+ call project_vertex
 
-    move r1, 22
-    move r2, 13
-    move r3, 38
-    call vline
+ move r17, 68
+ move r0, 1.0
+ move r1, 1.0
+ move r2, -1.0
+ call project_vertex
 
-    move r1, 46
-    move r2, 13
-    move r3, 38
-    call vline
+ move r17, 70
+ move r0, -1.0
+ move r1, 1.0
+ move r2, -1.0
+ call project_vertex
 
-    ; back square, shifted left
-    move r1, 16
-    move r2, 13
-    move r3, 24
-    call hline
+ move r17, 72
+ move r0, -1.0
+ move r1, -1.0
+ move r2, 1.0
+ call project_vertex
 
-    move r1, 16
-    move r2, 51
-    move r3, 24
-    call hline
+ move r17, 74
+ move r0, 1.0
+ move r1, -1.0
+ move r2, 1.0
+ call project_vertex
 
-    move r1, 16
-    move r2, 13
-    move r3, 38
-    call vline
+ move r17, 76
+ move r0, 1.0
+ move r1, 1.0
+ move r2, 1.0
+ call project_vertex
 
-    move r1, 40
-    move r2, 13
-    move r3, 38
-    call vline
+ move r17, 78
+ move r0, -1.0
+ move r1, 1.0
+ move r2, 1.0
+ call project_vertex
 
-    ; connectors
-    move r1, 16
-    move r2, 13
-    move r3, 6
-    call hline
-
-    move r1, 16
-    move r2, 51
-    move r3, 6
-    call hline
-
-    move r1, 40
-    move r2, 13
-    move r3, 6
-    call hline
-
-    move r1, 40
-    move r2, 51
-    move r3, 6
-    call hline
-
-    return
-
+ return
 
 ; ------------------------------------------------------------
-; Frame 3
+; Project one vertex
 ; ------------------------------------------------------------
+; input:
+; r0 = x
+; r1 = y
+; r2 = z
+; r17 = destination address for projected x/y
+;
+; globals:
+; r10 = sinX
+; r11 = cosX
+; r12 = sinY
+; r13 = cosY
+;
+; output:
+; @r17     = screen x
+; @r17 + 1 = screen y
+;
+; Rotation:
+; y1 = y*cosX - z*sinX
+; z1 = y*sinX + z*cosX
+; x1 = x
+;
+; x2 = x1*cosY + z1*sinY
+; z2 = z1*cosY - x1*sinY
+; y2 = y1
+;
+; Perspective:
+; factor = 34.0 / (z2 + 4.0)
+; sx = 32 + ftoi(x2 * factor)
+; sy = 32 - ftoi(y2 * factor)
 
-frame_3:
-    ; front square
-    move r1, 18
-    move r2, 15
-    move r3, 28
-    call hline
+project_vertex:
+ fmul r3, r1, r11
+ fmul r4, r2, r10
+ fsub r5, r3, r4
 
-    move r1, 18
-    move r2, 49
-    move r3, 28
-    call hline
+ fmul r3, r1, r10
+ fmul r4, r2, r11
+ fadd r6, r3, r4
 
-    move r1, 18
-    move r2, 15
-    move r3, 34
-    call vline
+ fmul r3, r0, r13
+ fmul r4, r6, r12
+ fadd r7, r3, r4
 
-    move r1, 46
-    move r2, 15
-    move r3, 34
-    call vline
+ fmul r3, r6, r13
+ fmul r4, r0, r12
+ fsub r8, r3, r4
 
-    ; back square, shifted right/down
-    move r1, 25
-    move r2, 21
-    move r3, 28
-    call hline
+ fadd r9, r8, 4.0
+ fdiv r14, 34.0, r9
 
-    move r1, 25
-    move r2, 55
-    move r3, 28
-    call hline
+ fmul r15, r7, r14
+ ftoi r15, r15
+ iadd r15, r15, 32
 
-    move r1, 25
-    move r2, 21
-    move r3, 34
-    call vline
+ fmul r16, r5, r14
+ ftoi r16, r16
+ isub r16, 32, r16
 
-    move r1, 53
-    move r2, 21
-    move r3, 34
-    call vline
+ move @r17, r15
+ move @r17+1, r16
 
-    ; connectors
-    move r1, 18
-    move r2, 15
-    move r3, 7
-    call diag_down_right
-
-    move r1, 46
-    move r2, 15
-    move r3, 7
-    call diag_down_right
-
-    move r1, 18
-    move r2, 49
-    move r3, 7
-    call diag_down_right
-
-    move r1, 46
-    move r2, 49
-    move r3, 7
-    call diag_down_right
-
-    return
-
+ return
 
 ; ------------------------------------------------------------
-; Drawing helpers
+; Cube edges
 ; ------------------------------------------------------------
 
-; r1 = x
-; r2 = y
-; r3 = length
-hline:
-    fbplot r20, r1, r2
-    iadd r1, r1, 1
-    isub r3, r3, 1
-    cmp.ne b0, r3, 0
-    jump_if b0, hline
-    return
+draw_edges:
+ ; 0 - 1
+ move r23, 64
+ move r1, @r23
+ move r2, @r23+1
+ move r3, @r23+2
+ move r4, @r23+3
+ call line
 
+ ; 1 - 2
+ move r23, 66
+ move r1, @r23
+ move r2, @r23+1
+ move r3, @r23+2
+ move r4, @r23+3
+ call line
 
-; r1 = x
-; r2 = y
-; r3 = length
-vline:
-    fbplot r20, r1, r2
-    iadd r2, r2, 1
-    isub r3, r3, 1
-    cmp.ne b0, r3, 0
-    jump_if b0, vline
-    return
+ ; 2 - 3
+ move r23, 68
+ move r1, @r23
+ move r2, @r23+1
+ move r3, @r23+2
+ move r4, @r23+3
+ call line
 
+ ; 3 - 0
+ move r23, 70
+ move r1, @r23
+ move r2, @r23+1
+ move r3, @64
+ move r4, @65
+ call line
 
-; r1 = x
-; r2 = y
-; r3 = length
-diag_down_right:
-    fbplot r20, r1, r2
-    iadd r1, r1, 1
-    iadd r2, r2, 1
-    isub r3, r3, 1
-    cmp.ne b0, r3, 0
-    jump_if b0, diag_down_right
-    return
+ ; 4 - 5
+ move r23, 72
+ move r1, @r23
+ move r2, @r23+1
+ move r3, @r23+2
+ move r4, @r23+3
+ call line
 
+ ; 5 - 6
+ move r23, 74
+ move r1, @r23
+ move r2, @r23+1
+ move r3, @r23+2
+ move r4, @r23+3
+ call line
 
-; r1 = x
-; r2 = y
-; r3 = length
-diag_up_right:
-    fbplot r20, r1, r2
-    iadd r1, r1, 1
-    isub r2, r2, 1
-    isub r3, r3, 1
-    cmp.ne b0, r3, 0
-    jump_if b0, diag_up_right
-    return
+ ; 6 - 7
+ move r23, 76
+ move r1, @r23
+ move r2, @r23+1
+ move r3, @r23+2
+ move r4, @r23+3
+ call line
+
+ ; 7 - 4
+ move r23, 78
+ move r1, @r23
+ move r2, @r23+1
+ move r3, @72
+ move r4, @73
+ call line
+
+ ; 0 - 4
+ move r23, 64
+ move r1, @r23
+ move r2, @r23+1
+ move r3, @72
+ move r4, @73
+ call line
+
+ ; 1 - 5
+ move r23, 66
+ move r1, @r23
+ move r2, @r23+1
+ move r3, @74
+ move r4, @75
+ call line
+
+ ; 2 - 6
+ move r23, 68
+ move r1, @r23
+ move r2, @r23+1
+ move r3, @76
+ move r4, @77
+ call line
+
+ ; 3 - 7
+ move r23, 70
+ move r1, @r23
+ move r2, @r23+1
+ move r3, @78
+ move r4, @79
+ call line
+
+ return
+
+; ------------------------------------------------------------
+; Bresenham line
+; ------------------------------------------------------------
+; input:
+; r1 = x0
+; r2 = y0
+; r3 = x1
+; r4 = y1
+;
+; clobbers:
+; r5..r9, r14..r16, b0..b2
+
+line:
+ isub r5, r3, r1
+ bge r5, 0, line_dx_ready
+ isub r5, 0, r5
+
+line_dx_ready:
+ move r6, 1
+ bge r3, r1, line_sx_ready
+ move r6, -1
+
+line_sx_ready:
+ isub r7, r4, r2
+ bge r7, 0, line_dy_abs_ready
+ isub r7, 0, r7
+
+line_dy_abs_ready:
+ isub r7, 0, r7
+
+ move r8, 1
+ bge r4, r2, line_sy_ready
+ move r8, -1
+
+line_sy_ready:
+ iadd r9, r5, r7
+
+line_loop:
+ blt r1, 0, line_skip_plot
+ bge r1, 64, line_skip_plot
+ blt r2, 0, line_skip_plot
+ bge r2, 64, line_skip_plot
+ fbplot r20, r1, r2
+
+line_skip_plot:
+ cmp.eq b0, r1, r3
+ cmp.eq b1, r2, r4
+ band b2, b0, b1
+ jump_if b2, line_done
+
+ shl r14, r9, 1
+
+ cmp.ge b0, r14, r7
+ jump_if_not b0, line_skip_x_step
+ iadd r9, r9, r7
+ iadd r1, r1, r6
+
+line_skip_x_step:
+ cmp.le b1, r14, r5
+ jump_if_not b1, line_skip_y_step
+ iadd r9, r9, r5
+ iadd r2, r2, r8
+
+line_skip_y_step:
+ jump line_loop
+
+line_done:
+ return
+
+; ------------------------------------------------------------
+; 64-entry sin LUT, Q7.25
+; ------------------------------------------------------------
+
+init_sin_lut:
+ move r23, 0
+
+ move @r23, 0.0
+ inc r23
+ move @r23, 0.098017
+ inc r23
+ move @r23, 0.195090
+ inc r23
+ move @r23, 0.290285
+ inc r23
+ move @r23, 0.382683
+ inc r23
+ move @r23, 0.471397
+ inc r23
+ move @r23, 0.555570
+ inc r23
+ move @r23, 0.634393
+ inc r23
+ move @r23, 0.707107
+ inc r23
+ move @r23, 0.773010
+ inc r23
+ move @r23, 0.831470
+ inc r23
+ move @r23, 0.881921
+ inc r23
+ move @r23, 0.923880
+ inc r23
+ move @r23, 0.956940
+ inc r23
+ move @r23, 0.980785
+ inc r23
+ move @r23, 0.995185
+ inc r23
+ move @r23, 1.0
+ inc r23
+ move @r23, 0.995185
+ inc r23
+ move @r23, 0.980785
+ inc r23
+ move @r23, 0.956940
+ inc r23
+ move @r23, 0.923880
+ inc r23
+ move @r23, 0.881921
+ inc r23
+ move @r23, 0.831470
+ inc r23
+ move @r23, 0.773010
+ inc r23
+ move @r23, 0.707107
+ inc r23
+ move @r23, 0.634393
+ inc r23
+ move @r23, 0.555570
+ inc r23
+ move @r23, 0.471397
+ inc r23
+ move @r23, 0.382683
+ inc r23
+ move @r23, 0.290285
+ inc r23
+ move @r23, 0.195090
+ inc r23
+ move @r23, 0.098017
+ inc r23
+ move @r23, 0.0
+ inc r23
+ move @r23, -0.098017
+ inc r23
+ move @r23, -0.195090
+ inc r23
+ move @r23, -0.290285
+ inc r23
+ move @r23, -0.382683
+ inc r23
+ move @r23, -0.471397
+ inc r23
+ move @r23, -0.555570
+ inc r23
+ move @r23, -0.634393
+ inc r23
+ move @r23, -0.707107
+ inc r23
+ move @r23, -0.773010
+ inc r23
+ move @r23, -0.831470
+ inc r23
+ move @r23, -0.881921
+ inc r23
+ move @r23, -0.923880
+ inc r23
+ move @r23, -0.956940
+ inc r23
+ move @r23, -0.980785
+ inc r23
+ move @r23, -0.995185
+ inc r23
+ move @r23, -1.0
+ inc r23
+ move @r23, -0.995185
+ inc r23
+ move @r23, -0.980785
+ inc r23
+ move @r23, -0.956940
+ inc r23
+ move @r23, -0.923880
+ inc r23
+ move @r23, -0.881921
+ inc r23
+ move @r23, -0.831470
+ inc r23
+ move @r23, -0.773010
+ inc r23
+ move @r23, -0.707107
+ inc r23
+ move @r23, -0.634393
+ inc r23
+ move @r23, -0.555570
+ inc r23
+ move @r23, -0.471397
+ inc r23
+ move @r23, -0.382683
+ inc r23
+ move @r23, -0.290285
+ inc r23
+ move @r23, -0.195090
+ inc r23
+ move @r23, -0.098017
+
+ return
+ 
