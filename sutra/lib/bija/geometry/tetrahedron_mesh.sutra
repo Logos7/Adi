@@ -1,0 +1,93 @@
+; Sutra include library.
+; ADI1 64x64 wire-mesh regular tetrahedron data.
+;
+; This fragment provides the data segment for adi1_wire_mesh_runtime.sutra.
+;
+; Memory map:
+; - data_mem[0..255]   = sin LUT, 256 entries, Q7.25
+; - data_mem[256..271] = projected vertices, 8 x/y pairs reserved, 4 used
+; - data_mem[272..273] = reserved padding
+; - data_mem[274]      = frame tick, 0..63
+; - data_mem[275]      = mesh vertex count
+; - data_mem[276]      = mesh edge count
+; - data_mem[277]      = projected vertex base
+; - data_mem[278]      = mesh vertex base
+; - data_mem[279]      = mesh edge base
+; - data_mem[280..291] = tetrahedron vertices, 4 x/y/z triples
+; - data_mem[292..303] = reserved padding
+; - data_mem[304..315] = tetrahedron edges, 6 a/b index pairs
+; - data_mem[384..511] = packed 64x64 1bpp framebuffer
+;
+; Geometry:
+; - Regular tetrahedron centered at origin.
+; - Circumradius approx. 1.45.
+; - Oriented so no vertex is exactly on the runtime rotation axis (1, 1, 1).
+
+.data
+sin_lut:
+    .sin_lut 256
+
+projected_vertices:
+    .zero 16
+
+    ; Keep two explicit padding words so frame_tick really lands at data_mem[274].
+    .zero 2
+
+frame_tick:
+    .word 0
+
+mesh_vertex_count:
+    .word 4
+
+mesh_edge_count:
+    .word 6
+
+mesh_projected_base:
+    .word 256
+
+mesh_vertex_base:
+    .word 280
+
+mesh_edge_base:
+    .word 304
+
+tetrahedron_vertices:
+    ; 0: apex
+    .word 0.0
+    .word 1.45
+    .word 0.0
+
+    ; 1: base right
+    .word 1.367073
+    .word -0.483333
+    .word 0.0
+
+    ; 2: base back-left
+    .word -0.683536
+    .word -0.483333
+    .word 1.184207
+
+    ; 3: base front-left
+    .word -0.683536
+    .word -0.483333
+    .word -1.184207
+
+    ; Keep the edge base at data_mem[304].
+    .zero 12
+
+tetrahedron_edges:
+    ; Apex to base
+    .word 0
+    .word 1
+    .word 0
+    .word 2
+    .word 0
+    .word 3
+
+    ; Base triangle
+    .word 1
+    .word 2
+    .word 2
+    .word 3
+    .word 3
+    .word 1
