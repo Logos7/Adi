@@ -1,8 +1,0 @@
-; Sutra include library.
-; Compatibility wrapper for the old ADI1 cube data include path.
-;
-; New code should include:
-;
-;   .include "lib/bija/geometry/cube_mesh.sutra"
-
-.include "../geometry/cube_mesh.sutra"

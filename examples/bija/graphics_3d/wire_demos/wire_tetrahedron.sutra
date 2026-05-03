@@ -1,0 +1,17 @@
+; Sutra v1.6
+; Regular tetrahedron wireframe.
+;
+; Output mode:
+; - move @273, 0  -> ADI0
+; - move @273, 1  -> ADI1
+;
+; This example includes both its mesh data and the shared wire-mesh runtime.
+
+.include "lib/bija/geometry/tetrahedron_mesh.sutra"
+
+.code
+main:
+    move @273, 1
+    jump wire_mesh_main
+
+.include "lib/bija/graphics_3d/wire_mesh_runtime.sutra"

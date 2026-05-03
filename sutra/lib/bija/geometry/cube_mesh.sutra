@@ -1,12 +1,13 @@
 ; Sutra include library.
-; ADI1 64x64 wire-mesh cube data.
+; 64x64 wire-mesh cube data.
 ;
-; This fragment provides the data segment for adi1_wire_mesh_runtime.sutra.
+; This fragment provides the data segment for wire_mesh_runtime.sutra.
 ;
 ; Memory map:
 ; - data_mem[0..255]   = sin LUT, 256 entries, Q7.25
 ; - data_mem[256..271] = projected vertices, 8 x/y pairs
-; - data_mem[272..273] = reserved padding
+; - data_mem[272]      = reserved padding
+; - data_mem[273]      = present mode, 0 = ADI0, 1 = ADI1
 ; - data_mem[274]      = frame tick, 0..63
 ; - data_mem[275]      = mesh vertex count
 ; - data_mem[276]      = mesh edge count
@@ -24,8 +25,13 @@ sin_lut:
 projected_vertices:
     .zero 16
 
-    ; Keep two explicit padding words so frame_tick really lands at data_mem[274].
-    .zero 2
+    ; Keep one explicit padding word so present_mode lands at data_mem[273].
+    .zero 1
+
+present_mode:
+    ; 0 = ADI0 byte-frame presenter, 1 = ADI1 packed 1bpp presenter.
+    ; The top-level example overwrites this with one explicit move instruction.
+    .word 1
 
 frame_tick:
     .word 0
