@@ -1,0 +1,101 @@
+; Sutra v1.4
+; Emits animated ADI0 64x64 Julia frames.
+; Use apps/bija/uart_viewer.py.
+
+; Julia set:
+; z(n+1) = z(n)^2 + c
+; c changes over time for animation.
+
+start:
+    move r12, -0.8000
+    move r13,  0.1560
+    move r14,  0.0035
+    move r15,  0.0022
+    jump frame
+
+frame:
+    move r0, 65
+    write_tx r0
+    move r0, 68
+    write_tx r0
+    move r0, 73
+    write_tx r0
+    move r0, 48
+    write_tx r0
+    move r0, 64
+    write_tx r0
+    move r0, 64
+    write_tx r0
+
+    move r2, r12
+    move r3, r13
+
+    move r5, 0
+    move r7, -1.5
+
+row_loop:
+    move r4, 0
+    move r6, -1.5
+
+col_loop:
+    fadd r0, r6, 0.0
+    fadd r1, r7, 0.0
+    move r11, 0
+
+iter_loop:
+    cabs2 r8, z0
+    bgt r8, 4.0, pixel_done
+    bge r11, 64, pixel_done
+
+    cmul z0, z0, z0
+    cadd z0, z0, z1
+
+    inc r11
+    jump iter_loop
+
+pixel_done:
+    write_tx r11
+
+    fadd r6, r6, 0.046875
+    inc r4
+    blt r4, 64, col_loop
+
+    fadd r7, r7, 0.046875
+    inc r5
+    blt r5, 64, row_loop
+
+update_c:
+    fadd r12, r12, r14
+    fadd r13, r13, r15
+
+check_cx_high:
+    bgt r12, -0.7000, flip_dx_neg
+    jump check_cx_low
+
+check_cx_low:
+    blt r12, -0.9000, flip_dx_pos
+    jump check_cy_high
+
+check_cy_high:
+    bgt r13, 0.3000, flip_dy_neg
+    jump check_cy_low
+
+check_cy_low:
+    blt r13, 0.0500, flip_dy_pos
+    jump frame
+
+flip_dx_neg:
+    move r14, -0.0035
+    jump check_cy_high
+
+flip_dx_pos:
+    move r14, 0.0035
+    jump check_cy_high
+
+flip_dy_neg:
+    move r15, -0.0022
+    jump frame
+
+flip_dy_pos:
+    move r15, 0.0022
+    jump frame

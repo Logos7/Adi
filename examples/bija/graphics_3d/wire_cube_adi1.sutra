@@ -44,10 +44,10 @@ main_loop:
  iadd r18, r18, 1
  iand r18, r18, 63
 
- iadd r19, r19, 2
+ iadd r19, r19, 1
  iand r19, r19, 63
 
- wait 3000
+ wait 30000
  jump main_loop
 
 ; ------------------------------------------------------------

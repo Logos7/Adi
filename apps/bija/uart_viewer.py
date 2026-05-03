@@ -18,6 +18,7 @@ try:
     from serial.tools import list_ports
 except ImportError:
     print("pySerial is missing.", file=sys.stderr)
+
     print("Install it with: py -m pip install pyserial", file=sys.stderr)
     raise SystemExit(2)
 

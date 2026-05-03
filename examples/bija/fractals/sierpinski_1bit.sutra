@@ -1,0 +1,81 @@
+; Sutra v1.4
+; Animated 1-bit Sierpinski pattern for ADI0 64x64.
+;
+; Requires:
+; - call / return
+; - fbclear / fbplot / fbpresent1
+; - iadd / iand / cmp.eq / jump_if_not
+;
+; Framebuffer:
+; - r20 = framebuffer base word address
+; - data_mem[256..383] used as packed 64x64 1bpp framebuffer
+;
+; Effect:
+; - pixel is plotted when ((x + t) & y) == 0
+; - r18 = animation phase, 0..63
+
+main:
+
+ move r20, 256
+ move r18, 0
+
+main_loop:
+
+ fbclear r20
+
+ call draw_sierpinski
+
+ fbpresent1 r20
+
+ iadd r18, r18, 1
+ iand r18, r18, 63
+
+ wait 2500
+ jump main_loop
+
+; ------------------------------------------------------------
+; Draw animated Sierpinski
+; ------------------------------------------------------------
+; r18 = time / phase
+;
+; Formula:
+;   plot if ((x + phase) & y) == 0
+;
+; registers:
+;   r1 = x
+;   r2 = y
+;   r5 = x + phase
+;   r6 = mask result
+;   r7 = zero constant
+;   b0 = comparison result
+
+draw_sierpinski:
+
+ move r7, 0
+ move r2, 0
+
+row_loop:
+
+ move r1, 0
+
+col_loop:
+
+ iadd r5, r1, r18
+ iand r5, r5, 63
+ iand r6, r5, r2
+
+ cmp.eq b0, r6, r7
+ jump_if_not b0, skip_pixel
+
+ fbplot r20, r1, r2
+
+skip_pixel:
+
+ iadd r1, r1, 1
+ blt r1, 64, col_loop
+
+ iadd r2, r2, 1
+ blt r2, 64, row_loop
+
+ return
+ 
