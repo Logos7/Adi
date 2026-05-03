@@ -139,6 +139,9 @@ PRED_ALWAYS = 0b1111
 MASK32 = 0xFFFFFFFF
 Q = 1 << 25
 
+CODE_MEM_WORDS = 2048
+DATA_MEM_WORDS = 2048
+
 T_REGS = {f"T{i}": 24 + i for i in range(8)}
 COMPLEX_SCRATCH = (24, 25, 26, 27)
 IMM_TEMPS = (31, 30, 29, 28)
@@ -1275,8 +1278,8 @@ def _parse_data_count(raw: str) -> int:
 
 
 def _append_data_word(data: list[int], addr: int, word: int) -> None:
-    if not 0 <= addr <= 511:
-        raise AssemblerError(f"Adres data_mem {addr} poza zakresem 0..511")
+    if not 0 <= addr < DATA_MEM_WORDS:
+        raise AssemblerError(f"Adres data_mem {addr} poza zakresem 0..{DATA_MEM_WORDS - 1}")
     while len(data) <= addr:
         data.append(0)
     data[addr] = to_u32(word)
@@ -1291,8 +1294,8 @@ def _parse_data_directive(line: str, data: list[int], data_addr: int, lineno: in
         if not arg_text:
             raise AssemblerError(f"Linia {lineno}: .org wymaga adresu")
         addr = _parse_data_count(arg_text)
-        if not 0 <= addr <= 511:
-            raise AssemblerError(f"Linia {lineno}: .org poza data_mem 0..511")
+        if not 0 <= addr < DATA_MEM_WORDS:
+            raise AssemblerError(f"Linia {lineno}: .org poza data_mem 0..{DATA_MEM_WORDS - 1}")
         return addr
 
     if directive in (".word", ".u32"):

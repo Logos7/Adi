@@ -1,0 +1,544 @@
+; Sutra v1.6
+; Spherical spiral wire polyline.
+;
+; 80 vertices, 79 edges.
+; A finite pole-to-pole spherical spiral, rendered by the shared wire-mesh runtime.
+;
+; Output mode:
+; - move @273, 0  -> ADI0
+; - move @273, 1  -> ADI1
+;
+; Memory map:
+; - data_mem[0..255]     = sin LUT, 256 entries, Q7.25
+; - data_mem[256..272]   = reserved padding
+; - data_mem[273]        = present mode, 0 = ADI0, 1 = ADI1
+; - data_mem[274]        = frame tick, 0..63
+; - data_mem[275]        = mesh vertex count
+; - data_mem[276]        = mesh edge count
+; - data_mem[277]        = projected vertex base
+; - data_mem[278]        = mesh vertex base
+; - data_mem[279]        = mesh edge base
+; - data_mem[384..511]   = packed 64x64 1bpp framebuffer
+; - data_mem[512..671]   = projected vertices, 80 x/y pairs
+; - data_mem[680..919]   = spherical spiral vertices, 80 x/y/z triples
+; - data_mem[920..1077]  = spherical spiral edges, 79 a/b index pairs
+
+.data
+sin_lut:
+    .sin_lut 256
+
+reserved_256_272:
+    .zero 17
+
+present_mode:
+    .word 1
+frame_tick:
+    .word 0
+mesh_vertex_count:
+    .word 80
+mesh_edge_count:
+    .word 79
+mesh_projected_base:
+    .word 512
+mesh_vertex_base:
+    .word 680
+mesh_edge_base:
+    .word 920
+
+reserved_280_511:
+    .zero 232
+
+projected_vertices:
+    .zero 160
+
+reserved_672_679:
+    .zero 8
+
+spherical_spiral_vertices:
+; 00
+    .word 0.000000
+    .word 1.450000
+    .word 0.000000
+; 01
+    .word 0.054754
+    .word 1.448854
+    .word 0.018032
+; 02
+    .word 0.092659
+    .word 1.445416
+    .word 0.068454
+; 03
+    .word 0.099765
+    .word 1.439694
+    .word 0.140817
+; 04
+    .word 0.067491
+    .word 1.431694
+    .word 0.219537
+; 05
+    .word -0.005695
+    .word 1.421431
+    .word 0.286358
+; 06
+    .word -0.113646
+    .word 1.408921
+    .word 0.323307
+; 07
+    .word -0.243080
+    .word 1.394182
+    .word 0.315703
+; 08
+    .word -0.375228
+    .word 1.377239
+    .word 0.254787
+; 09
+    .word -0.488397
+    .word 1.358119
+    .word 0.139579
+; 10
+    .word -0.561099
+    .word 1.336850
+    .word -0.022325
+; 11
+    .word -0.575325
+    .word 1.313469
+    .word -0.215178
+; 12
+    .word -0.519503
+    .word 1.288010
+    .word -0.416710
+; 13
+    .word -0.390720
+    .word 1.260514
+    .word -0.600784
+; 14
+    .word -0.195856
+    .word 1.231026
+    .word -0.740754
+; 15
+    .word 0.048559
+    .word 1.199591
+    .word -0.813095
+; 16
+    .word 0.317810
+    .word 1.166259
+    .word -0.800835
+; 17
+    .word 0.581649
+    .word 1.131083
+    .word -0.696301
+; 18
+    .word 0.807831
+    .word 1.094119
+    .word -0.502806
+; 19
+    .word 0.966105
+    .word 1.055424
+    .word -0.234991
+; 20
+    .word 1.032174
+    .word 1.015061
+    .word 0.082266
+; 21
+    .word 0.991099
+    .word 0.973093
+    .word 0.416310
+; 22
+    .word 0.839695
+    .word 0.929586
+    .word 0.730262
+; 23
+    .word 0.587587
+    .word 0.884609
+    .word 0.987273
+; 24
+    .word 0.256720
+    .word 0.838233
+    .word 1.154972
+; 25
+    .word -0.120648
+    .word 0.790532
+    .word 1.209546
+; 26
+    .word -0.505291
+    .word 0.741581
+    .word 1.138963
+; 27
+    .word -0.855324
+    .word 0.691458
+    .word 0.944884
+; 28
+    .word -1.130983
+    .word 0.640241
+    .word 0.643016
+; 29
+    .word -1.299307
+    .word 0.588012
+    .word 0.261807
+; 30
+    .word -1.338171
+    .word 0.534853
+    .word -0.160407
+; 31
+    .word -1.239144
+    .word 0.480848
+    .word -0.579490
+; 32
+    .word -1.008829
+    .word 0.426083
+    .word -0.950378
+; 33
+    .word -0.668486
+    .word 0.370644
+    .word -1.232172
+; 34
+    .word -0.251948
+    .word 0.314619
+    .word -1.392852
+; 35
+    .word 0.197954
+    .word 0.258097
+    .word -1.413046
+; 36
+    .word 0.634050
+    .word 0.201167
+    .word -1.288415
+; 37
+    .word 1.010049
+    .word 0.143918
+    .word -1.030334
+; 38
+    .word 1.285719
+    .word 0.086442
+    .word -0.664797
+; 39
+    .word 1.431411
+    .word 0.028829
+    .word -0.229632
+; 40
+    .word 1.431411
+    .word -0.028829
+    .word 0.229632
+; 41
+    .word 1.285719
+    .word -0.086442
+    .word 0.664797
+; 42
+    .word 1.010049
+    .word -0.143918
+    .word 1.030334
+; 43
+    .word 0.634050
+    .word -0.201167
+    .word 1.288415
+; 44
+    .word 0.197954
+    .word -0.258097
+    .word 1.413046
+; 45
+    .word -0.251948
+    .word -0.314619
+    .word 1.392852
+; 46
+    .word -0.668486
+    .word -0.370644
+    .word 1.232172
+; 47
+    .word -1.008829
+    .word -0.426083
+    .word 0.950378
+; 48
+    .word -1.239144
+    .word -0.480848
+    .word 0.579490
+; 49
+    .word -1.338171
+    .word -0.534853
+    .word 0.160407
+; 50
+    .word -1.299307
+    .word -0.588012
+    .word -0.261807
+; 51
+    .word -1.130983
+    .word -0.640241
+    .word -0.643016
+; 52
+    .word -0.855324
+    .word -0.691458
+    .word -0.944884
+; 53
+    .word -0.505291
+    .word -0.741581
+    .word -1.138963
+; 54
+    .word -0.120648
+    .word -0.790532
+    .word -1.209546
+; 55
+    .word 0.256720
+    .word -0.838233
+    .word -1.154972
+; 56
+    .word 0.587587
+    .word -0.884609
+    .word -0.987273
+; 57
+    .word 0.839695
+    .word -0.929586
+    .word -0.730262
+; 58
+    .word 0.991099
+    .word -0.973093
+    .word -0.416310
+; 59
+    .word 1.032174
+    .word -1.015061
+    .word -0.082266
+; 60
+    .word 0.966105
+    .word -1.055424
+    .word 0.234991
+; 61
+    .word 0.807831
+    .word -1.094119
+    .word 0.502806
+; 62
+    .word 0.581649
+    .word -1.131083
+    .word 0.696301
+; 63
+    .word 0.317810
+    .word -1.166259
+    .word 0.800835
+; 64
+    .word 0.048559
+    .word -1.199591
+    .word 0.813095
+; 65
+    .word -0.195856
+    .word -1.231026
+    .word 0.740754
+; 66
+    .word -0.390720
+    .word -1.260514
+    .word 0.600784
+; 67
+    .word -0.519503
+    .word -1.288010
+    .word 0.416710
+; 68
+    .word -0.575325
+    .word -1.313469
+    .word 0.215178
+; 69
+    .word -0.561099
+    .word -1.336850
+    .word 0.022325
+; 70
+    .word -0.488397
+    .word -1.358119
+    .word -0.139579
+; 71
+    .word -0.375228
+    .word -1.377239
+    .word -0.254787
+; 72
+    .word -0.243080
+    .word -1.394182
+    .word -0.315703
+; 73
+    .word -0.113646
+    .word -1.408921
+    .word -0.323307
+; 74
+    .word -0.005695
+    .word -1.421431
+    .word -0.286358
+; 75
+    .word 0.067491
+    .word -1.431694
+    .word -0.219537
+; 76
+    .word 0.099765
+    .word -1.439694
+    .word -0.140817
+; 77
+    .word 0.092659
+    .word -1.445416
+    .word -0.068454
+; 78
+    .word 0.054754
+    .word -1.448854
+    .word -0.018032
+; 79
+    .word 0.000000
+    .word -1.450000
+    .word 0.000000
+
+spherical_spiral_edges:
+    .word 0
+    .word 1
+    .word 1
+    .word 2
+    .word 2
+    .word 3
+    .word 3
+    .word 4
+    .word 4
+    .word 5
+    .word 5
+    .word 6
+    .word 6
+    .word 7
+    .word 7
+    .word 8
+    .word 8
+    .word 9
+    .word 9
+    .word 10
+    .word 10
+    .word 11
+    .word 11
+    .word 12
+    .word 12
+    .word 13
+    .word 13
+    .word 14
+    .word 14
+    .word 15
+    .word 15
+    .word 16
+    .word 16
+    .word 17
+    .word 17
+    .word 18
+    .word 18
+    .word 19
+    .word 19
+    .word 20
+    .word 20
+    .word 21
+    .word 21
+    .word 22
+    .word 22
+    .word 23
+    .word 23
+    .word 24
+    .word 24
+    .word 25
+    .word 25
+    .word 26
+    .word 26
+    .word 27
+    .word 27
+    .word 28
+    .word 28
+    .word 29
+    .word 29
+    .word 30
+    .word 30
+    .word 31
+    .word 31
+    .word 32
+    .word 32
+    .word 33
+    .word 33
+    .word 34
+    .word 34
+    .word 35
+    .word 35
+    .word 36
+    .word 36
+    .word 37
+    .word 37
+    .word 38
+    .word 38
+    .word 39
+    .word 39
+    .word 40
+    .word 40
+    .word 41
+    .word 41
+    .word 42
+    .word 42
+    .word 43
+    .word 43
+    .word 44
+    .word 44
+    .word 45
+    .word 45
+    .word 46
+    .word 46
+    .word 47
+    .word 47
+    .word 48
+    .word 48
+    .word 49
+    .word 49
+    .word 50
+    .word 50
+    .word 51
+    .word 51
+    .word 52
+    .word 52
+    .word 53
+    .word 53
+    .word 54
+    .word 54
+    .word 55
+    .word 55
+    .word 56
+    .word 56
+    .word 57
+    .word 57
+    .word 58
+    .word 58
+    .word 59
+    .word 59
+    .word 60
+    .word 60
+    .word 61
+    .word 61
+    .word 62
+    .word 62
+    .word 63
+    .word 63
+    .word 64
+    .word 64
+    .word 65
+    .word 65
+    .word 66
+    .word 66
+    .word 67
+    .word 67
+    .word 68
+    .word 68
+    .word 69
+    .word 69
+    .word 70
+    .word 70
+    .word 71
+    .word 71
+    .word 72
+    .word 72
+    .word 73
+    .word 73
+    .word 74
+    .word 74
+    .word 75
+    .word 75
+    .word 76
+    .word 76
+    .word 77
+    .word 77
+    .word 78
+    .word 78
+    .word 79
+
+.code
+main:
+    move @273, 1
+    jump wire_mesh_main
+
+.include "lib/bija/graphics_3d/wire_mesh_runtime.sutra"
