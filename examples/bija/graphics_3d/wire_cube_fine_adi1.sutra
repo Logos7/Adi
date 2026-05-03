@@ -1,38 +1,44 @@
-; Sutra v1.5.7
-; Perspective wireframe cube using 64x64 1-bit framebuffer.
+; Sutra v1.5
+; Adi v1.5.1 release-clean example.
+;
+; Perspective wireframe cube using the 64x64 packed 1-bit framebuffer.
+;
+; Frame format:
+; - fbpresent1 emits ADI1.
+; - ADI1 is a packed 1bpp 64x64 frame used by uart_viewer.py.
 ;
 ; Diagonal-axis spin diagnostic:
 ; - Uses one angle only.
 ; - Rotates around axis (1, 1, 1).
 ; - Removes X/Y angle dependency resonance.
-; - Keeps frame marker on bottom row.
+; - Keeps a frame marker on the bottom row.
 ;
 ; Runtime memory map:
-; - data_mem[0..255]   = sin LUT, 256 entries
+; - data_mem[0..255]   = sin LUT, 256 entries, Q7.25
 ; - data_mem[256..271] = projected vertices, x/y pairs
+; - data_mem[272..273] = reserved padding
 ; - data_mem[274]      = frame tick, 0..63
 ; - data_mem[384..511] = packed 64x64 1bpp framebuffer
 
 .data
-
 sin_lut:
     .sin_lut 256
 
 projected_vertices:
     .zero 16
 
+    ; Keep two explicit padding words so frame_tick really lands at data_mem[274].
+    .zero 2
+
 frame_tick:
     .word 0
 
 .code
-
 main:
     move r20, 384
     move r21, 0
     move r22, 256
-
     move r18, 0
-
     move @274, 0
 
 main_loop:
@@ -49,13 +55,11 @@ main_loop:
     call advance_frame_tick
 
     wait 4200
-
     jump main_loop
 
 ; ------------------------------------------------------------
 ; Advance angle
 ; ------------------------------------------------------------
-
 advance_angle:
     iadd r18, r18, 1
     blt r18, r22, angle_done
@@ -67,7 +71,6 @@ angle_done:
 ; ------------------------------------------------------------
 ; Advance frame tick
 ; ------------------------------------------------------------
-
 advance_frame_tick:
     move r23, @274
     iadd r23, r23, 1
@@ -81,7 +84,6 @@ frame_tick_store:
 ; ------------------------------------------------------------
 ; Draw frame tick
 ; ------------------------------------------------------------
-
 draw_frame_tick:
     move r23, @274
 
@@ -102,7 +104,6 @@ draw_frame_tick:
 ; outputs:
 ; r10 = sin
 ; r11 = cos
-
 load_angle:
     iadd r23, r21, r18
     move r10, @r23
@@ -114,13 +115,11 @@ load_angle:
 cos_index_ready:
     iadd r23, r21, r23
     move r11, @r23
-
     return
 
 ; ------------------------------------------------------------
 ; Project all 8 cube vertices
 ; ------------------------------------------------------------
-
 project_cube:
     move r17, 256
     move r0, -1.0
@@ -187,7 +186,6 @@ project_cube:
 ; x' = x*c + (z - y)*t + k
 ; y' = y*c + (x - z)*t + k
 ; z' = z*c + (y - x)*t + k
-
 project_vertex:
     fsub r3, 1.0, r11
 
@@ -229,13 +227,11 @@ project_vertex:
 
     move @r17, r15
     move @r17+1, r16
-
     return
 
 ; ------------------------------------------------------------
 ; Cube edges
 ; ------------------------------------------------------------
-
 draw_edges:
     move r23, 256
     move r1, @r23
@@ -326,7 +322,6 @@ draw_edges:
 ; ------------------------------------------------------------
 ; Bresenham line
 ; ------------------------------------------------------------
-
 line:
     isub r5, r3, r1
     bge r5, 0, line_dx_ready
@@ -383,4 +378,3 @@ line_skip_y_step:
 
 line_done:
     return
-    
