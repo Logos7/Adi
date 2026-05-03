@@ -1,19 +1,27 @@
 // =============================================================================
 // brahma_bija_bootloader.v
-// UART bootloader dla Brahma-Bija.
+// UART bootloader for Brahma-Bija.
 //
-// v1.4.3:
-//   - timeout albo ERR NIE wypuszcza CPU
-//   - CPU startuje dopiero po poprawnym ADI_BOOT_OK
-//   - po konfiguracji FPGA loader czeka w S_IDLE z hold_reset=1
-//   - kolejne ADI! podczas pracy zatrzymuje CPU i przejmuje RAM programu
-//   - naprawiony handshake TX: ACK nie gubi co drugiego znaku
-//   - S_VERSION ignoruje spóźnione bajty ADI! po READY
+// v1.5:
+//   - uploads separate instruction memory and data_mem blob
+//   - code stays code; LUTs/assets are sent as data words
+//   - timeout/ERR keeps CPU held in reset
+//   - magic ADI! can interrupt a running program and re-enter bootloader
+//
+// Protocol after ADI_BOOT_READY\n:
+//   version      u8  = 2
+//   code_count   u16 little-endian
+//   data_count   u16 little-endian, flat data_mem[0..data_count-1]
+//   checksum     u32 little-endian, sum of all code/data payload bytes
+//   code words   code_count * u32 little-endian
+//   data words   data_count * u32 little-endian
+//
 // Verilog-2001 / Gowin-safe.
 // =============================================================================
 
 module brahma_bija_bootloader #(
     parameter [15:0] MAX_WORDS = 16'd1024,
+    parameter [15:0] MAX_DATA_WORDS = 16'd512,
     parameter [31:0] BYTE_TIMEOUT_CLKS = 32'd270000000,
     parameter        START_IN_BOOTLOADER = 1'b1
 )(
@@ -31,27 +39,37 @@ module brahma_bija_bootloader #(
     output reg  [9:0]  boot_addr,
     output reg  [31:0] boot_data,
 
+    output reg         boot_data_we,
+    output reg  [8:0]  boot_data_addr,
+    output reg  [31:0] boot_data_word,
+
     output wire        cpu_reset,
     output wire        busy,
     output wire        waiting
 );
 
-    localparam [3:0] S_IDLE      = 4'd0;
-    localparam [3:0] S_READY_ACK = 4'd1;
-    localparam [3:0] S_VERSION   = 4'd2;
-    localparam [3:0] S_COUNT0    = 4'd3;
-    localparam [3:0] S_COUNT1    = 4'd4;
-    localparam [3:0] S_CSUM0     = 4'd5;
-    localparam [3:0] S_CSUM1     = 4'd6;
-    localparam [3:0] S_CSUM2     = 4'd7;
-    localparam [3:0] S_CSUM3     = 4'd8;
-    localparam [3:0] S_PAYLOAD   = 4'd9;
-    localparam [3:0] S_ACK       = 4'd10;
-    localparam [3:0] S_RESTART   = 4'd11;
+    localparam [4:0] S_IDLE        = 5'd0;
+    localparam [4:0] S_READY_ACK   = 5'd1;
+    localparam [4:0] S_VERSION     = 5'd2;
+    localparam [4:0] S_CODE_COUNT0 = 5'd3;
+    localparam [4:0] S_CODE_COUNT1 = 5'd4;
+    localparam [4:0] S_DATA_COUNT0 = 5'd5;
+    localparam [4:0] S_DATA_COUNT1 = 5'd6;
+    localparam [4:0] S_CSUM0       = 5'd7;
+    localparam [4:0] S_CSUM1       = 5'd8;
+    localparam [4:0] S_CSUM2       = 5'd9;
+    localparam [4:0] S_CSUM3       = 5'd10;
+    localparam [4:0] S_CODE        = 5'd11;
+    localparam [4:0] S_DATA        = 5'd12;
+    localparam [4:0] S_ACK         = 5'd13;
+    localparam [4:0] S_RESTART     = 5'd14;
 
-    reg [3:0]  state;
+    localparam [7:0] VERSION_V15 = 8'd2;
+
+    reg [4:0]  state;
     reg [1:0]  magic_idx;
-    reg [15:0] word_count;
+    reg [15:0] code_count;
+    reg [15:0] data_count;
     reg [15:0] word_index;
     reg [1:0]  byte_index;
     reg [31:0] expected_checksum;
@@ -106,11 +124,22 @@ module brahma_bija_bootloader #(
         end
     endtask
 
+    task prepare_error_ack;
+        begin
+            ack_success <= 1'b0;
+            ack_index <= 4'd0;
+            ack_advance_pending <= 1'b0;
+            state <= S_ACK;
+            hold_reset <= 1'b1;
+        end
+    endtask
+
     always @(posedge clk) begin
         if (rst) begin
             state                <= S_IDLE;
             magic_idx            <= 2'd0;
-            word_count           <= 16'd0;
+            code_count           <= 16'd0;
+            data_count           <= 16'd0;
             word_index           <= 16'd0;
             byte_index           <= 2'd0;
             expected_checksum    <= 32'd0;
@@ -125,11 +154,15 @@ module brahma_bija_bootloader #(
             boot_we              <= 1'b0;
             boot_addr            <= 10'd0;
             boot_data            <= 32'd0;
+            boot_data_we         <= 1'b0;
+            boot_data_addr       <= 9'd0;
+            boot_data_word       <= 32'd0;
             tx_data              <= 8'd0;
             tx_valid             <= 1'b0;
         end else begin
-            boot_we  <= 1'b0;
-            tx_valid <= 1'b0;
+            boot_we      <= 1'b0;
+            boot_data_we <= 1'b0;
+            tx_valid     <= 1'b0;
 
             case (state)
                 S_IDLE: begin
@@ -154,7 +187,8 @@ module brahma_bija_bootloader #(
                             2'd3: begin
                                 if (rx_data == 8'h21) begin
                                     magic_idx            <= 2'd0;
-                                    word_count           <= 16'd0;
+                                    code_count           <= 16'd0;
+                                    data_count           <= 16'd0;
                                     word_index           <= 16'd0;
                                     byte_index           <= 2'd0;
                                     expected_checksum    <= 32'd0;
@@ -189,20 +223,20 @@ module brahma_bija_bootloader #(
                         tx_valid <= 1'b1;
                         ack_advance_pending <= 1'b1;
                         case (ack_index)
-                            4'd0:  tx_data <= 8'h41;
-                            4'd1:  tx_data <= 8'h44;
-                            4'd2:  tx_data <= 8'h49;
-                            4'd3:  tx_data <= 8'h5F;
-                            4'd4:  tx_data <= 8'h42;
-                            4'd5:  tx_data <= 8'h4F;
-                            4'd6:  tx_data <= 8'h4F;
-                            4'd7:  tx_data <= 8'h54;
-                            4'd8:  tx_data <= 8'h5F;
-                            4'd9:  tx_data <= 8'h52;
-                            4'd10: tx_data <= 8'h45;
-                            4'd11: tx_data <= 8'h41;
-                            4'd12: tx_data <= 8'h44;
-                            4'd13: tx_data <= 8'h59;
+                            4'd0:  tx_data <= 8'h41; // A
+                            4'd1:  tx_data <= 8'h44; // D
+                            4'd2:  tx_data <= 8'h49; // I
+                            4'd3:  tx_data <= 8'h5F; // _
+                            4'd4:  tx_data <= 8'h42; // B
+                            4'd5:  tx_data <= 8'h4F; // O
+                            4'd6:  tx_data <= 8'h4F; // O
+                            4'd7:  tx_data <= 8'h54; // T
+                            4'd8:  tx_data <= 8'h5F; // _
+                            4'd9:  tx_data <= 8'h52; // R
+                            4'd10: tx_data <= 8'h45; // E
+                            4'd11: tx_data <= 8'h41; // A
+                            4'd12: tx_data <= 8'h44; // D
+                            4'd13: tx_data <= 8'h59; // Y
                             default: tx_data <= 8'h0A;
                         endcase
                     end
@@ -211,51 +245,64 @@ module brahma_bija_bootloader #(
                 S_VERSION: begin
                     if (rx_valid) begin
                         touch_timeout;
-                        if (rx_data == 8'd1) begin
+                        if (rx_data == VERSION_V15) begin
                             magic_idx <= 2'd0;
-                            state <= S_COUNT0;
+                            state <= S_CODE_COUNT0;
                         end else if (
-                            rx_data == 8'h41 ||  // stale 'A' from repeated ADI!
-                            rx_data == 8'h44 ||  // stale 'D'
-                            rx_data == 8'h49 ||  // stale 'I'
-                            rx_data == 8'h21     // stale '!'
+                            rx_data == 8'h41 ||
+                            rx_data == 8'h44 ||
+                            rx_data == 8'h49 ||
+                            rx_data == 8'h21
                         ) begin
-                            // Host spams ADI! while waiting for READY. Some bytes can still be
-                            // in flight when we enter S_VERSION. Ignore them instead of turning
-                            // a valid upload into ADI_BOOT_ERR.
                             state <= S_VERSION;
                         end else begin
-                            ack_success <= 1'b0;
-                            ack_index   <= 4'd0;
-                            ack_advance_pending <= 1'b0;
-                            state       <= S_ACK;
-                            hold_reset  <= 1'b1;
+                            prepare_error_ack;
                         end
                     end else begin
                         tick_or_wait;
                     end
                 end
 
-                S_COUNT0: begin
+                S_CODE_COUNT0: begin
                     if (rx_valid) begin
                         touch_timeout;
-                        word_count[7:0] <= rx_data;
-                        state <= S_COUNT1;
+                        code_count[7:0] <= rx_data;
+                        state <= S_CODE_COUNT1;
                     end else begin
                         tick_or_wait;
                     end
                 end
 
-                S_COUNT1: begin
+                S_CODE_COUNT1: begin
                     if (rx_valid) begin
                         touch_timeout;
-                        word_count[15:8] <= rx_data;
-                        if ({rx_data, word_count[7:0]} == 16'd0 || {rx_data, word_count[7:0]} > MAX_WORDS) begin
-                            ack_success <= 1'b0;
-                            ack_index   <= 4'd0;
-                            ack_advance_pending <= 1'b0;
-                            state       <= S_ACK;
-                            hold_reset  <= 1'b1;
+                        code_count[15:8] <= rx_data;
+                        if ({rx_data, code_count[7:0]} == 16'd0 || {rx_data, code_count[7:0]} > MAX_WORDS) begin
+                            prepare_error_ack;
+                        end else begin
+                            state <= S_DATA_COUNT0;
+                        end
+                    end else begin
+                        tick_or_wait;
+                    end
+                end
+
+                S_DATA_COUNT0: begin
+                    if (rx_valid) begin
+                        touch_timeout;
+                        data_count[7:0] <= rx_data;
+                        state <= S_DATA_COUNT1;
+                    end else begin
+                        tick_or_wait;
+                    end
+                end
+
+                S_DATA_COUNT1: begin
+                    if (rx_valid) begin
+                        touch_timeout;
+                        data_count[15:8] <= rx_data;
+                        if ({rx_data, data_count[7:0]} > MAX_DATA_WORDS) begin
+                            prepare_error_ack;
                         end else begin
                             state <= S_CSUM0;
                         end
@@ -302,13 +349,13 @@ module brahma_bija_bootloader #(
                         word_index   <= 16'd0;
                         byte_index   <= 2'd0;
                         word_buf     <= 32'd0;
-                        state        <= S_PAYLOAD;
+                        state        <= S_CODE;
                     end else begin
                         tick_or_wait;
                     end
                 end
 
-                S_PAYLOAD: begin
+                S_CODE: begin
                     if (rx_valid) begin
                         touch_timeout;
                         checksum_acc <= checksum_acc + {24'd0, rx_data};
@@ -331,7 +378,55 @@ module brahma_bija_bootloader #(
                                 boot_we   <= 1'b1;
                                 byte_index <= 2'd0;
 
-                                if (word_index + 16'd1 >= word_count) begin
+                                if (word_index + 16'd1 >= code_count) begin
+                                    word_index <= 16'd0;
+                                    if (data_count == 16'd0) begin
+                                        if ((checksum_acc + {24'd0, rx_data}) == expected_checksum) begin
+                                            ack_success <= 1'b1;
+                                        end else begin
+                                            ack_success <= 1'b0;
+                                        end
+                                        ack_index <= 4'd0;
+                                        ack_advance_pending <= 1'b0;
+                                        state <= S_ACK;
+                                        hold_reset <= 1'b1;
+                                    end else begin
+                                        state <= S_DATA;
+                                    end
+                                end else begin
+                                    word_index <= word_index + 16'd1;
+                                end
+                            end
+                        endcase
+                    end else begin
+                        tick_or_wait;
+                    end
+                end
+
+                S_DATA: begin
+                    if (rx_valid) begin
+                        touch_timeout;
+                        checksum_acc <= checksum_acc + {24'd0, rx_data};
+                        case (byte_index)
+                            2'd0: begin
+                                word_buf[7:0] <= rx_data;
+                                byte_index <= 2'd1;
+                            end
+                            2'd1: begin
+                                word_buf[15:8] <= rx_data;
+                                byte_index <= 2'd2;
+                            end
+                            2'd2: begin
+                                word_buf[23:16] <= rx_data;
+                                byte_index <= 2'd3;
+                            end
+                            2'd3: begin
+                                boot_data_addr <= word_index[8:0];
+                                boot_data_word <= {rx_data, word_buf[23:0]};
+                                boot_data_we   <= 1'b1;
+                                byte_index <= 2'd0;
+
+                                if (word_index + 16'd1 >= data_count) begin
                                     if ((checksum_acc + {24'd0, rx_data}) == expected_checksum) begin
                                         ack_success <= 1'b1;
                                     end else begin

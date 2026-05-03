@@ -17,6 +17,7 @@ module brahma_bija_top (
     // Dla 27 MHz i 115200 baud: 27000000 / 115200 ~= 234.
     localparam [15:0] UART_CLKS_PER_BIT = 16'd234;
     localparam [15:0] BOOT_MAX_WORDS = 16'd1024;
+    localparam [15:0] BOOT_MAX_DATA_WORDS = 16'd512;
     localparam [31:0] BOOT_BYTE_TIMEOUT_CLKS = 32'd270000000;
 
     // LED0 podczas oczekiwania bootloadera:
@@ -57,6 +58,9 @@ module brahma_bija_top (
     wire boot_we;
     wire [9:0] boot_addr;
     wire [31:0] boot_data;
+    wire boot_data_we;
+    wire [8:0] boot_data_addr;
+    wire [31:0] boot_data_word;
     wire boot_cpu_reset;
     wire boot_busy;
     wire boot_waiting;
@@ -100,7 +104,11 @@ module brahma_bija_top (
 
         .boot_we (boot_we),
         .boot_addr (boot_addr),
-        .boot_data (boot_data)
+        .boot_data (boot_data),
+
+        .boot_data_we (boot_data_we),
+        .boot_data_addr (boot_data_addr),
+        .boot_data_word (boot_data_word)
     );
 
     uart_rx #(
@@ -115,6 +123,7 @@ module brahma_bija_top (
 
     brahma_bija_bootloader #(
         .MAX_WORDS(BOOT_MAX_WORDS),
+        .MAX_DATA_WORDS(BOOT_MAX_DATA_WORDS),
         .BYTE_TIMEOUT_CLKS(BOOT_BYTE_TIMEOUT_CLKS),
         .START_IN_BOOTLOADER(BOOT_START_IN_BOOTLOADER)
     ) boot0 (
@@ -130,6 +139,10 @@ module brahma_bija_top (
         .boot_we (boot_we),
         .boot_addr (boot_addr),
         .boot_data (boot_data),
+
+        .boot_data_we (boot_data_we),
+        .boot_data_addr (boot_data_addr),
+        .boot_data_word (boot_data_word),
 
         .cpu_reset (boot_cpu_reset),
         .busy (boot_busy),

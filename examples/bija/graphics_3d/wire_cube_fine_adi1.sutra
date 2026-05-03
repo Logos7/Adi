@@ -1,888 +1,386 @@
-; Sutra v1.4
+; Sutra v1.5.7
 ; Perspective wireframe cube using 64x64 1-bit framebuffer.
 ;
-; 256-entry sin/cos LUT version.
-; The important change is smooth angle stepping:
-; - 64 LUT  -> 5.625 degrees per step
-; - 256 LUT -> 1.40625 degrees per step
-;
-; Requires:
-; - call / return
-; - data_mem as BRAM
-; - fbclear / fbplot / fbpresent
-; - fmul / fdiv / ftoi
-;
-; Framebuffer:
-; - r20 = framebuffer base word address
-; - data_mem[384..511] used as packed 64x64 1bpp framebuffer
+; Diagonal-axis spin diagnostic:
+; - Uses one angle only.
+; - Rotates around axis (1, 1, 1).
+; - Removes X/Y angle dependency resonance.
+; - Keeps frame marker on bottom row.
 ;
 ; Runtime memory map:
-; - data_mem[0..255]   = sin LUT, 256 entries, Q7.25
+; - data_mem[0..255]   = sin LUT, 256 entries
 ; - data_mem[256..271] = projected vertices, x/y pairs
-;
-; Frame style:
-; - fbclear r20
-; - draw into framebuffer with fbplot
-; - fbpresent1 r20 sends ADI0 64x64 frame bit by bit
+; - data_mem[274]      = frame tick, 0..63
+; - data_mem[384..511] = packed 64x64 1bpp framebuffer
+
+.data
+
+sin_lut:
+    .sin_lut 256
+
+projected_vertices:
+    .zero 16
+
+frame_tick:
+    .word 0
+
+.code
 
 main:
+    move r20, 384
+    move r21, 0
+    move r22, 256
 
- move r20, 384
- move r21, 0
- move r22, 256
+    move r18, 0
 
- call init_sin_lut
-
- move r18, 0
- move r19, 64
+    move @274, 0
 
 main_loop:
+    fbclear r20
 
- fbclear r20
+    call load_angle
+    call project_cube
+    call draw_edges
+    call draw_frame_tick
 
- call load_angles
- call project_cube
- call draw_edges
+    fbpresent1 r20
 
- fbpresent1 r20
+    call advance_angle
+    call advance_frame_tick
 
- iadd r18, r18, 1
- iand r18, r18, 255
+    wait 4200
 
- iadd r19, r19, 1
- iand r19, r19, 255
+    jump main_loop
 
- wait 3000
- jump main_loop
+; ------------------------------------------------------------
+; Advance angle
+; ------------------------------------------------------------
+
+advance_angle:
+    iadd r18, r18, 1
+    blt r18, r22, angle_done
+    isub r18, r18, r22
+
+angle_done:
+    return
+
+; ------------------------------------------------------------
+; Advance frame tick
+; ------------------------------------------------------------
+
+advance_frame_tick:
+    move r23, @274
+    iadd r23, r23, 1
+    blt r23, 64, frame_tick_store
+    move r23, 0
+
+frame_tick_store:
+    move @274, r23
+    return
+
+; ------------------------------------------------------------
+; Draw frame tick
+; ------------------------------------------------------------
+
+draw_frame_tick:
+    move r23, @274
+
+    move r1, r23
+    move r2, 63
+    fbplot r20, r1, r2
+
+    move r2, 62
+    fbplot r20, r1, r2
+
+    return
 
 ; ------------------------------------------------------------
 ; Angle loading
 ; ------------------------------------------------------------
-; r18 = angle X, 0..255
-; r19 = angle Y, 0..255
+; r18 = angle, 0..255
 ;
 ; outputs:
-; r10 = sinX
-; r11 = cosX
-; r12 = sinY
-; r13 = cosY
+; r10 = sin
+; r11 = cos
 
-load_angles:
- iadd r23, r21, r18
- move r10, @r23
+load_angle:
+    iadd r23, r21, r18
+    move r10, @r23
 
- iadd r23, r18, 64
- iand r23, r23, 255
- iadd r23, r21, r23
- move r11, @r23
+    iadd r23, r18, 64
+    blt r23, r22, cos_index_ready
+    isub r23, r23, r22
 
- iadd r23, r21, r19
- move r12, @r23
+cos_index_ready:
+    iadd r23, r21, r23
+    move r11, @r23
 
- iadd r23, r19, 64
- iand r23, r23, 255
- iadd r23, r21, r23
- move r13, @r23
-
- return
+    return
 
 ; ------------------------------------------------------------
 ; Project all 8 cube vertices
 ; ------------------------------------------------------------
 
 project_cube:
- move r17, 256
- move r0, -1.0
- move r1, -1.0
- move r2, -1.0
- call project_vertex
+    move r17, 256
+    move r0, -1.0
+    move r1, -1.0
+    move r2, -1.0
+    call project_vertex
 
- move r17, 258
- move r0, 1.0
- move r1, -1.0
- move r2, -1.0
- call project_vertex
+    move r17, 258
+    move r0, 1.0
+    move r1, -1.0
+    move r2, -1.0
+    call project_vertex
 
- move r17, 260
- move r0, 1.0
- move r1, 1.0
- move r2, -1.0
- call project_vertex
+    move r17, 260
+    move r0, 1.0
+    move r1, 1.0
+    move r2, -1.0
+    call project_vertex
 
- move r17, 262
- move r0, -1.0
- move r1, 1.0
- move r2, -1.0
- call project_vertex
+    move r17, 262
+    move r0, -1.0
+    move r1, 1.0
+    move r2, -1.0
+    call project_vertex
 
- move r17, 264
- move r0, -1.0
- move r1, -1.0
- move r2, 1.0
- call project_vertex
+    move r17, 264
+    move r0, -1.0
+    move r1, -1.0
+    move r2, 1.0
+    call project_vertex
 
- move r17, 266
- move r0, 1.0
- move r1, -1.0
- move r2, 1.0
- call project_vertex
+    move r17, 266
+    move r0, 1.0
+    move r1, -1.0
+    move r2, 1.0
+    call project_vertex
 
- move r17, 268
- move r0, 1.0
- move r1, 1.0
- move r2, 1.0
- call project_vertex
+    move r17, 268
+    move r0, 1.0
+    move r1, 1.0
+    move r2, 1.0
+    call project_vertex
 
- move r17, 270
- move r0, -1.0
- move r1, 1.0
- move r2, 1.0
- call project_vertex
+    move r17, 270
+    move r0, -1.0
+    move r1, 1.0
+    move r2, 1.0
+    call project_vertex
 
- return
+    return
 
 ; ------------------------------------------------------------
 ; Project one vertex
 ; ------------------------------------------------------------
-; input:
-; r0 = x
-; r1 = y
-; r2 = z
-; r17 = destination address for projected x/y
+; Diagonal axis rotation around normalized axis (1,1,1).
 ;
-; globals:
-; r10 = sinX
-; r11 = cosX
-; r12 = sinY
-; r13 = cosY
+; Formula:
+; v' = v*c + (axis x v)*s + axis*(axis dot v)*(1-c)
 ;
-; output:
-; @r17     = screen x
-; @r17 + 1 = screen y
+; With axis = (1,1,1)/sqrt(3):
+; k = (x + y + z) * (1 - c) / 3
+; t = s / sqrt(3)
+;
+; x' = x*c + (z - y)*t + k
+; y' = y*c + (x - z)*t + k
+; z' = z*c + (y - x)*t + k
 
 project_vertex:
- fmul r3, r1, r11
- fmul r4, r2, r10
- fsub r5, r3, r4
+    fsub r3, 1.0, r11
 
- fmul r3, r1, r10
- fmul r4, r2, r11
- fadd r6, r3, r4
+    fadd r4, r0, r1
+    fadd r4, r4, r2
+    fmul r4, r4, 0.333333
+    fmul r4, r4, r3
 
- fmul r3, r0, r13
- fmul r4, r6, r12
- fadd r7, r3, r4
+    fmul r14, r10, 0.577350
 
- fmul r3, r6, r13
- fmul r4, r0, r12
- fsub r8, r3, r4
+    fmul r5, r0, r11
+    fsub r6, r2, r1
+    fmul r6, r6, r14
+    fadd r7, r5, r6
+    fadd r7, r7, r4
 
- fadd r9, r8, 4.0
- fdiv r14, 64.0, r9
+    fmul r5, r1, r11
+    fsub r6, r0, r2
+    fmul r6, r6, r14
+    fadd r5, r5, r6
+    fadd r5, r5, r4
 
- fmul r15, r7, r14
- ftoi r15, r15
- iadd r15, r15, 32
+    fmul r6, r2, r11
+    fsub r8, r1, r0
+    fmul r8, r8, r14
+    fadd r8, r6, r8
+    fadd r8, r8, r4
 
- fmul r16, r5, r14
- ftoi r16, r16
- isub r16, 32, r16
+    fadd r9, r8, 4.0
+    fdiv r14, 52.0, r9
 
- move @r17, r15
- move @r17+1, r16
+    fmul r15, r7, r14
+    fadd r15, r15, 32.5
+    ftoi r15, r15
 
- return
+    fmul r16, r5, r14
+    fsub r16, 32.5, r16
+    ftoi r16, r16
+
+    move @r17, r15
+    move @r17+1, r16
+
+    return
 
 ; ------------------------------------------------------------
 ; Cube edges
 ; ------------------------------------------------------------
 
 draw_edges:
- ; 0 - 1
- move r23, 256
- move r1, @r23
- move r2, @r23+1
- move r3, @r23+2
- move r4, @r23+3
- call line
+    move r23, 256
+    move r1, @r23
+    move r2, @r23+1
+    move r3, @r23+2
+    move r4, @r23+3
+    call line
 
- ; 1 - 2
- move r23, 258
- move r1, @r23
- move r2, @r23+1
- move r3, @r23+2
- move r4, @r23+3
- call line
+    move r23, 258
+    move r1, @r23
+    move r2, @r23+1
+    move r3, @r23+2
+    move r4, @r23+3
+    call line
 
- ; 2 - 3
- move r23, 260
- move r1, @r23
- move r2, @r23+1
- move r3, @r23+2
- move r4, @r23+3
- call line
+    move r23, 260
+    move r1, @r23
+    move r2, @r23+1
+    move r3, @r23+2
+    move r4, @r23+3
+    call line
 
- ; 3 - 0
- move r23, 262
- move r1, @r23
- move r2, @r23+1
- move r3, @256
- move r4, @257
- call line
+    move r23, 262
+    move r1, @r23
+    move r2, @r23+1
+    move r3, @256
+    move r4, @257
+    call line
 
- ; 4 - 5
- move r23, 264
- move r1, @r23
- move r2, @r23+1
- move r3, @r23+2
- move r4, @r23+3
- call line
+    move r23, 264
+    move r1, @r23
+    move r2, @r23+1
+    move r3, @r23+2
+    move r4, @r23+3
+    call line
 
- ; 5 - 6
- move r23, 266
- move r1, @r23
- move r2, @r23+1
- move r3, @r23+2
- move r4, @r23+3
- call line
+    move r23, 266
+    move r1, @r23
+    move r2, @r23+1
+    move r3, @r23+2
+    move r4, @r23+3
+    call line
 
- ; 6 - 7
- move r23, 268
- move r1, @r23
- move r2, @r23+1
- move r3, @r23+2
- move r4, @r23+3
- call line
+    move r23, 268
+    move r1, @r23
+    move r2, @r23+1
+    move r3, @r23+2
+    move r4, @r23+3
+    call line
 
- ; 7 - 4
- move r23, 270
- move r1, @r23
- move r2, @r23+1
- move r3, @264
- move r4, @265
- call line
+    move r23, 270
+    move r1, @r23
+    move r2, @r23+1
+    move r3, @264
+    move r4, @265
+    call line
 
- ; 0 - 4
- move r23, 256
- move r1, @r23
- move r2, @r23+1
- move r3, @264
- move r4, @265
- call line
+    move r23, 256
+    move r1, @r23
+    move r2, @r23+1
+    move r3, @264
+    move r4, @265
+    call line
 
- ; 1 - 5
- move r23, 258
- move r1, @r23
- move r2, @r23+1
- move r3, @266
- move r4, @267
- call line
+    move r23, 258
+    move r1, @r23
+    move r2, @r23+1
+    move r3, @266
+    move r4, @267
+    call line
 
- ; 2 - 6
- move r23, 260
- move r1, @r23
- move r2, @r23+1
- move r3, @268
- move r4, @269
- call line
+    move r23, 260
+    move r1, @r23
+    move r2, @r23+1
+    move r3, @268
+    move r4, @269
+    call line
 
- ; 3 - 7
- move r23, 262
- move r1, @r23
- move r2, @r23+1
- move r3, @270
- move r4, @271
- call line
+    move r23, 262
+    move r1, @r23
+    move r2, @r23+1
+    move r3, @270
+    move r4, @271
+    call line
 
- return
+    return
 
 ; ------------------------------------------------------------
 ; Bresenham line
 ; ------------------------------------------------------------
-; input:
-; r1 = x0
-; r2 = y0
-; r3 = x1
-; r4 = y1
-;
-; clobbers:
-; r5..r9, r14..r16, b0..b2
 
 line:
- isub r5, r3, r1
- bge r5, 0, line_dx_ready
- isub r5, 0, r5
+    isub r5, r3, r1
+    bge r5, 0, line_dx_ready
+    isub r5, 0, r5
 
 line_dx_ready:
- move r6, 1
- bge r3, r1, line_sx_ready
- move r6, -1
+    move r6, 1
+    bge r3, r1, line_sx_ready
+    move r6, -1
 
 line_sx_ready:
- isub r7, r4, r2
- bge r7, 0, line_dy_abs_ready
- isub r7, 0, r7
+    isub r7, r4, r2
+    bge r7, 0, line_dy_abs_ready
+    isub r7, 0, r7
 
 line_dy_abs_ready:
- isub r7, 0, r7
+    isub r7, 0, r7
 
- move r8, 1
- bge r4, r2, line_sy_ready
- move r8, -1
+    move r8, 1
+    bge r4, r2, line_sy_ready
+    move r8, -1
 
 line_sy_ready:
- iadd r9, r5, r7
+    iadd r9, r5, r7
 
 line_loop:
- blt r1, 0, line_skip_plot
- bge r1, 64, line_skip_plot
- blt r2, 0, line_skip_plot
- bge r2, 64, line_skip_plot
- fbplot r20, r1, r2
+    blt r1, 0, line_skip_plot
+    bge r1, 64, line_skip_plot
+    blt r2, 0, line_skip_plot
+    bge r2, 64, line_skip_plot
+    fbplot r20, r1, r2
 
 line_skip_plot:
- cmp.eq b0, r1, r3
- cmp.eq b1, r2, r4
- band b2, b0, b1
- jump_if b2, line_done
+    cmp.eq b0, r1, r3
+    cmp.eq b1, r2, r4
+    band b2, b0, b1
+    jump_if b2, line_done
 
- shl r14, r9, 1
+    shl r14, r9, 1
 
- cmp.ge b0, r14, r7
- jump_if_not b0, line_skip_x_step
- iadd r9, r9, r7
- iadd r1, r1, r6
+    cmp.ge b0, r14, r7
+    jump_if_not b0, line_skip_x_step
+    iadd r9, r9, r7
+    iadd r1, r1, r6
 
 line_skip_x_step:
- cmp.le b1, r14, r5
- jump_if_not b1, line_skip_y_step
- iadd r9, r9, r5
- iadd r2, r2, r8
+    cmp.le b1, r14, r5
+    jump_if_not b1, line_skip_y_step
+    iadd r9, r9, r5
+    iadd r2, r2, r8
 
 line_skip_y_step:
- jump line_loop
+    jump line_loop
 
 line_done:
- return
-
-; ------------------------------------------------------------
-; 256-entry sin LUT, Q7.25
-; ------------------------------------------------------------
-
-init_sin_lut:
- move r23, 0
-
- move @r23, 0.0
- inc r23
- move @r23, 0.024541
- inc r23
- move @r23, 0.049068
- inc r23
- move @r23, 0.073565
- inc r23
- move @r23, 0.098017
- inc r23
- move @r23, 0.122411
- inc r23
- move @r23, 0.146730
- inc r23
- move @r23, 0.170962
- inc r23
- move @r23, 0.195090
- inc r23
- move @r23, 0.219101
- inc r23
- move @r23, 0.242980
- inc r23
- move @r23, 0.266713
- inc r23
- move @r23, 0.290285
- inc r23
- move @r23, 0.313682
- inc r23
- move @r23, 0.336890
- inc r23
- move @r23, 0.359895
- inc r23
- move @r23, 0.382683
- inc r23
- move @r23, 0.405241
- inc r23
- move @r23, 0.427555
- inc r23
- move @r23, 0.449611
- inc r23
- move @r23, 0.471397
- inc r23
- move @r23, 0.492898
- inc r23
- move @r23, 0.514103
- inc r23
- move @r23, 0.534998
- inc r23
- move @r23, 0.555570
- inc r23
- move @r23, 0.575808
- inc r23
- move @r23, 0.595699
- inc r23
- move @r23, 0.615232
- inc r23
- move @r23, 0.634393
- inc r23
- move @r23, 0.653173
- inc r23
- move @r23, 0.671559
- inc r23
- move @r23, 0.689541
- inc r23
- move @r23, 0.707107
- inc r23
- move @r23, 0.724247
- inc r23
- move @r23, 0.740951
- inc r23
- move @r23, 0.757209
- inc r23
- move @r23, 0.773010
- inc r23
- move @r23, 0.788346
- inc r23
- move @r23, 0.803208
- inc r23
- move @r23, 0.817585
- inc r23
- move @r23, 0.831470
- inc r23
- move @r23, 0.844854
- inc r23
- move @r23, 0.857729
- inc r23
- move @r23, 0.870087
- inc r23
- move @r23, 0.881921
- inc r23
- move @r23, 0.893224
- inc r23
- move @r23, 0.903989
- inc r23
- move @r23, 0.914210
- inc r23
- move @r23, 0.923880
- inc r23
- move @r23, 0.932993
- inc r23
- move @r23, 0.941544
- inc r23
- move @r23, 0.949528
- inc r23
- move @r23, 0.956940
- inc r23
- move @r23, 0.963776
- inc r23
- move @r23, 0.970031
- inc r23
- move @r23, 0.975702
- inc r23
- move @r23, 0.980785
- inc r23
- move @r23, 0.985278
- inc r23
- move @r23, 0.989177
- inc r23
- move @r23, 0.992480
- inc r23
- move @r23, 0.995185
- inc r23
- move @r23, 0.997290
- inc r23
- move @r23, 0.998795
- inc r23
- move @r23, 0.999699
- inc r23
- move @r23, 1.0
- inc r23
- move @r23, 0.999699
- inc r23
- move @r23, 0.998795
- inc r23
- move @r23, 0.997290
- inc r23
- move @r23, 0.995185
- inc r23
- move @r23, 0.992480
- inc r23
- move @r23, 0.989177
- inc r23
- move @r23, 0.985278
- inc r23
- move @r23, 0.980785
- inc r23
- move @r23, 0.975702
- inc r23
- move @r23, 0.970031
- inc r23
- move @r23, 0.963776
- inc r23
- move @r23, 0.956940
- inc r23
- move @r23, 0.949528
- inc r23
- move @r23, 0.941544
- inc r23
- move @r23, 0.932993
- inc r23
- move @r23, 0.923880
- inc r23
- move @r23, 0.914210
- inc r23
- move @r23, 0.903989
- inc r23
- move @r23, 0.893224
- inc r23
- move @r23, 0.881921
- inc r23
- move @r23, 0.870087
- inc r23
- move @r23, 0.857729
- inc r23
- move @r23, 0.844854
- inc r23
- move @r23, 0.831470
- inc r23
- move @r23, 0.817585
- inc r23
- move @r23, 0.803208
- inc r23
- move @r23, 0.788346
- inc r23
- move @r23, 0.773010
- inc r23
- move @r23, 0.757209
- inc r23
- move @r23, 0.740951
- inc r23
- move @r23, 0.724247
- inc r23
- move @r23, 0.707107
- inc r23
- move @r23, 0.689541
- inc r23
- move @r23, 0.671559
- inc r23
- move @r23, 0.653173
- inc r23
- move @r23, 0.634393
- inc r23
- move @r23, 0.615232
- inc r23
- move @r23, 0.595699
- inc r23
- move @r23, 0.575808
- inc r23
- move @r23, 0.555570
- inc r23
- move @r23, 0.534998
- inc r23
- move @r23, 0.514103
- inc r23
- move @r23, 0.492898
- inc r23
- move @r23, 0.471397
- inc r23
- move @r23, 0.449611
- inc r23
- move @r23, 0.427555
- inc r23
- move @r23, 0.405241
- inc r23
- move @r23, 0.382683
- inc r23
- move @r23, 0.359895
- inc r23
- move @r23, 0.336890
- inc r23
- move @r23, 0.313682
- inc r23
- move @r23, 0.290285
- inc r23
- move @r23, 0.266713
- inc r23
- move @r23, 0.242980
- inc r23
- move @r23, 0.219101
- inc r23
- move @r23, 0.195090
- inc r23
- move @r23, 0.170962
- inc r23
- move @r23, 0.146730
- inc r23
- move @r23, 0.122411
- inc r23
- move @r23, 0.098017
- inc r23
- move @r23, 0.073565
- inc r23
- move @r23, 0.049068
- inc r23
- move @r23, 0.024541
- inc r23
- move @r23, 0.0
- inc r23
- move @r23, -0.024541
- inc r23
- move @r23, -0.049068
- inc r23
- move @r23, -0.073565
- inc r23
- move @r23, -0.098017
- inc r23
- move @r23, -0.122411
- inc r23
- move @r23, -0.146730
- inc r23
- move @r23, -0.170962
- inc r23
- move @r23, -0.195090
- inc r23
- move @r23, -0.219101
- inc r23
- move @r23, -0.242980
- inc r23
- move @r23, -0.266713
- inc r23
- move @r23, -0.290285
- inc r23
- move @r23, -0.313682
- inc r23
- move @r23, -0.336890
- inc r23
- move @r23, -0.359895
- inc r23
- move @r23, -0.382683
- inc r23
- move @r23, -0.405241
- inc r23
- move @r23, -0.427555
- inc r23
- move @r23, -0.449611
- inc r23
- move @r23, -0.471397
- inc r23
- move @r23, -0.492898
- inc r23
- move @r23, -0.514103
- inc r23
- move @r23, -0.534998
- inc r23
- move @r23, -0.555570
- inc r23
- move @r23, -0.575808
- inc r23
- move @r23, -0.595699
- inc r23
- move @r23, -0.615232
- inc r23
- move @r23, -0.634393
- inc r23
- move @r23, -0.653173
- inc r23
- move @r23, -0.671559
- inc r23
- move @r23, -0.689541
- inc r23
- move @r23, -0.707107
- inc r23
- move @r23, -0.724247
- inc r23
- move @r23, -0.740951
- inc r23
- move @r23, -0.757209
- inc r23
- move @r23, -0.773010
- inc r23
- move @r23, -0.788346
- inc r23
- move @r23, -0.803208
- inc r23
- move @r23, -0.817585
- inc r23
- move @r23, -0.831470
- inc r23
- move @r23, -0.844854
- inc r23
- move @r23, -0.857729
- inc r23
- move @r23, -0.870087
- inc r23
- move @r23, -0.881921
- inc r23
- move @r23, -0.893224
- inc r23
- move @r23, -0.903989
- inc r23
- move @r23, -0.914210
- inc r23
- move @r23, -0.923880
- inc r23
- move @r23, -0.932993
- inc r23
- move @r23, -0.941544
- inc r23
- move @r23, -0.949528
- inc r23
- move @r23, -0.956940
- inc r23
- move @r23, -0.963776
- inc r23
- move @r23, -0.970031
- inc r23
- move @r23, -0.975702
- inc r23
- move @r23, -0.980785
- inc r23
- move @r23, -0.985278
- inc r23
- move @r23, -0.989177
- inc r23
- move @r23, -0.992480
- inc r23
- move @r23, -0.995185
- inc r23
- move @r23, -0.997290
- inc r23
- move @r23, -0.998795
- inc r23
- move @r23, -0.999699
- inc r23
- move @r23, -1.0
- inc r23
- move @r23, -0.999699
- inc r23
- move @r23, -0.998795
- inc r23
- move @r23, -0.997290
- inc r23
- move @r23, -0.995185
- inc r23
- move @r23, -0.992480
- inc r23
- move @r23, -0.989177
- inc r23
- move @r23, -0.985278
- inc r23
- move @r23, -0.980785
- inc r23
- move @r23, -0.975702
- inc r23
- move @r23, -0.970031
- inc r23
- move @r23, -0.963776
- inc r23
- move @r23, -0.956940
- inc r23
- move @r23, -0.949528
- inc r23
- move @r23, -0.941544
- inc r23
- move @r23, -0.932993
- inc r23
- move @r23, -0.923880
- inc r23
- move @r23, -0.914210
- inc r23
- move @r23, -0.903989
- inc r23
- move @r23, -0.893224
- inc r23
- move @r23, -0.881921
- inc r23
- move @r23, -0.870087
- inc r23
- move @r23, -0.857729
- inc r23
- move @r23, -0.844854
- inc r23
- move @r23, -0.831470
- inc r23
- move @r23, -0.817585
- inc r23
- move @r23, -0.803208
- inc r23
- move @r23, -0.788346
- inc r23
- move @r23, -0.773010
- inc r23
- move @r23, -0.757209
- inc r23
- move @r23, -0.740951
- inc r23
- move @r23, -0.724247
- inc r23
- move @r23, -0.707107
- inc r23
- move @r23, -0.689541
- inc r23
- move @r23, -0.671559
- inc r23
- move @r23, -0.653173
- inc r23
- move @r23, -0.634393
- inc r23
- move @r23, -0.615232
- inc r23
- move @r23, -0.595699
- inc r23
- move @r23, -0.575808
- inc r23
- move @r23, -0.555570
- inc r23
- move @r23, -0.534998
- inc r23
- move @r23, -0.514103
- inc r23
- move @r23, -0.492898
- inc r23
- move @r23, -0.471397
- inc r23
- move @r23, -0.449611
- inc r23
- move @r23, -0.427555
- inc r23
- move @r23, -0.405241
- inc r23
- move @r23, -0.382683
- inc r23
- move @r23, -0.359895
- inc r23
- move @r23, -0.336890
- inc r23
- move @r23, -0.313682
- inc r23
- move @r23, -0.290285
- inc r23
- move @r23, -0.266713
- inc r23
- move @r23, -0.242980
- inc r23
- move @r23, -0.219101
- inc r23
- move @r23, -0.195090
- inc r23
- move @r23, -0.170962
- inc r23
- move @r23, -0.146730
- inc r23
- move @r23, -0.122411
- inc r23
- move @r23, -0.098017
- inc r23
- move @r23, -0.073565
- inc r23
- move @r23, -0.049068
- inc r23
- move @r23, -0.024541
-
- return
- 
+    return
+    

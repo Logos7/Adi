@@ -1,7 +1,7 @@
 """
 Sutra — assembler for the Brahma-Bija processor.
 
-Brahma-Bija v1.4:
+Brahma-Bija v1.5:
 - official style is lowercase; the parser is case-insensitive,
 - immediates have no prefix: 123, 1.0, π, √500, true, high,
 - memory / MMIO / GPIO always use @: @10, @uart_tx, @led0, @r1,
@@ -10,7 +10,8 @@ Brahma-Bija v1.4:
 - move dst, src is shared by word and bool values,
 - call/return use the hardware return stack in RTL,
 - fbclear/fbplot/fberase/fbpresent operate on a packed 64x64 1-bit framebuffer in data_mem,
-- cadd/csub/cmul/cabs2 and branch/wait/min/max are assembler macros.
+- cadd/csub/cmul/cabs2 and branch/wait/min/max are assembler macros,
+- .data/.code/.org/.word/.q7_25/.sin_lut build a separate data_mem image.
 """
 
 from dataclasses import dataclass
@@ -245,6 +246,12 @@ GPIO_ALIASES = {
 GPIO_PIN_MAX = 127
 GPIO_INPIN_BASE = 64
 
+# Data labels are populated only during assemble_image().
+# They are accepted as immediates and direct memory addresses, e.g.
+#     move r21, sin_lut
+#     move r0, @sin_lut
+DATA_SYMBOLS: dict[str, int] = {}
+
 INSTRUCTION_SUMMARY = [
     "move rd, value ; rd = value, np. move r0, π / move r1, 1.0 / move r2, √500",
     "move rd, @addr ; rd = data_mem/MMIO[addr]",
@@ -329,6 +336,8 @@ def parse_address_value(token: str) -> int:
         return MMIO_SYMBOLS[u]
     if u in GPIO_ALIASES:
         return GPIO_ALIASES[u]
+    if u in DATA_SYMBOLS:
+        return DATA_SYMBOLS[u]
 
     l = raw.lower()
     if l.startswith("pin"):
@@ -398,6 +407,8 @@ def parse_immediate_raw(token: str) -> int:
         return to_u32(SCALAR_CONSTANTS[key])
     if raw in SCALAR_CONSTANTS:
         return to_u32(SCALAR_CONSTANTS[raw])
+    if key in DATA_SYMBOLS:
+        return to_u32(DATA_SYMBOLS[key])
 
     if re.fullmatch(r"[-+]?\d+\.\d+", raw):
         return to_u32(fixed_literal_to_q(raw))
@@ -540,6 +551,9 @@ def parse_memory_operand(token: str):
         if not 0 <= n <= 63:
             raise AssemblerError(f"inpin{n} poza zakresem 0..63")
         return "imm", GPIO_INPIN_BASE + n, "bool", 0
+
+    if u in DATA_SYMBOLS:
+        return "imm", DATA_SYMBOLS[u], None, 0
 
     return "imm", parse_small_int(body), None, 0
 
@@ -1228,3 +1242,173 @@ def flatten_program(lines: list[AssembledLine]) -> list[int]:
     for line in lines:
         flat.extend(line.words)
     return flat
+
+# -----------------------------------------------------------------------------
+# Sutra v1.5 image assembler: separate code and data_mem blob
+# -----------------------------------------------------------------------------
+
+@dataclass
+class SutraImage:
+    """Assembled Sutra image with separate instruction memory and data memory."""
+
+    code_words: list[int]
+    data_words: list[int]
+    lines: list[AssembledLine]
+    data_symbols: dict[str, int]
+
+    @property
+    def words(self) -> list[int]:
+        """Backward-friendly alias for the program/code words."""
+        return self.code_words
+
+
+def _split_csv_operands(text: str) -> list[str]:
+    return [part.strip() for part in text.split(",") if part.strip()]
+
+
+def _parse_data_count(raw: str) -> int:
+    value = parse_immediate_raw(raw)
+    signed = value if value < 0x80000000 else value - 0x100000000
+    if signed < 0:
+        raise AssemblerError(f"Ujemny rozmiar danych: {raw}")
+    return signed
+
+
+def _append_data_word(data: list[int], addr: int, word: int) -> None:
+    if not 0 <= addr <= 511:
+        raise AssemblerError(f"Adres data_mem {addr} poza zakresem 0..511")
+    while len(data) <= addr:
+        data.append(0)
+    data[addr] = to_u32(word)
+
+
+def _parse_data_directive(line: str, data: list[int], data_addr: int, lineno: int) -> int:
+    parts = line.split(None, 1)
+    directive = parts[0].lower()
+    arg_text = parts[1].strip() if len(parts) > 1 else ""
+
+    if directive == ".org":
+        if not arg_text:
+            raise AssemblerError(f"Linia {lineno}: .org wymaga adresu")
+        addr = _parse_data_count(arg_text)
+        if not 0 <= addr <= 511:
+            raise AssemblerError(f"Linia {lineno}: .org poza data_mem 0..511")
+        return addr
+
+    if directive in (".word", ".u32"):
+        operands = _split_csv_operands(arg_text)
+        if not operands:
+            raise AssemblerError(f"Linia {lineno}: {directive} wymaga co najmniej jednej wartości")
+        for op in operands:
+            _append_data_word(data, data_addr, parse_immediate_raw(op))
+            data_addr += 1
+        return data_addr
+
+    if directive in (".q7_25", ".fixed", ".fix"):
+        operands = _split_csv_operands(arg_text)
+        if not operands:
+            raise AssemblerError(f"Linia {lineno}: {directive} wymaga co najmniej jednej wartości")
+        for op in operands:
+            _append_data_word(data, data_addr, parse_immediate_raw(op))
+            data_addr += 1
+        return data_addr
+
+    if directive in (".zero", ".zeros", ".space"):
+        if not arg_text:
+            raise AssemblerError(f"Linia {lineno}: {directive} wymaga liczby słów")
+        count = _parse_data_count(arg_text)
+        for _ in range(count):
+            _append_data_word(data, data_addr, 0)
+            data_addr += 1
+        return data_addr
+
+    if directive == ".sin_lut":
+        count = 256 if not arg_text else _parse_data_count(arg_text)
+        if count <= 0:
+            raise AssemblerError(f"Linia {lineno}: .sin_lut wymaga dodatniej liczby próbek")
+        if count & (count - 1):
+            raise AssemblerError(f"Linia {lineno}: .sin_lut najlepiej używać z potęgą dwójki; dostałem {count}")
+        for i in range(count):
+            _append_data_word(data, data_addr, q(math.sin((2.0 * math.pi * i) / count)))
+            data_addr += 1
+        return data_addr
+
+    raise AssemblerError(f"Linia {lineno}: nieznana dyrektywa danych: {directive}")
+
+
+def _extract_code_and_data(source: str) -> tuple[str, list[int], dict[str, int]]:
+    mode = "code"
+    code_lines: list[str] = []
+    data: list[int] = []
+    data_symbols: dict[str, int] = {}
+    data_addr = 0
+
+    for lineno, original in enumerate(source.splitlines(), start=1):
+        stripped = _strip_comment(original)
+        if not stripped:
+            if mode == "code":
+                code_lines.append(original)
+            continue
+
+        lower = stripped.lower()
+        if lower == ".code":
+            mode = "code"
+            continue
+        if lower == ".data":
+            mode = "data"
+            continue
+
+        if mode == "code":
+            if stripped.startswith("."):
+                raise AssemblerError(f"Linia {lineno}: dyrektywa {stripped.split()[0]} jest dostępna tylko w .data")
+            code_lines.append(original)
+            continue
+
+        # .data mode
+        line = stripped
+        while True:
+            label_match = re.match(r"^([A-Za-z_.$][A-Za-z0-9_.$]*)\s*:\s*(.*)$", line)
+            if not label_match:
+                break
+            label = label_match.group(1)
+            key = label.upper()
+            if key in data_symbols:
+                raise AssemblerError(f"Linia {lineno}: duplikat etykiety danych {label}")
+            data_symbols[key] = data_addr
+            line = label_match.group(2).strip()
+            if not line:
+                break
+
+        if line:
+            if not line.startswith("."):
+                raise AssemblerError(f"Linia {lineno}: w .data oczekuję dyrektywy, dostałem: {line}")
+            data_addr = _parse_data_directive(line, data, data_addr, lineno)
+
+    return "\n".join(code_lines) + "\n", data, data_symbols
+
+
+def assemble_image(source: str) -> SutraImage:
+    """Assemble a Sutra v1.5 source into separate code and data images."""
+
+    code_source, data_words, data_symbols = _extract_code_and_data(source)
+
+    old_symbols = dict(DATA_SYMBOLS)
+    try:
+        DATA_SYMBOLS.clear()
+        DATA_SYMBOLS.update(data_symbols)
+        lines = assemble(code_source)
+    finally:
+        DATA_SYMBOLS.clear()
+        DATA_SYMBOLS.update(old_symbols)
+
+    return SutraImage(
+        code_words=flatten_program(lines),
+        data_words=data_words,
+        lines=lines,
+        data_symbols=dict(data_symbols),
+    )
+
+
+def flatten_image(image: SutraImage) -> tuple[list[int], list[int]]:
+    return image.code_words, image.data_words
+

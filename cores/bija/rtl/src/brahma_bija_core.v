@@ -24,7 +24,11 @@ module brahma_bija_core (
 
     input wire boot_we,
     input wire [9:0] boot_addr,
-    input wire [31:0] boot_data
+    input wire [31:0] boot_data,
+
+    input wire boot_data_we,
+    input wire [8:0] boot_data_addr,
+    input wire [31:0] boot_data_word
 );
 
     // -------------------------------------------------------------------------
@@ -199,8 +203,11 @@ module brahma_bija_core (
 
     // Synchronous data memory port. Do not reset data_mem here; resetting RAM arrays
     // generally prevents block RAM inference on small FPGAs.
+    // v1.5: the bootloader can preload data_mem while the CPU is held in reset.
     always @(posedge clk) begin
-        if (data_we) begin
+        if (boot_data_we) begin
+            data_mem[boot_data_addr] <= boot_data_word;
+        end else if (data_we) begin
             data_mem[data_wr_addr] <= data_wr_data;
         end
 
