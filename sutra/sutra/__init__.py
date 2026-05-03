@@ -11,7 +11,8 @@ Brahma-Bija v1.5:
 - call/return use the hardware return stack in RTL,
 - fbclear/fbplot/fberase/fbpresent operate on a packed 64x64 1-bit framebuffer in data_mem,
 - cadd/csub/cmul/cabs2 and branch/wait/min/max are assembler macros,
-- .data/.code/.org/.word/.q7_25/.sin_lut build a separate data_mem image.
+- .data/.code/.org/.word/.q7_25/.sin_lut build a separate data_mem image,
+- .word/.u32/.q7_25 accept comma-separated value lists, e.g. .word 1, 2, 3.
 """
 
 from dataclasses import dataclass
@@ -138,8 +139,6 @@ SHIFT_J_OFFSET = 4
 PRED_ALWAYS = 0b1111
 MASK32 = 0xFFFFFFFF
 Q = 1 << 25
-
-CODE_MEM_WORDS = 2048
 DATA_MEM_WORDS = 2048
 
 T_REGS = {f"T{i}": 24 + i for i in range(8)}
@@ -1269,6 +1268,13 @@ def _split_csv_operands(text: str) -> list[str]:
     return [part.strip() for part in text.split(",") if part.strip()]
 
 
+def _parse_data_values(raw: str, directive: str, lineno: int) -> list[int]:
+    parts = [part.strip() for part in raw.split(",")]
+    if not parts or any(part == "" for part in parts):
+        raise AssemblerError(f"Linia {lineno}: {directive} wymaga wartości rozdzielonych przecinkami")
+    return [parse_immediate_raw(part) for part in parts]
+
+
 def _parse_data_count(raw: str) -> int:
     value = parse_immediate_raw(raw)
     signed = value if value < 0x80000000 else value - 0x100000000
@@ -1299,20 +1305,14 @@ def _parse_data_directive(line: str, data: list[int], data_addr: int, lineno: in
         return addr
 
     if directive in (".word", ".u32"):
-        operands = _split_csv_operands(arg_text)
-        if not operands:
-            raise AssemblerError(f"Linia {lineno}: {directive} wymaga co najmniej jednej wartości")
-        for op in operands:
-            _append_data_word(data, data_addr, parse_immediate_raw(op))
+        for value in _parse_data_values(arg_text, directive, lineno):
+            _append_data_word(data, data_addr, value)
             data_addr += 1
         return data_addr
 
     if directive in (".q7_25", ".fixed", ".fix"):
-        operands = _split_csv_operands(arg_text)
-        if not operands:
-            raise AssemblerError(f"Linia {lineno}: {directive} wymaga co najmniej jednej wartości")
-        for op in operands:
-            _append_data_word(data, data_addr, parse_immediate_raw(op))
+        for value in _parse_data_values(arg_text, directive, lineno):
+            _append_data_word(data, data_addr, value)
             data_addr += 1
         return data_addr
 
