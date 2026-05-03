@@ -23,11 +23,11 @@ module brahma_bija_core (
     input wire [7:0] uart_rx_data,
 
     input wire boot_we,
-    input wire [9:0] boot_addr,
+    input wire [10:0] boot_addr,
     input wire [31:0] boot_data,
 
     input wire boot_data_we,
-    input wire [8:0] boot_data_addr,
+    input wire [10:0] boot_data_addr,
     input wire [31:0] boot_data_word
 );
 
@@ -64,8 +64,8 @@ module brahma_bija_core (
     localparam [5:0] OP_RETURN     = 6'h3A;
     localparam [5:0] OP_HALT       = 6'h3F;
 
-    localparam [8:0] UART_TX_ADDR = 9'h0F0;
-    localparam [8:0] UART_RX_ADDR = 9'h0F1;
+    localparam [10:0] UART_TX_ADDR = 11'h0F0;
+    localparam [10:0] UART_RX_ADDR = 11'h0F1;
 
     localparam [13:0] UART_READY_BOOL_ADDR    = 14'd128;
     localparam [13:0] UART_RX_READY_BOOL_ADDR = 14'd129;
@@ -129,11 +129,11 @@ module brahma_bija_core (
     // Memories / registers
     // -------------------------------------------------------------------------
 
-    reg [31:0] imem [0:1023];
+    reg [31:0] imem [0:2047];
 
-    // 512 words gives 256 old general-purpose words plus two 64x64 1bpp buffers.
+    // 2048 words gives room for LUTs, mesh data, scratch space, and multiple 64x64 1bpp buffers.
     // The synchronous port below is intentionally written in a BRAM-friendly style.
-    reg [31:0] data_mem [0:511] /* synthesis syn_ramstyle = "block_ram" */;
+    reg [31:0] data_mem [0:2047] /* synthesis syn_ramstyle = "block_ram" */;
 
     reg [31:0] gpr [0:31];
     reg bool_regs [0:7];
@@ -151,15 +151,15 @@ module brahma_bija_core (
     reg uart_rx_pending;
 
     reg data_we;
-    reg [8:0] data_rd_addr;
-    reg [8:0] data_wr_addr;
+    reg [10:0] data_rd_addr;
+    reg [10:0] data_wr_addr;
     reg [31:0] data_wr_data;
     reg [31:0] data_rd_q;
 
     reg [4:0] load_dst_reg;
 
-    reg [8:0] fb_base;
-    reg [8:0] fb_addr;
+    reg [10:0] fb_base;
+    reg [10:0] fb_addr;
     reg [6:0] fb_word_index;
     reg [4:0] fb_bit_index;
     reg [31:0] fb_word;
@@ -169,7 +169,7 @@ module brahma_bija_core (
     reg fb_tx_kind;
     reg fb_present_packed;
 
-    reg [8:0] addr9_work;
+    reg [10:0] addr11_work;
     reg [13:0] addr14_work;
     reg [31:0] addr32_work;
     reg [11:0] fb_pixel_work;
@@ -429,12 +429,12 @@ module brahma_bija_core (
             uart_rx_pending <= 1'b0;
             return_sp <= 5'd0;
             data_we <= 1'b0;
-            data_rd_addr <= 9'd0;
-            data_wr_addr <= 9'd0;
+            data_rd_addr <= 11'd0;
+            data_wr_addr <= 11'd0;
             data_wr_data <= 32'd0;
             load_dst_reg <= 5'd0;
-            fb_base <= 9'd0;
-            fb_addr <= 9'd0;
+            fb_base <= 11'd0;
+            fb_addr <= 11'd0;
             fb_word_index <= 7'd0;
             fb_bit_index <= 5'd0;
             fb_word <= 32'd0;
@@ -443,7 +443,7 @@ module brahma_bija_core (
             fb_header_index <= 3'd0;
             fb_tx_kind <= 1'b0;
             fb_present_packed <= 1'b0;
-            addr9_work <= 9'd0;
+            addr11_work <= 11'd0;
             addr14_work <= 14'd0;
             addr32_work <= 32'd0;
             fb_pixel_work <= 12'd0;
@@ -487,7 +487,7 @@ module brahma_bija_core (
 
             case (state)
                 S_FETCH: begin
-                    instr <= imem[pc[9:0]];
+                    instr <= imem[pc[10:0]];
                     state <= S_EXECUTE;
                 end
 
@@ -580,16 +580,16 @@ module brahma_bija_core (
                             end
 
                             OP_LOAD_L: begin
-                                instr2 <= imem[pc[9:0] + 10'd1];
+                                instr2 <= imem[pc[10:0] + 11'd1];
                                 state <= S_FETCH2;
                             end
 
                             OP_LOAD_M: begin
                                 if (rd_field <= 5'd31) begin
                                     addr32_work = rs_value + {{20{i_imm[11]}}, i_imm};
-                                    addr9_work = addr32_work[8:0];
+                                    addr11_work = addr32_work[10:0];
 
-                                    if (addr9_work == UART_RX_ADDR) begin
+                                    if (addr11_work == UART_RX_ADDR) begin
                                         if (uart_rx_valid) begin
                                             gpr[rd_field] <= {24'd0, uart_rx_data};
                                         end else begin
@@ -600,7 +600,7 @@ module brahma_bija_core (
                                         state <= S_FETCH;
                                     end else begin
                                         load_dst_reg <= rd_field;
-                                        data_rd_addr <= addr9_work;
+                                        data_rd_addr <= addr11_work;
                                         state <= S_LOAD_WAIT;
                                     end
                                 end else begin
@@ -611,9 +611,9 @@ module brahma_bija_core (
 
                             OP_SAVE_M: begin
                                 addr32_work = rs_value + {{20{i_imm[11]}}, i_imm};
-                                addr9_work = addr32_work[8:0];
+                                addr11_work = addr32_work[10:0];
 
-                                if (addr9_work == UART_TX_ADDR) begin
+                                if (addr11_work == UART_TX_ADDR) begin
                                     if (uart_tx_ready) begin
                                         uart_tx_data <= rd_value[7:0];
                                         uart_tx_valid <= 1'b1;
@@ -623,7 +623,7 @@ module brahma_bija_core (
                                         state <= S_EXECUTE;
                                     end
                                 end else begin
-                                    data_wr_addr <= addr9_work;
+                                    data_wr_addr <= addr11_work;
                                     data_wr_data <= rd_value;
                                     data_we <= 1'b1;
                                     pc <= pc + 32'd1;
@@ -633,9 +633,9 @@ module brahma_bija_core (
 
                             OP_LOAD_MD: begin
                                 if (rd_field <= 5'd31) begin
-                                    addr9_work = md_imm[8:0];
+                                    addr11_work = md_imm[10:0];
 
-                                    if (addr9_work == UART_RX_ADDR) begin
+                                    if (addr11_work == UART_RX_ADDR) begin
                                         if (uart_rx_valid) begin
                                             gpr[rd_field] <= {24'd0, uart_rx_data};
                                         end else begin
@@ -646,7 +646,7 @@ module brahma_bija_core (
                                         state <= S_FETCH;
                                     end else begin
                                         load_dst_reg <= rd_field;
-                                        data_rd_addr <= addr9_work;
+                                        data_rd_addr <= addr11_work;
                                         state <= S_LOAD_WAIT;
                                     end
                                 end else begin
@@ -656,9 +656,9 @@ module brahma_bija_core (
                             end
 
                             OP_SAVE_MD: begin
-                                addr9_work = md_imm[8:0];
+                                addr11_work = md_imm[10:0];
 
-                                if (addr9_work == UART_TX_ADDR) begin
+                                if (addr11_work == UART_TX_ADDR) begin
                                     if (uart_tx_ready) begin
                                         uart_tx_data <= rd_value[7:0];
                                         uart_tx_valid <= 1'b1;
@@ -668,7 +668,7 @@ module brahma_bija_core (
                                         state <= S_EXECUTE;
                                     end
                                 end else begin
-                                    data_wr_addr <= addr9_work;
+                                    data_wr_addr <= addr11_work;
                                     data_wr_data <= rd_value;
                                     data_we <= 1'b1;
                                     pc <= pc + 32'd1;
@@ -738,7 +738,7 @@ module brahma_bija_core (
                             end
 
                             OP_FBCLEAR: begin
-                                fb_base <= rd_value[8:0];
+                                fb_base <= rd_value[10:0];
                                 fb_word_index <= 7'd0;
                                 state <= S_FB_CLEAR;
                             end
@@ -749,10 +749,10 @@ module brahma_bija_core (
                                     state <= S_FETCH;
                                 end else begin
                                     fb_pixel_work = {rt_value[5:0], rs_value[5:0]};
-                                    fb_addr <= rd_value[8:0] + {2'b00, fb_pixel_work[11:5]};
+                                    fb_addr <= rd_value[10:0] + {4'b0000, fb_pixel_work[11:5]};
                                     fb_bit_mask <= 32'h0000_0001 << fb_pixel_work[4:0];
                                     fb_set_bit <= 1'b1;
-                                    data_rd_addr <= rd_value[8:0] + {2'b00, fb_pixel_work[11:5]};
+                                    data_rd_addr <= rd_value[10:0] + {4'b0000, fb_pixel_work[11:5]};
                                     state <= S_FB_RMW_WAIT;
                                 end
                             end
@@ -763,16 +763,16 @@ module brahma_bija_core (
                                     state <= S_FETCH;
                                 end else begin
                                     fb_pixel_work = {rt_value[5:0], rs_value[5:0]};
-                                    fb_addr <= rd_value[8:0] + {2'b00, fb_pixel_work[11:5]};
+                                    fb_addr <= rd_value[10:0] + {4'b0000, fb_pixel_work[11:5]};
                                     fb_bit_mask <= 32'h0000_0001 << fb_pixel_work[4:0];
                                     fb_set_bit <= 1'b0;
-                                    data_rd_addr <= rd_value[8:0] + {2'b00, fb_pixel_work[11:5]};
+                                    data_rd_addr <= rd_value[10:0] + {4'b0000, fb_pixel_work[11:5]};
                                     state <= S_FB_RMW_WAIT;
                                 end
                             end
 
                             OP_FBPRESENT, OP_FBPRESENT1: begin
-                                fb_base <= rd_value[8:0];
+                                fb_base <= rd_value[10:0];
                                 fb_header_index <= 3'd0;
                                 fb_present_packed <= (opcode == OP_FBPRESENT1);
                                 state <= S_FB_PRESENT_HEADER;
@@ -843,7 +843,7 @@ module brahma_bija_core (
                 end
 
                 S_FB_CLEAR: begin
-                    data_wr_addr <= fb_base + {2'b00, fb_word_index};
+                    data_wr_addr <= fb_base + {4'b0000, fb_word_index};
                     data_wr_data <= 32'd0;
                     data_we <= 1'b1;
 
@@ -928,7 +928,7 @@ module brahma_bija_core (
                                         state <= S_FETCH;
                                     end else begin
                                         fb_word_index <= fb_word_index + 7'd1;
-                                        data_rd_addr <= fb_base + {2'b00, fb_word_index + 7'd1};
+                                        data_rd_addr <= fb_base + {4'b0000, fb_word_index + 7'd1};
                                         state <= S_FB_PRESENT_WAIT1;
                                     end
                                 end else begin
@@ -942,7 +942,7 @@ module brahma_bija_core (
                                         state <= S_FETCH;
                                     end else begin
                                         fb_word_index <= fb_word_index + 7'd1;
-                                        data_rd_addr <= fb_base + {2'b00, fb_word_index + 7'd1};
+                                        data_rd_addr <= fb_base + {4'b0000, fb_word_index + 7'd1};
                                         state <= S_FB_PRESENT_WAIT1;
                                     end
                                 end else begin

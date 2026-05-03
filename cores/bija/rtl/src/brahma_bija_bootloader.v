@@ -20,8 +20,8 @@
 // =============================================================================
 
 module brahma_bija_bootloader #(
-    parameter [15:0] MAX_WORDS = 16'd1024,
-    parameter [15:0] MAX_DATA_WORDS = 16'd512,
+    parameter [15:0] MAX_WORDS = 16'd2048,
+    parameter [15:0] MAX_DATA_WORDS = 16'd2048,
     parameter [31:0] BYTE_TIMEOUT_CLKS = 32'd270000000,
     parameter        START_IN_BOOTLOADER = 1'b1
 )(
@@ -36,11 +36,11 @@ module brahma_bija_bootloader #(
     output reg         tx_valid,
 
     output reg         boot_we,
-    output reg  [9:0]  boot_addr,
+    output reg  [10:0] boot_addr,
     output reg  [31:0] boot_data,
 
     output reg         boot_data_we,
-    output reg  [8:0]  boot_data_addr,
+    output reg  [10:0] boot_data_addr,
     output reg  [31:0] boot_data_word,
 
     output wire        cpu_reset,
@@ -152,10 +152,10 @@ module brahma_bija_bootloader #(
             restart_counter      <= 5'd0;
             byte_timeout_counter <= 32'd0;
             boot_we              <= 1'b0;
-            boot_addr            <= 10'd0;
+            boot_addr            <= 11'd0;
             boot_data            <= 32'd0;
             boot_data_we         <= 1'b0;
-            boot_data_addr       <= 9'd0;
+            boot_data_addr       <= 11'd0;
             boot_data_word       <= 32'd0;
             tx_data              <= 8'd0;
             tx_valid             <= 1'b0;
@@ -373,7 +373,7 @@ module brahma_bija_bootloader #(
                                 byte_index <= 2'd3;
                             end
                             2'd3: begin
-                                boot_addr <= word_index[9:0];
+                                boot_addr <= word_index[10:0];
                                 boot_data <= {rx_data, word_buf[23:0]};
                                 boot_we   <= 1'b1;
                                 byte_index <= 2'd0;
@@ -421,7 +421,7 @@ module brahma_bija_bootloader #(
                                 byte_index <= 2'd3;
                             end
                             2'd3: begin
-                                boot_data_addr <= word_index[8:0];
+                                boot_data_addr <= word_index[10:0];
                                 boot_data_word <= {rx_data, word_buf[23:0]};
                                 boot_data_we   <= 1'b1;
                                 byte_index <= 2'd0;
