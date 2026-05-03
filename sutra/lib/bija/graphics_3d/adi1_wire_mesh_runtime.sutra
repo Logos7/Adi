@@ -1,151 +1,18 @@
-; Sutra v1.5
-; Adi v1.5.1 release-clean example.
+; Sutra include library.
+; ADI1 64x64 data-driven wire-mesh runtime.
 ;
-; Perspective wireframe cube using the 64x64 packed 1-bit framebuffer.
+; Required data symbols/layout:
+; - sin_lut at data_mem[0]
+; - projected vertices base stored at data_mem[277]
+; - mesh vertex base stored at data_mem[278]
+; - mesh edge base stored at data_mem[279]
+; - framebuffer base at data_mem[384]
 ;
-; Step 02 mesh header refactor:
-; - Cube vertices are stored in data_mem.
-; - Cube edges are stored as vertex-index pairs in data_mem.
-; - Mesh metadata is stored in data_mem too.
-; - Project/draw loops read counts and base addresses from the mesh header.
-; - No .include support is required yet.
-;
-; Frame format:
-; - fbpresent1 emits ADI1.
-; - ADI1 is a packed 1bpp 64x64 frame used by uart_viewer.py.
-;
-; Diagonal-axis spin diagnostic:
-; - Uses one angle only.
-; - Rotates around axis (1, 1, 1).
-; - Removes X/Y angle dependency resonance.
-; - Keeps a frame marker on the bottom row.
-;
-; Runtime memory map:
-; - data_mem[0..255]   = sin LUT, 256 entries, Q7.25
-; - data_mem[256..271] = projected vertices, 8 x/y pairs
-; - data_mem[272..273] = reserved padding
-; - data_mem[274]      = frame tick, 0..63
-; - data_mem[275]      = mesh vertex count
-; - data_mem[276]      = mesh edge count
-; - data_mem[277]      = projected vertex base
-; - data_mem[278]      = mesh vertex base
-; - data_mem[279]      = mesh edge base
-; - data_mem[280..303] = cube vertices, 8 x/y/z triples
-; - data_mem[304..327] = cube edges, 12 a/b index pairs
-; - data_mem[328..383] = reserved for future mesh/camera data
-; - data_mem[384..511] = packed 64x64 1bpp framebuffer
-;
-; Constants used by code:
+; Runtime registers:
 ; - r20 = framebuffer base = 384
 ; - r21 = sin LUT base = 0
 ; - r22 = angle period = 256
 ; - r18 = angle, 0..255
-; Mesh header:
-; - data_mem[275] = vertex count = 8
-; - data_mem[276] = edge count = 12
-; - data_mem[277] = projected vertex base = 256
-; - data_mem[278] = mesh vertex base = 280
-; - data_mem[279] = mesh edge base = 304
-
-.data
-sin_lut:
-    .sin_lut 256
-
-projected_vertices:
-    .zero 16
-
-    ; Keep two explicit padding words so frame_tick really lands at data_mem[274].
-    .zero 2
-
-frame_tick:
-    .word 0
-
-mesh_vertex_count:
-    .word 8
-
-mesh_edge_count:
-    .word 12
-
-mesh_projected_base:
-    .word 256
-
-mesh_vertex_base:
-    .word 280
-
-mesh_edge_base:
-    .word 304
-
-cube_vertices:
-    ; 0: back lower-left
-    .word -1.0
-    .word -1.0
-    .word -1.0
-
-    ; 1: back lower-right
-    .word 1.0
-    .word -1.0
-    .word -1.0
-
-    ; 2: back upper-right
-    .word 1.0
-    .word 1.0
-    .word -1.0
-
-    ; 3: back upper-left
-    .word -1.0
-    .word 1.0
-    .word -1.0
-
-    ; 4: front lower-left
-    .word -1.0
-    .word -1.0
-    .word 1.0
-
-    ; 5: front lower-right
-    .word 1.0
-    .word -1.0
-    .word 1.0
-
-    ; 6: front upper-right
-    .word 1.0
-    .word 1.0
-    .word 1.0
-
-    ; 7: front upper-left
-    .word -1.0
-    .word 1.0
-    .word 1.0
-
-cube_edges:
-    ; Back face
-    .word 0
-    .word 1
-    .word 1
-    .word 2
-    .word 2
-    .word 3
-    .word 3
-    .word 0
-
-    ; Front face
-    .word 4
-    .word 5
-    .word 5
-    .word 6
-    .word 6
-    .word 7
-    .word 7
-    .word 4
-
-    ; Side edges
-    .word 0
-    .word 4
-    .word 1
-    .word 5
-    .word 2
-    .word 6
-    .word 3
-    .word 7
 
 .code
 main:
@@ -203,10 +70,10 @@ draw_frame_tick:
 
     move r1, r23
     move r2, 63
-    ;fbplot r20, r1, r2
+    fbplot r20, r1, r2
 
     move r2, 62
-    ;fbplot r20, r1, r2
+    fbplot r20, r1, r2
 
     return
 

@@ -1,0 +1,13 @@
+; Sutra v1.6 experimental include example.
+; Adi step 04.
+;
+; This source intentionally uses .include directives.
+; For now, flatten it before upload:
+;
+;   py tools/sutra_expand.py examples/bija/graphics_3d/wire_cube_include_adi1.sutra tmp_wire_cube_include_adi1.sutra
+;   py apps/bija/uart_viewer.py COM9 --upload tmp_wire_cube_include_adi1.sutra
+;
+; The flattened result should behave like wire_cube_fine_adi1.sutra.
+
+.include "../../../sutra/lib/bija/graphics_3d/adi1_cube_mesh_data.sutra"
+.include "../../../sutra/lib/bija/graphics_3d/adi1_wire_mesh_runtime.sutra"
