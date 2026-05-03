@@ -1,7 +1,5 @@
 // =============================================================================
 // brahma_bija_top.v
-// Top-level dla procesora Brahma-Bija na Tang Nano 20K.
-// Wersja Verilog-2001, bez wymagania trybu SystemVerilog w Gowin.
 // =============================================================================
 
 module brahma_bija_top (
@@ -15,7 +13,9 @@ module brahma_bija_top (
 
     // Parametry najczęściej zmieniane przy bootloaderze/UART.
     // Dla 27 MHz i 115200 baud: 27000000 / 115200 ~= 234.
-    localparam [15:0] UART_CLKS_PER_BIT = 16'd234;
+    //localparam [15:0] UART_CLKS_PER_BIT = 16'd234;
+    // Dla 27 MHz i 460800 baud: 27000000 / 460800 ~= 59.
+    localparam [15:0] UART_CLKS_PER_BIT = 16'd59;
     localparam [15:0] BOOT_MAX_WORDS = 16'd1024;
     localparam [15:0] BOOT_MAX_DATA_WORDS = 16'd512;
     localparam [31:0] BOOT_BYTE_TIMEOUT_CLKS = 32'd270000000;
