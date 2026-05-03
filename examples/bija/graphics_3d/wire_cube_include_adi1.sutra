@@ -7,5 +7,5 @@
 ;
 ; The upload and hex tools expand included files automatically.
 
-.include "../../../sutra/lib/bija/graphics_3d/adi1_cube_mesh_data.sutra"
-.include "../../../sutra/lib/bija/graphics_3d/adi1_wire_mesh_runtime.sutra"
+.include "lib/bija/geometry/cube_mesh.sutra"
+.include "lib/bija/graphics_3d/adi1_wire_mesh_runtime.sutra"

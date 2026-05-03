@@ -1,0 +1,118 @@
+; Sutra include library.
+; ADI1 64x64 wire-mesh cube data.
+;
+; This fragment provides the data segment for adi1_wire_mesh_runtime.sutra.
+;
+; Memory map:
+; - data_mem[0..255]   = sin LUT, 256 entries, Q7.25
+; - data_mem[256..271] = projected vertices, 8 x/y pairs
+; - data_mem[272..273] = reserved padding
+; - data_mem[274]      = frame tick, 0..63
+; - data_mem[275]      = mesh vertex count
+; - data_mem[276]      = mesh edge count
+; - data_mem[277]      = projected vertex base
+; - data_mem[278]      = mesh vertex base
+; - data_mem[279]      = mesh edge base
+; - data_mem[280..303] = cube vertices, 8 x/y/z triples
+; - data_mem[304..327] = cube edges, 12 a/b index pairs
+; - data_mem[384..511] = packed 64x64 1bpp framebuffer
+
+.data
+sin_lut:
+    .sin_lut 256
+
+projected_vertices:
+    .zero 16
+
+    ; Keep two explicit padding words so frame_tick really lands at data_mem[274].
+    .zero 2
+
+frame_tick:
+    .word 0
+
+mesh_vertex_count:
+    .word 8
+
+mesh_edge_count:
+    .word 12
+
+mesh_projected_base:
+    .word 256
+
+mesh_vertex_base:
+    .word 280
+
+mesh_edge_base:
+    .word 304
+
+cube_vertices:
+    ; 0: back lower-left
+    .word -1.0
+    .word -1.0
+    .word -1.0
+
+    ; 1: back lower-right
+    .word 1.0
+    .word -1.0
+    .word -1.0
+
+    ; 2: back upper-right
+    .word 1.0
+    .word 1.0
+    .word -1.0
+
+    ; 3: back upper-left
+    .word -1.0
+    .word 1.0
+    .word -1.0
+
+    ; 4: front lower-left
+    .word -1.0
+    .word -1.0
+    .word 1.0
+
+    ; 5: front lower-right
+    .word 1.0
+    .word -1.0
+    .word 1.0
+
+    ; 6: front upper-right
+    .word 1.0
+    .word 1.0
+    .word 1.0
+
+    ; 7: front upper-left
+    .word -1.0
+    .word 1.0
+    .word 1.0
+
+cube_edges:
+    ; Back face
+    .word 0
+    .word 1
+    .word 1
+    .word 2
+    .word 2
+    .word 3
+    .word 3
+    .word 0
+
+    ; Front face
+    .word 4
+    .word 5
+    .word 5
+    .word 6
+    .word 6
+    .word 7
+    .word 7
+    .word 4
+
+    ; Side edges
+    .word 0
+    .word 4
+    .word 1
+    .word 5
+    .word 2
+    .word 6
+    .word 3
+    .word 7
