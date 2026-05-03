@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""sutra2hex — convert Sutra to hex files for $readmemh/debugging."""
-
+"""sutra2hex — convert Sutra source to code/data hex files."""
 from __future__ import annotations
 
 import argparse
@@ -9,8 +8,10 @@ import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "sutra"))
+sys.path.insert(0, os.path.join(ROOT, "tools"))
 
-from sutra import assemble_image, INSTRUCTION_SUMMARY, CONSTANT_SUMMARY
+from sutra import CONSTANT_SUMMARY, INSTRUCTION_SUMMARY, assemble_image
+from sutra_expand import IncludeError, expand_file
 
 
 def write_hex(path: str, words: list[int]) -> None:
@@ -23,9 +24,11 @@ def print_instructions() -> None:
     print("Sutra / Brahma-Bija instructions:")
     for item in INSTRUCTION_SUMMARY:
         print(f"  {item}")
+
     print("\nConstants:")
     for item in CONSTANT_SUMMARY:
         print(f"  {item}")
+
     print("\nSutra v1.5 data directives:")
     print("  .data / .code")
     print("  .org address")
@@ -34,6 +37,7 @@ def print_instructions() -> None:
     print("  .q7_25 0.0, 1.0, -0.5")
     print("  .sin_lut 256")
     print("  .zero count")
+    print("  .include \"path/to/file.sutra\"")
 
 
 def main() -> None:
@@ -41,18 +45,24 @@ def main() -> None:
     parser.add_argument("input", nargs="?", help="input .sutra")
     parser.add_argument("output", nargs="?", help="output code .hex")
     parser.add_argument("--data-output", help="optional output data .hex")
+    parser.add_argument("-I", "--include-path", action="append", default=[], help="additional include search path")
     parser.add_argument("--list-instructions", action="store_true")
     args = parser.parse_args()
 
     if args.list_instructions:
         print_instructions()
         return
+
     if not args.input or not args.output:
         parser.print_help()
         raise SystemExit(1)
 
-    with open(args.input, encoding="utf-8") as f:
-        image = assemble_image(f.read())
+    try:
+        source = expand_file(args.input, args.include_path or None)
+    except IncludeError as e:
+        raise SystemExit(f"Sutra include error: {e}") from e
+
+    image = assemble_image(source)
 
     write_hex(args.output, image.code_words)
     print(f"Wrote {len(image.code_words)} code words to {args.output}")

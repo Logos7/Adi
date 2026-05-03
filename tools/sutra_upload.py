@@ -3,19 +3,18 @@
 Sutra UART uploader for Brahma-Bija bootloader v1.5.
 
 v1.5 payload:
-    ADI! handshake -> ADI_BOOT_READY\n
-    version:       u8 = 2
-    code_count:    u16 little-endian
-    data_count:    u16 little-endian, flat data_mem blob starting at address 0
-    checksum:      u32 little-endian, sum of all payload bytes modulo 2^32
-    code_words:    code_count * u32 little-endian
-    data_words:    data_count * u32 little-endian
+  ADI! handshake -> ADI_BOOT_READY\n
+  version: u8 = 2
+  code_count: u16 little-endian
+  data_count: u16 little-endian, flat data_mem blob starting at address 0
+  checksum: u32 little-endian, sum of all payload bytes modulo 2^32
+  code_words: code_count * u32 little-endian
+  data_words: data_count * u32 little-endian
 
 The old public API is intentionally preserved:
-    assemble_file(...)
-    upload_words(...)
+  assemble_file(...)
+  upload_words(...)
 """
-
 from __future__ import annotations
 
 import argparse
@@ -28,8 +27,10 @@ from dataclasses import dataclass
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "sutra"))
+sys.path.insert(0, os.path.join(ROOT, "tools"))
 
-from sutra import assemble_image, flatten_program, assemble, SutraImage
+from sutra import SutraImage, assemble, assemble_image, flatten_program
+from sutra_expand import IncludeError, expand_file
 
 try:
     import serial
@@ -41,6 +42,7 @@ VERSION_V15 = 2
 ACK_READY = b"ADI_BOOT_READY\n"
 ACK_OK = b"ADI_BOOT_OK\n"
 ACK_ERR = b"ADI_BOOT_ERR\n"
+
 MAX_CODE_WORDS = 1024
 MAX_DATA_WORDS = 512
 
@@ -89,10 +91,14 @@ def looks_like_adi0_graphics_source(source: str) -> bool:
         if i + 7 < len(lines):
             r0 = _is_move_reg_imm(lines[i], 65)
             if (
-                r0 and _is_write_reg(lines[i + 1], r0)
-                and (r1 := _is_move_reg_imm(lines[i + 2], 68)) and _is_write_reg(lines[i + 3], r1)
-                and (r2 := _is_move_reg_imm(lines[i + 4], 73)) and _is_write_reg(lines[i + 5], r2)
-                and (r3 := _is_move_reg_imm(lines[i + 6], 48)) and _is_write_reg(lines[i + 7], r3)
+                r0
+                and _is_write_reg(lines[i + 1], r0)
+                and (r1 := _is_move_reg_imm(lines[i + 2], 68))
+                and _is_write_reg(lines[i + 3], r1)
+                and (r2 := _is_move_reg_imm(lines[i + 4], 73))
+                and _is_write_reg(lines[i + 5], r2)
+                and (r3 := _is_move_reg_imm(lines[i + 6], 48))
+                and _is_write_reg(lines[i + 7], r3)
             ):
                 return True
     return "fbpresent" in source.lower() or "fbpresent1" in source.lower()
@@ -101,32 +107,42 @@ def looks_like_adi0_graphics_source(source: str) -> bool:
 def _patch_adi0_header(source: str, width: int | None, height: int | None) -> tuple[str, bool]:
     lines = source.splitlines()
     endings_newline = source.endswith("\n")
+
     for i in range(len(lines)):
         if i + 11 < len(lines):
             r0 = _is_move_reg_imm(lines[i], 65)
             r1 = _is_move_reg_imm(lines[i + 2], 68) if r0 and _is_write_reg(lines[i + 1], r0) else None
             r2 = _is_move_reg_imm(lines[i + 4], 73) if r1 and _is_write_reg(lines[i + 3], r1) else None
             r3 = _is_move_reg_imm(lines[i + 6], 48) if r2 and _is_write_reg(lines[i + 5], r2) else None
+
             if r3 and _is_write_reg(lines[i + 7], r3):
                 mw = re.match(r"^move\s+(r\d+)\s*,\s*([-+]?\d+)\s*$", _strip_comment(lines[i + 8]), re.IGNORECASE)
                 mh = re.match(r"^move\s+(r\d+)\s*,\s*([-+]?\d+)\s*$", _strip_comment(lines[i + 10]), re.IGNORECASE)
+
                 if mw and mh and _is_write_reg(lines[i + 9], mw.group(1)) and _is_write_reg(lines[i + 11], mh.group(1)):
                     indent = re.match(r"^([ \t]*)", lines[i]).group(1)
                     reg = mw.group(1)
                     w = width if width is not None else int(mw.group(2))
                     h = height if height is not None else int(mh.group(2))
                     lines[i:i + 12] = [
-                        f"{indent}move {reg}, 65", f"{indent}write_tx {reg}",
-                        f"{indent}move {reg}, 68", f"{indent}write_tx {reg}",
-                        f"{indent}move {reg}, 73", f"{indent}write_tx {reg}",
-                        f"{indent}move {reg}, 48", f"{indent}write_tx {reg}",
-                        f"{indent}move {reg}, {w}", f"{indent}write_tx {reg}",
-                        f"{indent}move {reg}, {h}", f"{indent}write_tx {reg}",
+                        f"{indent}move {reg}, 65",
+                        f"{indent}write_tx {reg}",
+                        f"{indent}move {reg}, 68",
+                        f"{indent}write_tx {reg}",
+                        f"{indent}move {reg}, 73",
+                        f"{indent}write_tx {reg}",
+                        f"{indent}move {reg}, 48",
+                        f"{indent}write_tx {reg}",
+                        f"{indent}move {reg}, {w}",
+                        f"{indent}write_tx {reg}",
+                        f"{indent}move {reg}, {h}",
+                        f"{indent}write_tx {reg}",
                     ]
                     out = "\n".join(lines)
                     if endings_newline:
                         out += "\n"
                     return out, True
+
     return source, False
 
 
@@ -151,6 +167,7 @@ def patch_sutra_params(
         return source
 
     out = source
+
     if width is not None or height is not None:
         patched, ok = _patch_adi0_header(out, width, height)
         if ok:
@@ -199,6 +216,13 @@ def patch_sutra_params(
     return out
 
 
+def read_sutra_source(path: str) -> str:
+    try:
+        return expand_file(path)
+    except IncludeError as e:
+        raise SystemExit(f"Sutra include error: {e}") from e
+
+
 def _normalize_upload_image(obj) -> UploadImage:
     if isinstance(obj, UploadImage):
         return obj
@@ -211,12 +235,14 @@ def _normalize_upload_image(obj) -> UploadImage:
 
 def assemble_source(source: str) -> UploadImage:
     image = assemble_image(source)
+
     if not image.code_words:
         raise SystemExit("Program is empty")
     if len(image.code_words) > MAX_CODE_WORDS:
         raise SystemExit(f"Program has {len(image.code_words)} words, bootloader supports {MAX_CODE_WORDS}")
     if len(image.data_words) > MAX_DATA_WORDS:
         raise SystemExit(f"Data blob has {len(image.data_words)} words, data_mem supports {MAX_DATA_WORDS}")
+
     return UploadImage(image.code_words, image.data_words)
 
 
@@ -227,13 +253,13 @@ def assemble_file(
     max_iter: int | None = None,
     graphics: str = "auto",
 ):
-    with open(path, encoding="utf-8") as f:
-        source = f.read()
+    source = read_sutra_source(path)
     return assemble_source(patch_sutra_params(source, width=width, height=height, max_iter=max_iter, graphics=graphics))
 
 
 def make_body(image_or_words) -> bytes:
     image = _normalize_upload_image(image_or_words)
+
     if not image.code_words:
         raise SystemExit("Program is empty")
     if len(image.code_words) > MAX_CODE_WORDS:
@@ -254,6 +280,7 @@ def make_body(image_or_words) -> bytes:
 
 def read_until_any(ser, needles: list[bytes], deadline: float, keep_tail: int = 512) -> tuple[bytes | None, bytes]:
     buf = bytearray()
+
     while time.monotonic() < deadline:
         chunk = ser.read(256)
         if chunk:
@@ -265,18 +292,21 @@ def read_until_any(ser, needles: list[bytes], deadline: float, keep_tail: int = 
                 del buf[:-keep_tail]
         else:
             time.sleep(0.005)
+
     return None, bytes(buf)
 
 
 def drain_input(ser, duration: float = 0.05) -> bytes:
     deadline = time.monotonic() + max(0.0, duration)
     buf = bytearray()
+
     while time.monotonic() < deadline:
         chunk = ser.read(256)
         if chunk:
             buf += chunk
         else:
             time.sleep(0.002)
+
     return bytes(buf)
 
 
@@ -284,15 +314,18 @@ def enter_bootloader(ser, timeout: float, spam_interval: float) -> bytes:
     print("Looking for bootloader: sending ADI! until FPGA replies READY...")
     ser.reset_input_buffer()
     ser.reset_output_buffer()
+
     deadline = time.monotonic() + timeout
     buf = bytearray()
     next_ping = 0.0
+
     while time.monotonic() < deadline:
         now = time.monotonic()
         if now >= next_ping:
             ser.write(MAGIC)
             ser.flush()
             next_ping = now + spam_interval
+
         chunk = ser.read(256)
         if chunk:
             buf += chunk
@@ -303,6 +336,7 @@ def enter_bootloader(ser, timeout: float, spam_interval: float) -> bytes:
                 del buf[:-512]
         else:
             time.sleep(0.005)
+
     tail = bytes(buf[-200:])
     raise SystemExit(
         "Timeout entering bootloader.\n"
@@ -324,24 +358,31 @@ def upload_words_to_serial(
     body = make_body(image)
     port = getattr(ser, "port", "open port")
     baud = getattr(ser, "baudrate", "?")
+
     print(
         f"Upload v1.5: code={len(image.code_words)} words, "
         f"data={len(image.data_words)} words, bytes={len(body) + len(MAGIC)} -> {port} @ {baud}"
     )
+
     enter_bootloader(ser, boot_timeout, spam_interval)
+
     if settle_delay > 0:
         drain_input(ser, settle_delay)
+
     ser.reset_input_buffer()
     print("Sending code+data image...")
     ser.write(body)
     ser.flush()
+
     deadline = time.monotonic() + ack_timeout
     match, buf = read_until_any(ser, [ACK_OK, ACK_ERR], deadline)
+
     if match == ACK_OK:
         print("Bootloader: OK")
         return
     if match == ACK_ERR:
         raise SystemExit(f"Bootloader: ERR; RX tail={buf[-200:]!r}")
+
     raise SystemExit(f"Timeout waiting for OK/ERR. RX tail={buf[-200:]!r}")
 
 
@@ -357,6 +398,7 @@ def upload_words(
     if serial is None:
         print("pyserial missing. Install it with: py -m pip install pyserial", file=sys.stderr)
         raise SystemExit(2)
+
     with serial.Serial(port, baudrate=baud, timeout=0.02, write_timeout=2.0) as ser:
         upload_words_to_serial(ser, words, boot_timeout, ack_timeout, spam_interval, settle_delay)
 
