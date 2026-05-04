@@ -1,23 +1,3 @@
-; Sutra include library.
-; 64x64 wire-mesh cube data.
-;
-; This fragment provides the data segment for wire_mesh_runtime.sutra.
-;
-; Memory map:
-; - data_mem[0..255]   = sin LUT, 256 entries, Q7.25
-; - data_mem[256..271] = projected vertices, 8 x/y pairs
-; - data_mem[272]      = reserved padding
-; - data_mem[273]      = present mode, 0 = ADI0, 1 = ADI1
-; - data_mem[274]      = frame tick, 0..63
-; - data_mem[275]      = mesh vertex count
-; - data_mem[276]      = mesh edge count
-; - data_mem[277]      = projected vertex base
-; - data_mem[278]      = mesh vertex base
-; - data_mem[279]      = mesh edge base
-; - data_mem[280..303] = cube vertices, 8 x/y/z triples
-; - data_mem[304..327] = cube edges, 12 a/b index pairs
-; - data_mem[384..511] = packed 64x64 1bpp framebuffer
-
 .data
 sin_lut:
     .sin_lut 256
@@ -25,12 +5,9 @@ sin_lut:
 projected_vertices:
     .zero 16
 
-    ; Keep one explicit padding word so present_mode lands at data_mem[273].
     .zero 1
 
 present_mode:
-    ; 0 = ADI0 byte-frame presenter, 1 = ADI1 packed 1bpp presenter.
-    ; The top-level example overwrites this with one explicit move instruction.
     .word 1
 
 frame_tick:
@@ -52,73 +29,7 @@ mesh_edge_base:
     .word 304
 
 cube_vertices:
-    ; 0: back lower-left
-    .word -1.0
-    .word -1.0
-    .word -1.0
-
-    ; 1: back lower-right
-    .word 1.0
-    .word -1.0
-    .word -1.0
-
-    ; 2: back upper-right
-    .word 1.0
-    .word 1.0
-    .word -1.0
-
-    ; 3: back upper-left
-    .word -1.0
-    .word 1.0
-    .word -1.0
-
-    ; 4: front lower-left
-    .word -1.0
-    .word -1.0
-    .word 1.0
-
-    ; 5: front lower-right
-    .word 1.0
-    .word -1.0
-    .word 1.0
-
-    ; 6: front upper-right
-    .word 1.0
-    .word 1.0
-    .word 1.0
-
-    ; 7: front upper-left
-    .word -1.0
-    .word 1.0
-    .word 1.0
+    .word -1.0, -1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, -1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 1.0, 1.0
 
 cube_edges:
-    ; Back face
-    .word 0
-    .word 1
-    .word 1
-    .word 2
-    .word 2
-    .word 3
-    .word 3
-    .word 0
-
-    ; Front face
-    .word 4
-    .word 5
-    .word 5
-    .word 6
-    .word 6
-    .word 7
-    .word 7
-    .word 4
-
-    ; Side edges
-    .word 0
-    .word 4
-    .word 1
-    .word 5
-    .word 2
-    .word 6
-    .word 3
-    .word 7
+    .word 0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7

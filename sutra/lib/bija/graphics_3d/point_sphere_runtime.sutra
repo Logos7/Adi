@@ -1,0 +1,153 @@
+.code
+point_sphere_main:
+    move r20, 384
+    move r21, 0
+    move r22, 256
+    move r18, 0
+    move @274, 0
+
+point_sphere_loop:
+    fbclear r20
+    call load_angle
+    call project_points
+    call draw_projected_points
+    call present_frame
+    call advance_angle
+    call advance_frame_tick
+    wait 4200
+    jump point_sphere_loop
+
+present_frame:
+    move r23, @273
+    move r14, 0
+    cmp.eq b0, r23, r14
+    jump_if b0, present_frame_adi0
+    fbpresent1 r20
+    return
+
+present_frame_adi0:
+    fbpresent r20
+    return
+
+advance_angle:
+    iadd r18, r18, 2
+    blt r18, r22, angle_done
+    isub r18, r18, r22
+
+angle_done:
+    return
+
+advance_frame_tick:
+    move r23, @274
+    iadd r23, r23, 1
+    blt r23, 64, frame_tick_store
+    move r23, 0
+
+frame_tick_store:
+    move @274, r23
+    return
+
+load_angle:
+    iadd r23, r21, r18
+    move r10, @r23
+    iadd r23, r18, 64
+    blt r23, r22, cos_index_ready
+    isub r23, r23, r22
+
+cos_index_ready:
+    iadd r23, r21, r23
+    move r11, @r23
+    return
+
+project_points:
+    move r12, 0
+    move r19, @275
+
+project_points_loop:
+    bge r12, r19, project_points_done
+    shl r13, r12, 1
+    iadd r13, r13, r12
+    move r23, @277
+    iadd r23, r23, r13
+    move r0, @r23
+    move r1, @r23+1
+    move r2, @r23+2
+    shl r13, r12, 1
+    move r17, @276
+    iadd r17, r17, r13
+    call project_vertex
+    iadd r12, r12, 1
+    jump project_points_loop
+
+project_points_done:
+    return
+
+project_vertex:
+    fsub r3, 1.0, r11
+    fadd r4, r0, r1
+    fadd r4, r4, r2
+    fmul r4, r4, 0.333333
+    fmul r4, r4, r3
+
+    fmul r14, r10, 0.577350
+
+    fmul r5, r0, r11
+    fsub r6, r2, r1
+    fmul r6, r6, r14
+    fadd r7, r5, r6
+    fadd r7, r7, r4
+
+    fmul r5, r1, r11
+    fsub r6, r0, r2
+    fmul r6, r6, r14
+    fadd r5, r5, r6
+    fadd r5, r5, r4
+
+    fmul r6, r2, r11
+    fsub r8, r1, r0
+    fmul r8, r8, r14
+    fadd r8, r6, r8
+    fadd r8, r8, r4
+
+    fadd r9, r8, 4.0
+    fdiv r14, 52.0, r9
+
+    fmul r15, r7, r14
+    fadd r15, r15, 32.5
+    ftoi r15, r15
+
+    fmul r16, r5, r14
+    fsub r16, 32.5, r16
+    ftoi r16, r16
+
+    move @r17, r15
+    move @r17+1, r16
+    return
+
+draw_projected_points:
+    move r12, 0
+    move r19, @275
+
+draw_projected_points_loop:
+    bge r12, r19, draw_projected_points_done
+    shl r13, r12, 1
+    move r23, @276
+    iadd r23, r23, r13
+    move r1, @r23
+    move r2, @r23+1
+    call plot_point
+    iadd r12, r12, 1
+    jump draw_projected_points_loop
+
+draw_projected_points_done:
+    return
+
+plot_point:
+    blt r1, 0, plot_point_done
+    bge r1, 64, plot_point_done
+    blt r2, 0, plot_point_done
+    bge r2, 64, plot_point_done
+    fbplot r20, r1, r2
+
+plot_point_done:
+    return

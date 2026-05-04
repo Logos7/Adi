@@ -1,4 +1,4 @@
-.include "lib/bija/geometry/point_sphere_mesh.sutra"
+.include "lib/bija/geometry/point_torus_mesh.sutra"
 
 .code
 main:

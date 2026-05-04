@@ -1,5 +1,5 @@
 ; Sutra v1.4
-; UART echo.
+; Double UART echo.
 ; Type text in apps/bija/uart_terminal.py and the CPU echoes twice each byte.
 
 loop:

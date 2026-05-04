@@ -1,0 +1,149 @@
+.code
+main:
+    move @273, 1
+    jump starfield_main
+
+starfield_main:
+    move r20, 384
+
+starfield_loop:
+    fbclear r20
+    call update_and_draw_stars
+    call present_frame
+    call advance_frame_tick
+    wait 2200
+    jump starfield_loop
+
+update_and_draw_stars:
+    move r12, 0
+    move r19, @275
+    move r17, @276
+    move r15, @277
+    move r16, @278
+    move r18, @279
+    move r14, @280
+
+update_and_draw_stars_loop:
+    bge r12, r19, update_and_draw_stars_done
+
+    shl r13, r12, 1
+    iadd r13, r13, r12
+    iadd r23, r17, r13
+
+    move r0, @r23
+    move r1, @r23+1
+    move r2, @r23+2
+
+    fsub r2, r2, r15
+    blt r2, r16, star_reset
+    jump star_store_z
+
+star_reset:
+    fadd r2, r2, r18
+
+star_store_z:
+    move @r23+2, r2
+
+    call project_and_plot_star
+
+    iadd r12, r12, 1
+    jump update_and_draw_stars_loop
+
+update_and_draw_stars_done:
+    return
+
+project_and_plot_star:
+    fdiv r9, r14, r2
+
+    fmul r10, r0, r9
+    fadd r10, r10, 32.0
+    ftoi r10, r10
+
+    fmul r11, r1, r9
+    fsub r11, 32.0, r11
+    ftoi r11, r11
+
+    blt r10, 0, project_and_plot_star_done
+    bge r10, 64, project_and_plot_star_done
+    blt r11, 0, project_and_plot_star_done
+    bge r11, 64, project_and_plot_star_done
+
+    fbplot r20, r10, r11
+
+project_and_plot_star_done:
+    return
+
+present_frame:
+    move r23, @273
+    move r24, 0
+    cmp.eq b0, r23, r24
+    jump_if b0, present_frame_adi0
+    fbpresent1 r20
+    return
+
+present_frame_adi0:
+    fbpresent r20
+    return
+
+advance_frame_tick:
+    move r23, @274
+    iadd r23, r23, 1
+    blt r23, 64, advance_frame_tick_store
+    move r23, 0
+
+advance_frame_tick_store:
+    move @274, r23
+    return
+
+.data
+.org 273
+
+present_mode:
+    .word 1
+
+frame_tick:
+    .word 0
+
+star_count:
+    .word 64
+
+star_base:
+    .word 512
+
+star_speed:
+    .word 0.11
+
+star_near:
+    .word 0.35
+
+star_far:
+    .word 6.4
+
+projection_scale:
+    .word 22.0
+
+.org 384
+
+framebuffer:
+    .zero 128
+
+.org 512
+
+stars:
+    .word 0.57407, -0.722187, 4.56726, -1.454957, 0.061325, 3.436965, 0.379147, -0.481167, 2.015669, -0.465526, 1.204664, 1.503591
+    .word -0.748096, 0.531063, 5.266895, 1.804902, 1.112112, 3.281968, 0.144295, 0.464324, 1.974951, 0.754386, 0.800249, 6.425057
+    .word -0.63262, -0.201807, 4.771249, 0.88761, -1.210721, 0.545803, 1.045536, -1.697537, 4.094339, -0.94092, 0.208907, 3.592837
+    .word -0.379433, -1.174319, 4.390339, 0.801214, -0.721714, 6.37602, 1.23777, -0.40666, 4.749727, -1.38559, 0.398731, 3.799364
+    .word 0.739569, 1.494752, 2.870932, 1.229558, 0.438322, 0.548536, -0.462563, -1.444596, 3.867541, -0.48032, -1.295482, 5.352578
+    .word -1.582981, -1.532815, 1.651398, 1.473907, 0.181956, 3.432294, -0.457889, -1.480231, 3.21581, -0.708654, -0.454785, 1.198296
+    .word 1.647929, 1.080152, 3.099173, 0.242013, -1.771968, 6.307634, -1.25948, -0.558637, 5.01693, 0.814496, 1.228664, 1.566618
+    .word 0.734535, -1.656795, 6.496459, -1.737221, -1.256573, 6.516501, 0.653626, -1.704968, 1.922718, 0.515222, -1.265716, 5.99547
+    .word -0.226236, 1.34053, 3.489803, -1.245369, 1.039305, 0.472614, 1.097378, -0.765268, 1.24241, -1.04298, -0.1857, 1.934425
+    .word 0.892936, 0.791606, 2.169159, -1.074274, 0.637484, 4.10972, 1.407774, -1.056071, 1.264198, 0.214341, 1.804159, 3.081924
+    .word -0.450659, -1.626614, 2.192071, 0.834118, -1.027446, 2.59606, -0.281147, -0.444654, 5.260963, 1.526406, 0.482746, 3.359017
+    .word 0.2593, 0.457124, 5.018595, 1.486015, -0.354653, 2.593167, -1.665762, -0.231848, 3.220799, -1.21557, 0.573031, 6.072755
+    .word 1.072347, 1.662977, 6.072595, 1.600244, 0.593415, 3.487132, 0.482863, 1.740755, 0.792977, -1.74464, -0.67623, 4.172355
+    .word 0.556159, -1.414493, 4.095022, 0.317049, 0.794118, 5.970453, 1.199504, -0.812703, 1.089954, 0.895273, 1.562887, 4.051261
+    .word 1.507838, -1.806795, 5.004818, 0.479358, 1.26595, 2.502588, 1.120735, -0.944014, 0.536073, 1.455531, 0.66316, 5.398233
+    .word -1.442794, -1.64484, 0.633058, -0.835372, 0.483743, 0.927358, -0.163056, 1.517389, 2.003556, -1.665145, -1.389163, 5.150582
+    
