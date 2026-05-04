@@ -41,12 +41,12 @@ def parse_address_value(token: str) -> int:
     if l.startswith("pin"):
         n = int(l[3:])
         if not 0 <= n <= GPIO_PIN_MAX:
-            raise AssemblerError(f"pin{n} poza zakresem 0..{GPIO_PIN_MAX}")
+            raise AssemblerError(f"pin{n} is out of range 0..{GPIO_PIN_MAX}")
         return n
     if l.startswith("inpin"):
         n = int(l[5:])
         if not 0 <= n <= 63:
-            raise AssemblerError(f"inpin{n} poza zakresem 0..63")
+            raise AssemblerError(f"inpin{n} is out of range 0..63")
         return GPIO_INPIN_BASE + n
 
     return parse_plain_int(raw)
@@ -66,7 +66,7 @@ def parse_sqrt_literal(raw: str):
         return None
 
     if not body:
-        raise AssemblerError(f"Pusty pierwiastek: {raw}")
+        raise AssemblerError(f"Empty square-root literal: {raw}")
 
     body_s = body.strip()
     if (
@@ -81,7 +81,7 @@ def parse_sqrt_literal(raw: str):
         real = signed / Q
 
     if real < 0:
-        raise AssemblerError(f"Pierwiastek z liczby ujemnej: {raw}")
+        raise AssemblerError(f"Square root of a negative value: {raw}")
 
     return to_u32(q(math.sqrt(real)))
 
@@ -90,9 +90,9 @@ def parse_immediate_raw(token: str) -> int:
     raw = token.strip()
 
     if raw.startswith("#"):
-        raise AssemblerError("Sutra v1.4 nie używa # dla immediate; pisz np. move r0, π albo move r0, 123")
+        raise AssemblerError("Sutra v1.4 does not use # for immediates; write e.g. move r0, π or move r0, 123")
     if raw.startswith("@"):
-        raise AssemblerError("@ oznacza pamięć/IO; jako wartość adresu użyj &, np. move r0, &uart_tx")
+        raise AssemblerError("@ means memory/IO; use & for an address value, e.g. move r0, &uart_tx")
     if raw.startswith("&"):
         return to_u32(parse_address_value(raw))
 
@@ -114,20 +114,20 @@ def parse_immediate_raw(token: str) -> int:
     try:
         return to_u32(parse_plain_int(raw))
     except ValueError:
-        raise AssemblerError(f"Nieznana wartość immediate: {raw}")
+        raise AssemblerError(f"Unknown immediate value: {raw}")
 
 
 def parse_immediate(token: str) -> int:
     token = token.strip()
     if not token:
-        raise AssemblerError("Puste immediate")
+        raise AssemblerError("Empty immediate")
     return parse_immediate_raw(token)
 
 
 def parse_small_int(token: str) -> int:
     raw = token.strip()
     if raw.startswith("#"):
-        raise AssemblerError("Sutra v1.4 nie używa #; pisz np. shl r0, r1, 3")
+        raise AssemblerError("Sutra v1.4 does not use #; write e.g. shl r0, r1, 3")
     return parse_plain_int(raw)
 
 
@@ -139,15 +139,15 @@ def parse_register(token: str) -> int:
         return T_REGS[u]
 
     if not u.startswith("R"):
-        raise AssemblerError(f"Oczekiwano rejestru r0..r31 albo t0..t7, dostałem: {raw}")
+        raise AssemblerError(f"Expected register r0..r31 or t0..t7, got: {raw}")
 
     try:
         n = int(u[1:])
     except ValueError:
-        raise AssemblerError(f"Niepoprawny numer rejestru: {raw}")
+        raise AssemblerError(f"Invalid register number: {raw}")
 
     if not 0 <= n <= 31:
-        raise AssemblerError(f"r{n} poza zakresem 0..31")
+        raise AssemblerError(f"r{n} is out of range 0..31")
 
     return n
 
@@ -156,15 +156,15 @@ def parse_complex_register(token: str) -> int:
     raw = token.strip().upper()
 
     if not raw.startswith("Z"):
-        raise AssemblerError(f"Oczekiwano rejestru complex z0..z15, dostałem: {token}")
+        raise AssemblerError(f"Expected complex register z0..z15, got: {token}")
 
     try:
         n = int(raw[1:])
     except ValueError:
-        raise AssemblerError(f"Niepoprawny numer complex: {token}")
+        raise AssemblerError(f"Invalid complex register number: {token}")
 
     if not 0 <= n <= 15:
-        raise AssemblerError(f"z{n} poza zakresem 0..15")
+        raise AssemblerError(f"z{n} is out of range 0..15")
 
     return n
 
@@ -177,15 +177,15 @@ def parse_bool_register(token: str) -> int:
         return BOOL_CONSTANTS[u]
 
     if not u.startswith("B"):
-        raise AssemblerError(f"Oczekiwano bool b0..b7 albo true/false/high/low, dostałem: {raw}")
+        raise AssemblerError(f"Expected bool b0..b7 or true/false/high/low, got: {raw}")
 
     try:
         n = int(u[1:])
     except ValueError:
-        raise AssemblerError(f"Niepoprawny numer bool: {raw}")
+        raise AssemblerError(f"Invalid bool register number: {raw}")
 
     if not 0 <= n <= 7:
-        raise AssemblerError(f"b{n} poza zakresem 0..7")
+        raise AssemblerError(f"b{n} is out of range 0..7")
 
     return n
 
@@ -194,11 +194,11 @@ def parse_predicate_register(token: str) -> int:
     raw = token.strip().upper()
 
     if not raw.startswith("B"):
-        raise AssemblerError(f"Predykat używa tylko b0..b7, dostałem: {token}")
+        raise AssemblerError(f"Predicate uses only b0..b7, got: {token}")
 
     n = int(raw[1:])
     if not 0 <= n <= 7:
-        raise AssemblerError(f"Predykat b{n} poza zakresem 0..7")
+        raise AssemblerError(f"Predicate b{n} is out of range 0..7")
 
     return n
 
@@ -207,14 +207,14 @@ def parse_memory_operand(token: str):
     raw = token.strip()
 
     if raw.startswith("[") or raw.endswith("]"):
-        raise AssemblerError("Sutra v1.4 nie używa [adres]; użyj @adres, np. move r0, @10 / move @r1, r0 / move r0, @r1+4")
+        raise AssemblerError("Sutra v1.4 does not use [address]; use @address, e.g. move r0, @10 / move @r1, r0 / move r0, @r1+4")
 
     if not raw.startswith("@"):
-        raise AssemblerError(f"Adres pamięci/IO musi zaczynać się od @, dostałem: {raw}")
+        raise AssemblerError(f"Memory/IO address must start with @, got: {raw}")
 
     body = raw[1:].strip()
     if not body:
-        raise AssemblerError("Puste @")
+        raise AssemblerError("Empty @ memory operand")
 
     reg_offset = re.fullmatch(r"([rRtT]\d+)\s*([+-])\s*(.+)", body)
     if reg_offset:
@@ -241,13 +241,13 @@ def parse_memory_operand(token: str):
     if l.startswith("pin"):
         n = int(l[3:])
         if not 0 <= n <= GPIO_PIN_MAX:
-            raise AssemblerError(f"pin{n} poza zakresem 0..{GPIO_PIN_MAX}")
+            raise AssemblerError(f"pin{n} is out of range 0..{GPIO_PIN_MAX}")
         return "imm", n, "bool", 0
 
     if l.startswith("inpin"):
         n = int(l[5:])
         if not 0 <= n <= 63:
-            raise AssemblerError(f"inpin{n} poza zakresem 0..63")
+            raise AssemblerError(f"inpin{n} is out of range 0..63")
         return "imm", GPIO_INPIN_BASE + n, "bool", 0
 
     if u in DATA_SYMBOLS:
@@ -259,7 +259,7 @@ def parse_memory_operand(token: str):
 def encode_predicate(bool_idx: int, negated: bool = False) -> int:
     pred = (0b1000 if negated else 0) | (bool_idx & 0b111)
     if pred == PRED_ALWAYS:
-        raise AssemblerError("Predykat (!b7) koliduje z kodem always; użyj innego b albo odwróć logikę")
+        raise AssemblerError("Predicate (!b7) collides with the always predicate encoding; use a different bool or invert the logic")
     return pred
 
 
@@ -272,6 +272,6 @@ def parse_predicate_prefix(line: str):
     bool_idx = parse_predicate_register(match.group(2))
     rest = match.group(3).strip()
     if not rest:
-        raise AssemblerError("Predykat bez instrukcji")
+        raise AssemblerError("Predicate without an instruction")
 
     return encode_predicate(bool_idx, negated), rest
