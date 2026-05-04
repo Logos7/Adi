@@ -1,7 +1,7 @@
 """
 Sutra — assembler for the Brahma-Bija processor.
 
-Brahma-Bija v1.5:
+Brahma-Bija v1.6:
 - official style is lowercase; the parser is case-insensitive,
 - immediates have no prefix: 123, 1.0, π, √500, true, high,
 - memory / MMIO / GPIO always use @: @10, @uart_tx, @led0, @r1,
@@ -254,11 +254,11 @@ GPIO_INPIN_BASE = 64
 DATA_SYMBOLS: dict[str, int] = {}
 
 INSTRUCTION_SUMMARY = [
-    "move rd, value ; rd = value, np. move r0, π / move r1, 1.0 / move r2, √500",
+    "move rd, value ; rd = value, e.g. move r0, π / move r1, 1.0 / move r2, √500",
     "move rd, @addr ; rd = data_mem/MMIO[addr]",
     "move rd, @ra ; rd = data_mem[ra]",
-    "move @addr, rs|value ; data_mem/MMIO[addr] = rs albo value przez temp",
-    "move @ra, rs|value ; data_mem[ra] = rs albo value przez temp",
+    "move @addr, rs|value ; data_mem/MMIO[addr] = rs or value through a temporary register",
+    "move @ra, rs|value ; data_mem[ra] = rs or value through a temporary register",
     "move rd, @ra+offset ; rd = data_mem[ra + offset]",
     "move @ra+offset, rs|value ; data_mem[ra + offset] = rs/value",
     "move bd, @bool_addr ; bd = bool/GPIO/MMIO[addr]",
@@ -278,8 +278,8 @@ INSTRUCTION_SUMMARY = [
     "cadd/csub/cmul zd, zs, zt ; macro complex fixed-point",
     "cabs2 rd, zs ; macro, |z|²",
     "jump_if b0, label / jump_if_not b0, label",
-    "beq/bne/blt/ble/bgt/bge rs, rt, label ; macro przez b7",
-    "inc/dec/neg/fneg oraz imin/imax/fmin/fmax",
+    "beq/bne/blt/ble/bgt/bge rs, rt, label ; macro uses b7",
+    "inc/dec/neg/fneg and imin/imax/fmin/fmax",
     "wait_rx / read_rx rd / wait_uart / write_tx rs",
     "wait rs|cycles",
     "jump label|offset, call label|offset, return, nop, halt",
