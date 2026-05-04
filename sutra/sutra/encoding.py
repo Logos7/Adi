@@ -18,9 +18,9 @@ def validate_static_bool_access(addr: int, op: str):
     if 0 <= addr <= GPIO_PIN_MAX:
         return
 
-    extra = " oraz odczyt @uart_ready/@uart_rx_ready" if op == "load" else ""
+    extra = " and reads from @uart_ready/@uart_rx_ready" if op == "load" else ""
     raise AssemblerError(
-        f"Adres bool @{addr} nie jest zaimplementowany w aktualnym RTL; dostępne są @pin0..@pin127/@led0..@led5{extra}"
+        f"Bool address @{addr} is not implemented in the current RTL; available addresses are @pin0..@pin127/@led0..@led5{extra}"
     )
 
 def encode_r_format(opcode, rd=0, rs=0, rt=0, funct=0, pred=PRED_ALWAYS):
@@ -37,7 +37,7 @@ def encode_r_format(opcode, rd=0, rs=0, rt=0, funct=0, pred=PRED_ALWAYS):
 def encode_i_format(opcode, rd, rs, imm, pred=PRED_ALWAYS):
     signed = imm if imm < 0x80000000 else imm - 0x100000000
     if not -2048 <= signed <= 2047:
-        raise AssemblerError(f"Imm {signed} poza zakresem 12-bit signed")
+        raise AssemblerError(f"Immediate {signed} is outside the signed 12-bit range")
     return (
         ((opcode & 0x3F) << SHIFT_OPCODE)
         | ((rd & 0x1F) << SHIFT_RD)
@@ -50,7 +50,7 @@ def encode_i_format(opcode, rd, rs, imm, pred=PRED_ALWAYS):
 def encode_m_format(opcode, rd, rs, imm=0, pred=PRED_ALWAYS):
     signed = imm if imm < 0x80000000 else imm - 0x100000000
     if not -2048 <= signed <= 2047:
-        raise AssemblerError(f"Offset {signed} poza zakresem 12-bit signed")
+        raise AssemblerError(f"Offset {signed} is outside the signed 12-bit range")
     return (
         ((opcode & 0x3F) << SHIFT_OPCODE)
         | ((rd & 0x1F) << SHIFT_RD)
@@ -62,7 +62,7 @@ def encode_m_format(opcode, rd, rs, imm=0, pred=PRED_ALWAYS):
 
 def encode_md_format(opcode, rd, addr, pred=PRED_ALWAYS):
     if not 0 <= addr <= 0x1FFFF:
-        raise AssemblerError(f"Adres {addr} poza zakresem 17-bit direct")
+        raise AssemblerError(f"Address {addr} is outside the 17-bit direct range")
     return (
         ((opcode & 0x3F) << SHIFT_OPCODE)
         | ((rd & 0x1F) << SHIFT_RD)
@@ -73,7 +73,7 @@ def encode_md_format(opcode, rd, addr, pred=PRED_ALWAYS):
 
 def encode_ib_format(opcode, bd, bs, imm14, pred=PRED_ALWAYS):
     if not 0 <= imm14 <= 0x3FFF:
-        raise AssemblerError(f"Adres bool {imm14} poza zakresem 0..16383")
+        raise AssemblerError(f"Bool address {imm14} is outside the 0..16383 range")
     return (
         ((opcode & 0x3F) << SHIFT_OPCODE)
         | ((bd & 0xF) << SHIFT_BD)
@@ -85,7 +85,7 @@ def encode_ib_format(opcode, bd, bs, imm14, pred=PRED_ALWAYS):
 
 def encode_j_format(opcode, offset, pred=PRED_ALWAYS):
     if not -(1 << 21) <= offset <= (1 << 21) - 1:
-        raise AssemblerError(f"Offset {offset} poza zakresem 22-bit signed")
+        raise AssemblerError(f"Offset {offset} is outside the signed 22-bit range")
     return (
         ((opcode & 0x3F) << SHIFT_OPCODE)
         | ((offset & 0x3FFFFF) << SHIFT_J_OFFSET)
@@ -106,7 +106,7 @@ def choose_temp(avoid: set[int]) -> int:
     for t in IMM_TEMPS:
         if t not in avoid:
             return t
-    raise AssemblerError("Brak wolnego tymczasowego rejestru t4..t7 dla immediate-makra")
+    raise AssemblerError("No free temporary register t4..t7 is available for the immediate macro")
 
 
 def operand_to_reg(token: str, pre: list[int], avoid: set[int], pred: int) -> int:
@@ -138,12 +138,12 @@ def reg_name(num: int) -> str:
 
 def ensure_z_macro_safe(z: int, opname: str, operand_name: str):
     if z > 11:
-        raise AssemblerError(f"{opname.lower()} używa t0..t3 jako scratch, więc {operand_name}=z{z} nie jest bezpieczny; użyj z0..z11")
+        raise AssemblerError(f"{opname.lower()} uses t0..t3 as scratch registers, so {operand_name}=z{z} is not safe; use z0..z11")
 
 
 def ensure_rd_not_scratch(rd: int, opname: str):
     if rd in COMPLEX_SCRATCH:
-        raise AssemblerError(f"{opname.lower()} używa t0..t3 jako scratch, więc rd nie może być {reg_name(rd)}")
+        raise AssemblerError(f"{opname.lower()} uses t0..t3 as scratch registers, so rd cannot be {reg_name(rd)}")
 
 
 def encode_scalar_alu(m: str, rd: int, rs: int, rt: int, pred: int) -> int:
@@ -153,7 +153,7 @@ def encode_scalar_alu(m: str, rd: int, rs: int, rt: int, pred: int) -> int:
 def encode_complex_macro(m: str, operands: list[str], pred: int) -> list[int]:
     if m in ("CADD", "CSUB"):
         if len(operands) != 3:
-            raise AssemblerError(f"{m.lower()} wymaga 3 operandów: {m.lower()} zd, zs, zt")
+            raise AssemblerError(f"{m.lower()} requires 3 operands: {m.lower()} zd, zs, zt")
         zd, zs, zt = [parse_complex_register(x) for x in operands]
         for z, name in ((zd, "zd"), (zs, "zs"), (zt, "zt")):
             ensure_z_macro_safe(z, m, name)
@@ -165,7 +165,7 @@ def encode_complex_macro(m: str, operands: list[str], pred: int) -> list[int]:
 
     if m == "CMUL":
         if len(operands) != 3:
-            raise AssemblerError("cmul wymaga 3 operandów: cmul zd, zs, zt")
+            raise AssemblerError("cmul requires 3 operands: cmul zd, zs, zt")
         zd, zs, zt = [parse_complex_register(x) for x in operands]
         for z, name in ((zd, "zd"), (zs, "zs"), (zt, "zt")):
             ensure_z_macro_safe(z, m, name)
@@ -181,7 +181,7 @@ def encode_complex_macro(m: str, operands: list[str], pred: int) -> list[int]:
 
     if m == "CABS2":
         if len(operands) != 2:
-            raise AssemblerError("cabs2 wymaga 2 operandów: cabs2 rd, zs")
+            raise AssemblerError("cabs2 requires 2 operands: cabs2 rd, zs")
         rd = parse_register(operands[0])
         zs = parse_complex_register(operands[1])
         ensure_z_macro_safe(zs, m, "zs")
@@ -193,12 +193,12 @@ def encode_complex_macro(m: str, operands: list[str], pred: int) -> list[int]:
             encode_scalar_alu("FADD", rd, t0, t1, pred),
         ]
 
-    raise AssemblerError(f"Nieznane macro complex: {m}")
+    raise AssemblerError(f"Unknown complex macro: {m}")
 
 
 def encode_minmax_macro(m: str, operands: list[str], pred: int) -> list[int]:
     if len(operands) != 3:
-        raise AssemblerError(f"{m.lower()} wymaga 3 operandów: {m.lower()} rd, a, b")
+        raise AssemblerError(f"{m.lower()} requires 3 operands: {m.lower()} rd, a, b")
 
     rd = parse_register(operands[0])
     pre: list[int] = []
