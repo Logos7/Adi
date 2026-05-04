@@ -1,7 +1,6 @@
 # Python
 __pycache__/
-*.py[cod]
-.pytest_cache/
+*.pyc
 .venv/
 venv/
 
@@ -19,9 +18,8 @@ cores/**/*.tmp
 cores/**/*.bak
 
 # Editors
-.vscode/*
-!.vscode/
-!.vscode/settings.json
+.vscode/
+.idea/
 *.user
 *.suo
 
