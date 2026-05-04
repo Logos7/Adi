@@ -34,6 +34,16 @@ def assemble_instruction(mnemonic: str, operands: list[str], pred: int = PRED_AL
             raise AssemblerError("return does not take operands")
         return [encode_r_format(OPCODE_RETURN, pred=pred)]
 
+    if m == "FBSIZE":
+        if len(operands) != 2:
+            raise AssemblerError("fbsize requires 2 operands: fbsize width, height")
+        pre: list[int] = []
+        avoid: set[int] = set()
+        width = operand_to_reg(operands[0], pre, avoid, pred)
+        avoid.add(width)
+        height = operand_to_reg(operands[1], pre, avoid, pred)
+        return pre + [encode_r_format(OPCODE_FBSIZE, 0, width, height, 0, pred)]
+
     if m == "FBCLEAR":
         if len(operands) != 1:
             raise AssemblerError("fbclear requires 1 operand: fbclear rBase")
@@ -286,7 +296,6 @@ def _parse_instruction_line(line: str):
 
 def assemble(source: str) -> list[AssembledLine]:
     raw_lines = _prepare_lines(source)
-
     labels: dict[str, int] = {}
     program_lines = []
     address = 0
@@ -333,4 +342,3 @@ def flatten_program(lines: list[AssembledLine]) -> list[int]:
     for line in lines:
         flat.extend(line.words)
     return flat
-

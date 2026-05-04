@@ -6,7 +6,8 @@
 // - no SystemVerilog-only constructs,
 // - data_mem is inferred as synchronous block RAM,
 // - call/return use a small 16-entry hardware return stack,
-// - 1-bit framebuffer helpers use caller-selected data_mem base address.
+// - 1-bit framebuffer helpers use caller-selected data_mem base address,
+// - framebuffer size is configurable with fbsize width, height.
 // =============================================================================
 
 module brahma_bija_core (
@@ -30,35 +31,30 @@ module brahma_bija_core (
     input wire [10:0] boot_data_addr,
     input wire [31:0] boot_data_word
 );
-
     // -------------------------------------------------------------------------
     // Opcodes
     // -------------------------------------------------------------------------
-
     localparam [5:0] OP_NOP        = 6'h00;
     localparam [5:0] OP_ALU_R      = 6'h01;
     localparam [5:0] OP_CMP_R      = 6'h02;
-
     localparam [5:0] OP_LOAD_I     = 6'h10;
     localparam [5:0] OP_LOAD_L     = 6'h11;
     localparam [5:0] OP_LOAD_M     = 6'h12;
     localparam [5:0] OP_SAVE_M     = 6'h13;
     localparam [5:0] OP_LOAD_MD    = 6'h14;
     localparam [5:0] OP_SAVE_MD    = 6'h15;
-
     localparam [5:0] OP_SAVE_BI    = 6'h20;
     localparam [5:0] OP_LOAD_BI    = 6'h21;
     localparam [5:0] OP_BOOL_R     = 6'h22;
     localparam [5:0] OP_LOAD_BR    = 6'h23;
     localparam [5:0] OP_SAVE_BR    = 6'h24;
-
     localparam [5:0] OP_WAIT       = 6'h30;
     localparam [5:0] OP_FBCLEAR    = 6'h31;
     localparam [5:0] OP_FBPLOT     = 6'h32;
     localparam [5:0] OP_FBERASE    = 6'h33;
     localparam [5:0] OP_FBPRESENT  = 6'h34;
     localparam [5:0] OP_FBPRESENT1 = 6'h35;
-
+    localparam [5:0] OP_FBSIZE     = 6'h36;
     localparam [5:0] OP_JUMP       = 6'h38;
     localparam [5:0] OP_CALL       = 6'h39;
     localparam [5:0] OP_RETURN     = 6'h3A;
@@ -66,8 +62,7 @@ module brahma_bija_core (
 
     localparam [10:0] UART_TX_ADDR = 11'h0F0;
     localparam [10:0] UART_RX_ADDR = 11'h0F1;
-
-    localparam [13:0] UART_READY_BOOL_ADDR    = 14'd128;
+    localparam [13:0] UART_READY_BOOL_ADDR = 14'd128;
     localparam [13:0] UART_RX_READY_BOOL_ADDR = 14'd129;
 
     localparam [6:0] FUNCT_IADD = 7'h00;
@@ -105,32 +100,29 @@ module brahma_bija_core (
     // -------------------------------------------------------------------------
     // FSM states
     // -------------------------------------------------------------------------
-
-    localparam [4:0] S_FETCH               = 5'd0;
-    localparam [4:0] S_FETCH2              = 5'd1;
-    localparam [4:0] S_EXECUTE             = 5'd2;
-    localparam [4:0] S_WAIT                = 5'd3;
-    localparam [4:0] S_HALT                = 5'd4;
-    localparam [4:0] S_LOAD_WAIT           = 5'd5;
-    localparam [4:0] S_LOAD_DONE           = 5'd6;
-    localparam [4:0] S_FB_CLEAR            = 5'd7;
-    localparam [4:0] S_FB_RMW_WAIT         = 5'd8;
-    localparam [4:0] S_FB_RMW_WRITE        = 5'd9;
-    localparam [4:0] S_FB_PRESENT_HEADER   = 5'd10;
-    localparam [4:0] S_FB_PRESENT_WAIT1    = 5'd11;
-    localparam [4:0] S_FB_PRESENT_WAIT2    = 5'd12;
-    localparam [4:0] S_FB_PRESENT_PIXELS   = 5'd13;
-    localparam [4:0] S_FB_PRESENT_TX_DRAIN = 5'd14;
-    localparam [4:0] S_FDIV_STEP           = 5'd15;
+    localparam [4:0] S_FETCH                 = 5'd0;
+    localparam [4:0] S_FETCH2                = 5'd1;
+    localparam [4:0] S_EXECUTE               = 5'd2;
+    localparam [4:0] S_WAIT                  = 5'd3;
+    localparam [4:0] S_HALT                  = 5'd4;
+    localparam [4:0] S_LOAD_WAIT             = 5'd5;
+    localparam [4:0] S_LOAD_DONE             = 5'd6;
+    localparam [4:0] S_FB_CLEAR              = 5'd7;
+    localparam [4:0] S_FB_RMW_WAIT           = 5'd8;
+    localparam [4:0] S_FB_RMW_WRITE          = 5'd9;
+    localparam [4:0] S_FB_PRESENT_HEADER     = 5'd10;
+    localparam [4:0] S_FB_PRESENT_WAIT1      = 5'd11;
+    localparam [4:0] S_FB_PRESENT_WAIT2      = 5'd12;
+    localparam [4:0] S_FB_PRESENT_PIXELS     = 5'd13;
+    localparam [4:0] S_FB_PRESENT_TX_DRAIN   = 5'd14;
+    localparam [4:0] S_FDIV_STEP             = 5'd15;
 
     reg [4:0] state;
 
     // -------------------------------------------------------------------------
     // Memories / registers
     // -------------------------------------------------------------------------
-
     reg [31:0] imem [0:2047];
-
     // 2048 words gives room for LUTs, mesh data, scratch space, and multiple 64x64 1bpp buffers.
     // The synchronous port below is intentionally written in a BRAM-friendly style.
     reg [31:0] data_mem [0:2047] /* synthesis syn_ramstyle = "block_ram" */;
@@ -138,7 +130,6 @@ module brahma_bija_core (
     reg [31:0] gpr [0:31];
     reg bool_regs [0:7];
     reg bool_mem [0:127];
-
     reg [31:0] return_stack [0:15];
     reg [4:0] return_sp;
 
@@ -155,12 +146,11 @@ module brahma_bija_core (
     reg [10:0] data_wr_addr;
     reg [31:0] data_wr_data;
     reg [31:0] data_rd_q;
-
     reg [4:0] load_dst_reg;
 
     reg [10:0] fb_base;
     reg [10:0] fb_addr;
-    reg [6:0] fb_word_index;
+    reg [10:0] fb_word_index;
     reg [4:0] fb_bit_index;
     reg [31:0] fb_word;
     reg [31:0] fb_bit_mask;
@@ -169,10 +159,20 @@ module brahma_bija_core (
     reg fb_tx_kind;
     reg fb_present_packed;
 
+    reg [7:0] fb_width;
+    reg [7:0] fb_height;
+    reg [15:0] fb_pixels;
+    reg [10:0] fb_last_word_index;
+    reg [15:0] fb_tx_index;
+    reg [15:0] fb_tx_limit;
+    reg [15:0] fb_pixel_work;
+    reg [15:0] fb_pixels_work;
+    reg [10:0] fb_word_offset_work;
+    reg [11:0] fb_addr12_work;
+
     reg [10:0] addr11_work;
     reg [13:0] addr14_work;
     reg [31:0] addr32_work;
-    reg [11:0] fb_pixel_work;
     reg [4:0] return_index_work;
 
     reg [4:0] fdiv_dst_reg;
@@ -224,7 +224,6 @@ module brahma_bija_core (
     // -------------------------------------------------------------------------
     // Instruction fields
     // -------------------------------------------------------------------------
-
     wire [5:0] opcode;
     wire [4:0] rd_field;
     wire [4:0] rs_field;
@@ -238,37 +237,33 @@ module brahma_bija_core (
     wire [21:0] j_offset;
     wire [16:0] md_imm;
 
-    assign opcode     = instr[31:26];
-    assign rd_field   = instr[25:21];
-    assign rs_field   = instr[20:16];
-    assign rt_field   = instr[15:11];
-    assign funct      = instr[10:4];
+    assign opcode = instr[31:26];
+    assign rd_field = instr[25:21];
+    assign rs_field = instr[20:16];
+    assign rt_field = instr[15:11];
+    assign funct = instr[10:4];
     assign pred_field = instr[3:0];
-    assign i_imm      = instr[15:4];
-    assign ib_bd      = instr[25:22];
-    assign ib_bs      = instr[21:18];
-    assign ib_imm     = instr[17:4];
-    assign j_offset   = instr[25:4];
-    assign md_imm     = instr[20:4];
+    assign i_imm = instr[15:4];
+    assign ib_bd = instr[25:22];
+    assign ib_bs = instr[21:18];
+    assign ib_imm = instr[17:4];
+    assign j_offset = instr[25:4];
+    assign md_imm = instr[20:4];
 
     // -------------------------------------------------------------------------
     // Predication
     // -------------------------------------------------------------------------
-
     wire [2:0] pred_bool_idx;
     wire pred_polarity;
     wire pred_satisfied;
 
     assign pred_bool_idx = pred_field[2:0];
     assign pred_polarity = pred_field[3];
-    assign pred_satisfied = (pred_field == 4'b1111)
-        ? 1'b1
-        : (bool_regs[pred_bool_idx] == ~pred_polarity);
+    assign pred_satisfied = (pred_field == 4'b1111) ? 1'b1 : (bool_regs[pred_bool_idx] == ~pred_polarity);
 
     // -------------------------------------------------------------------------
     // Register helpers
     // -------------------------------------------------------------------------
-
     function [31:0] read_reg;
         input [4:0] num;
         begin
@@ -385,14 +380,16 @@ module brahma_bija_core (
     function [7:0] fb_header_byte;
         input [2:0] index;
         input packed_format;
+        input [7:0] width;
+        input [7:0] height;
         begin
             case (index)
                 3'd0: fb_header_byte = 8'd65; // A
                 3'd1: fb_header_byte = 8'd68; // D
                 3'd2: fb_header_byte = 8'd73; // I
                 3'd3: fb_header_byte = packed_format ? 8'd49 : 8'd48; // 1 / 0
-                3'd4: fb_header_byte = 8'd64; // width
-                3'd5: fb_header_byte = 8'd64; // height
+                3'd4: fb_header_byte = width;
+                3'd5: fb_header_byte = height;
                 default: fb_header_byte = 8'd0;
             endcase
         end
@@ -403,8 +400,8 @@ module brahma_bija_core (
         input [1:0] byte_index;
         begin
             case (byte_index)
-                2'd0: fb_pack_byte = {word[0],  word[1],  word[2],  word[3],  word[4],  word[5],  word[6],  word[7]};
-                2'd1: fb_pack_byte = {word[8],  word[9],  word[10], word[11], word[12], word[13], word[14], word[15]};
+                2'd0: fb_pack_byte = {word[0], word[1], word[2], word[3], word[4], word[5], word[6], word[7]};
+                2'd1: fb_pack_byte = {word[8], word[9], word[10], word[11], word[12], word[13], word[14], word[15]};
                 2'd2: fb_pack_byte = {word[16], word[17], word[18], word[19], word[20], word[21], word[22], word[23]};
                 2'd3: fb_pack_byte = {word[24], word[25], word[26], word[27], word[28], word[29], word[30], word[31]};
                 default: fb_pack_byte = 8'd0;
@@ -415,7 +412,6 @@ module brahma_bija_core (
     // -------------------------------------------------------------------------
     // Main FSM
     // -------------------------------------------------------------------------
-
     always @(posedge clk) begin
         if (rst) begin
             pc <= 32'd0;
@@ -435,7 +431,7 @@ module brahma_bija_core (
             load_dst_reg <= 5'd0;
             fb_base <= 11'd0;
             fb_addr <= 11'd0;
-            fb_word_index <= 7'd0;
+            fb_word_index <= 11'd0;
             fb_bit_index <= 5'd0;
             fb_word <= 32'd0;
             fb_bit_mask <= 32'd0;
@@ -443,10 +439,19 @@ module brahma_bija_core (
             fb_header_index <= 3'd0;
             fb_tx_kind <= 1'b0;
             fb_present_packed <= 1'b0;
+            fb_width <= 8'd64;
+            fb_height <= 8'd64;
+            fb_pixels <= 16'd4096;
+            fb_last_word_index <= 11'd127;
+            fb_tx_index <= 16'd0;
+            fb_tx_limit <= 16'd0;
+            fb_pixel_work <= 16'd0;
+            fb_pixels_work <= 16'd0;
+            fb_word_offset_work <= 11'd0;
+            fb_addr12_work <= 12'd0;
             addr11_work <= 11'd0;
             addr14_work <= 14'd0;
             addr32_work <= 32'd0;
-            fb_pixel_work <= 12'd0;
             return_index_work <= 5'd0;
             fdiv_dst_reg <= 5'd0;
             fdiv_sign <= 1'b0;
@@ -464,15 +469,12 @@ module brahma_bija_core (
             for (i = 0; i < 32; i = i + 1) begin
                 gpr[i] <= 32'd0;
             end
-
             for (i = 0; i < 8; i = i + 1) begin
                 bool_regs[i] <= 1'b0;
             end
-
             for (i = 0; i < 128; i = i + 1) begin
                 bool_mem[i] <= 1'b0;
             end
-
             for (i = 0; i < 16; i = i + 1) begin
                 return_stack[i] <= 32'd0;
             end
@@ -517,7 +519,6 @@ module brahma_bija_core (
                                     end else begin
                                         fdiv_abs_a_work = rs_value[31] ? (~rs_value + 32'd1) : rs_value;
                                         fdiv_abs_b_work = rt_value[31] ? (~rt_value + 32'd1) : rt_value;
-
                                         fdiv_dst_reg <= rd_field;
                                         fdiv_sign <= rs_value[31] ^ rt_value[31];
                                         fdiv_dividend <= {7'd0, fdiv_abs_a_work, 25'd0};
@@ -560,9 +561,9 @@ module brahma_bija_core (
                                     case (funct)
                                         FUNCT_CMP_EQ: bool_regs[rd_field[2:0]] <= (rs_value == rt_value);
                                         FUNCT_CMP_NE: bool_regs[rd_field[2:0]] <= (rs_value != rt_value);
-                                        FUNCT_CMP_LT: bool_regs[rd_field[2:0]] <= ($signed(rs_value) <  $signed(rt_value));
+                                        FUNCT_CMP_LT: bool_regs[rd_field[2:0]] <= ($signed(rs_value) < $signed(rt_value));
                                         FUNCT_CMP_LE: bool_regs[rd_field[2:0]] <= ($signed(rs_value) <= $signed(rt_value));
-                                        FUNCT_CMP_GT: bool_regs[rd_field[2:0]] <= ($signed(rs_value) >  $signed(rt_value));
+                                        FUNCT_CMP_GT: bool_regs[rd_field[2:0]] <= ($signed(rs_value) > $signed(rt_value));
                                         FUNCT_CMP_GE: bool_regs[rd_field[2:0]] <= ($signed(rs_value) >= $signed(rt_value));
                                         default: ;
                                     endcase
@@ -588,7 +589,6 @@ module brahma_bija_core (
                                 if (rd_field <= 5'd31) begin
                                     addr32_work = rs_value + {{20{i_imm[11]}}, i_imm};
                                     addr11_work = addr32_work[10:0];
-
                                     if (addr11_work == UART_RX_ADDR) begin
                                         if (uart_rx_valid) begin
                                             gpr[rd_field] <= {24'd0, uart_rx_data};
@@ -612,7 +612,6 @@ module brahma_bija_core (
                             OP_SAVE_M: begin
                                 addr32_work = rs_value + {{20{i_imm[11]}}, i_imm};
                                 addr11_work = addr32_work[10:0];
-
                                 if (addr11_work == UART_TX_ADDR) begin
                                     if (uart_tx_ready) begin
                                         uart_tx_data <= rd_value[7:0];
@@ -634,7 +633,6 @@ module brahma_bija_core (
                             OP_LOAD_MD: begin
                                 if (rd_field <= 5'd31) begin
                                     addr11_work = md_imm[10:0];
-
                                     if (addr11_work == UART_RX_ADDR) begin
                                         if (uart_rx_valid) begin
                                             gpr[rd_field] <= {24'd0, uart_rx_data};
@@ -657,7 +655,6 @@ module brahma_bija_core (
 
                             OP_SAVE_MD: begin
                                 addr11_work = md_imm[10:0];
-
                                 if (addr11_work == UART_TX_ADDR) begin
                                     if (uart_tx_ready) begin
                                         uart_tx_data <= rd_value[7:0];
@@ -737,45 +734,95 @@ module brahma_bija_core (
                                 end
                             end
 
+                            OP_FBSIZE: begin
+                                if ((rs_value[31:8] != 24'd0) ||
+                                    (rt_value[31:8] != 24'd0) ||
+                                    (rs_value[7:0] == 8'd0) ||
+                                    (rt_value[7:0] == 8'd0)) begin
+                                    state <= S_HALT;
+                                end else begin
+                                    fb_pixels_work = {8'd0, rs_value[7:0]} * {8'd0, rt_value[7:0]};
+                                    fb_width <= rs_value[7:0];
+                                    fb_height <= rt_value[7:0];
+                                    fb_pixels <= fb_pixels_work;
+                                    fb_last_word_index <= ((fb_pixels_work + 16'd31) >> 5) - 16'd1;
+                                    pc <= pc + 32'd1;
+                                    state <= S_FETCH;
+                                end
+                            end
+
                             OP_FBCLEAR: begin
-                                fb_base <= rd_value[10:0];
-                                fb_word_index <= 7'd0;
-                                state <= S_FB_CLEAR;
+                                fb_addr12_work = {1'b0, rd_value[10:0]} + {1'b0, fb_last_word_index};
+                                if (fb_addr12_work > 12'd2047) begin
+                                    state <= S_HALT;
+                                end else begin
+                                    fb_base <= rd_value[10:0];
+                                    fb_word_index <= 11'd0;
+                                    state <= S_FB_CLEAR;
+                                end
                             end
 
                             OP_FBPLOT: begin
-                                if ((rs_value[31:6] != 26'd0) || (rt_value[31:6] != 26'd0)) begin
+                                if ((rs_value[31:8] != 24'd0) ||
+                                    (rt_value[31:8] != 24'd0) ||
+                                    (rs_value[7:0] >= fb_width) ||
+                                    (rt_value[7:0] >= fb_height)) begin
                                     pc <= pc + 32'd1;
                                     state <= S_FETCH;
                                 end else begin
-                                    fb_pixel_work = {rt_value[5:0], rs_value[5:0]};
-                                    fb_addr <= rd_value[10:0] + {4'b0000, fb_pixel_work[11:5]};
-                                    fb_bit_mask <= 32'h0000_0001 << fb_pixel_work[4:0];
-                                    fb_set_bit <= 1'b1;
-                                    data_rd_addr <= rd_value[10:0] + {4'b0000, fb_pixel_work[11:5]};
-                                    state <= S_FB_RMW_WAIT;
+                                    fb_pixel_work = ({8'd0, rt_value[7:0]} * {8'd0, fb_width}) + {8'd0, rs_value[7:0]};
+                                    fb_word_offset_work = fb_pixel_work[15:5];
+                                    fb_addr12_work = {1'b0, rd_value[10:0]} + {1'b0, fb_word_offset_work};
+                                    if (fb_addr12_work > 12'd2047) begin
+                                        state <= S_HALT;
+                                    end else begin
+                                        fb_addr <= fb_addr12_work[10:0];
+                                        fb_bit_mask <= 32'h0000_0001 << fb_pixel_work[4:0];
+                                        fb_set_bit <= 1'b1;
+                                        data_rd_addr <= fb_addr12_work[10:0];
+                                        state <= S_FB_RMW_WAIT;
+                                    end
                                 end
                             end
 
                             OP_FBERASE: begin
-                                if ((rs_value[31:6] != 26'd0) || (rt_value[31:6] != 26'd0)) begin
+                                if ((rs_value[31:8] != 24'd0) ||
+                                    (rt_value[31:8] != 24'd0) ||
+                                    (rs_value[7:0] >= fb_width) ||
+                                    (rt_value[7:0] >= fb_height)) begin
                                     pc <= pc + 32'd1;
                                     state <= S_FETCH;
                                 end else begin
-                                    fb_pixel_work = {rt_value[5:0], rs_value[5:0]};
-                                    fb_addr <= rd_value[10:0] + {4'b0000, fb_pixel_work[11:5]};
-                                    fb_bit_mask <= 32'h0000_0001 << fb_pixel_work[4:0];
-                                    fb_set_bit <= 1'b0;
-                                    data_rd_addr <= rd_value[10:0] + {4'b0000, fb_pixel_work[11:5]};
-                                    state <= S_FB_RMW_WAIT;
+                                    fb_pixel_work = ({8'd0, rt_value[7:0]} * {8'd0, fb_width}) + {8'd0, rs_value[7:0]};
+                                    fb_word_offset_work = fb_pixel_work[15:5];
+                                    fb_addr12_work = {1'b0, rd_value[10:0]} + {1'b0, fb_word_offset_work};
+                                    if (fb_addr12_work > 12'd2047) begin
+                                        state <= S_HALT;
+                                    end else begin
+                                        fb_addr <= fb_addr12_work[10:0];
+                                        fb_bit_mask <= 32'h0000_0001 << fb_pixel_work[4:0];
+                                        fb_set_bit <= 1'b0;
+                                        data_rd_addr <= fb_addr12_work[10:0];
+                                        state <= S_FB_RMW_WAIT;
+                                    end
                                 end
                             end
 
                             OP_FBPRESENT, OP_FBPRESENT1: begin
-                                fb_base <= rd_value[10:0];
-                                fb_header_index <= 3'd0;
-                                fb_present_packed <= (opcode == OP_FBPRESENT1);
-                                state <= S_FB_PRESENT_HEADER;
+                                fb_addr12_work = {1'b0, rd_value[10:0]} + {1'b0, fb_last_word_index};
+                                if (fb_addr12_work > 12'd2047) begin
+                                    state <= S_HALT;
+                                end else begin
+                                    fb_base <= rd_value[10:0];
+                                    fb_header_index <= 3'd0;
+                                    fb_present_packed <= (opcode == OP_FBPRESENT1);
+                                    if (opcode == OP_FBPRESENT1) begin
+                                        fb_tx_limit <= ((fb_pixels + 16'd7) >> 3) - 16'd1;
+                                    end else begin
+                                        fb_tx_limit <= fb_pixels - 16'd1;
+                                    end
+                                    state <= S_FB_PRESENT_HEADER;
+                                end
                             end
 
                             OP_JUMP: begin
@@ -843,15 +890,14 @@ module brahma_bija_core (
                 end
 
                 S_FB_CLEAR: begin
-                    data_wr_addr <= fb_base + {4'b0000, fb_word_index};
+                    data_wr_addr <= fb_base + fb_word_index;
                     data_wr_data <= 32'd0;
                     data_we <= 1'b1;
-
-                    if (fb_word_index == 7'd127) begin
+                    if (fb_word_index == fb_last_word_index) begin
                         pc <= pc + 32'd1;
                         state <= S_FETCH;
                     end else begin
-                        fb_word_index <= fb_word_index + 7'd1;
+                        fb_word_index <= fb_word_index + 11'd1;
                     end
                 end
 
@@ -873,7 +919,7 @@ module brahma_bija_core (
 
                 S_FB_PRESENT_HEADER: begin
                     if (uart_tx_ready) begin
-                        uart_tx_data <= fb_header_byte(fb_header_index, fb_present_packed);
+                        uart_tx_data <= fb_header_byte(fb_header_index, fb_present_packed, fb_width, fb_height);
                         uart_tx_valid <= 1'b1;
                         fb_tx_kind <= 1'b0;
                         state <= S_FB_PRESENT_TX_DRAIN;
@@ -901,7 +947,6 @@ module brahma_bija_core (
                                 uart_tx_data <= 8'd0;
                             end
                         end
-
                         uart_tx_valid <= 1'b1;
                         fb_tx_kind <= 1'b1;
                         state <= S_FB_PRESENT_TX_DRAIN;
@@ -912,8 +957,9 @@ module brahma_bija_core (
                     if (!uart_tx_ready) begin
                         if (!fb_tx_kind) begin
                             if (fb_header_index == 3'd5) begin
-                                fb_word_index <= 7'd0;
+                                fb_word_index <= 11'd0;
                                 fb_bit_index <= 5'd0;
+                                fb_tx_index <= 16'd0;
                                 data_rd_addr <= fb_base;
                                 state <= S_FB_PRESENT_WAIT1;
                             end else begin
@@ -921,33 +967,29 @@ module brahma_bija_core (
                                 state <= S_FB_PRESENT_HEADER;
                             end
                         end else begin
-                            if (fb_present_packed) begin
-                                if (fb_bit_index == 5'd24) begin
-                                    if (fb_word_index == 7'd127) begin
-                                        pc <= pc + 32'd1;
-                                        state <= S_FETCH;
-                                    end else begin
-                                        fb_word_index <= fb_word_index + 7'd1;
-                                        data_rd_addr <= fb_base + {4'b0000, fb_word_index + 7'd1};
-                                        state <= S_FB_PRESENT_WAIT1;
-                                    end
-                                end else begin
-                                    fb_bit_index <= fb_bit_index + 5'd8;
-                                    state <= S_FB_PRESENT_PIXELS;
-                                end
+                            if (fb_tx_index == fb_tx_limit) begin
+                                pc <= pc + 32'd1;
+                                state <= S_FETCH;
                             end else begin
-                                if (fb_bit_index == 5'd31) begin
-                                    if (fb_word_index == 7'd127) begin
-                                        pc <= pc + 32'd1;
-                                        state <= S_FETCH;
-                                    end else begin
-                                        fb_word_index <= fb_word_index + 7'd1;
-                                        data_rd_addr <= fb_base + {4'b0000, fb_word_index + 7'd1};
+                                fb_tx_index <= fb_tx_index + 16'd1;
+                                if (fb_present_packed) begin
+                                    if (fb_bit_index == 5'd24) begin
+                                        fb_word_index <= fb_word_index + 11'd1;
+                                        data_rd_addr <= fb_base + (fb_word_index + 11'd1);
                                         state <= S_FB_PRESENT_WAIT1;
+                                    end else begin
+                                        fb_bit_index <= fb_bit_index + 5'd8;
+                                        state <= S_FB_PRESENT_PIXELS;
                                     end
                                 end else begin
-                                    fb_bit_index <= fb_bit_index + 5'd1;
-                                    state <= S_FB_PRESENT_PIXELS;
+                                    if (fb_bit_index == 5'd31) begin
+                                        fb_word_index <= fb_word_index + 11'd1;
+                                        data_rd_addr <= fb_base + (fb_word_index + 11'd1);
+                                        state <= S_FB_PRESENT_WAIT1;
+                                    end else begin
+                                        fb_bit_index <= fb_bit_index + 5'd1;
+                                        state <= S_FB_PRESENT_PIXELS;
+                                    end
                                 end
                             end
                         end
@@ -956,7 +998,6 @@ module brahma_bija_core (
 
                 S_FDIV_STEP: begin
                     fdiv_remainder_shifted = {fdiv_remainder[31:0], fdiv_dividend[63]};
-
                     if (fdiv_remainder_shifted >= {1'b0, fdiv_divisor}) begin
                         fdiv_remainder_next = fdiv_remainder_shifted - {1'b0, fdiv_divisor};
                         fdiv_quotient_next = {fdiv_quotient[62:0], 1'b1};
@@ -979,7 +1020,8 @@ module brahma_bija_core (
                                 state <= S_FETCH;
                             end
                         end else begin
-                            if ((fdiv_quotient_next[63:32] != 32'd0) || (fdiv_quotient_next[31:0] > 32'h8000_0000)) begin
+                            if ((fdiv_quotient_next[63:32] != 32'd0) ||
+                                (fdiv_quotient_next[31:0] > 32'h8000_0000)) begin
                                 state <= S_HALT;
                             end else begin
                                 gpr[fdiv_dst_reg] <= (~fdiv_quotient_next[31:0]) + 32'd1;
@@ -1002,5 +1044,4 @@ module brahma_bija_core (
             endcase
         end
     end
-
 endmodule

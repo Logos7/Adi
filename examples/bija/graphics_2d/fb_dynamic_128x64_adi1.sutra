@@ -1,0 +1,46 @@
+; Sutra v1.6
+; Dynamic 128x64 ADI1 framebuffer smoke test.
+;
+; Requires RTL with fbsize support.
+
+.code
+main:
+    move r20, 512
+
+frame:
+    fbsize 128, 64
+    fbclear r20
+
+    move r10, 0
+    move r11, 63
+    move r12, 0
+    move r13, 127
+
+    move r0, 0
+
+x_loop:
+    fbplot r20, r0, r10
+    fbplot r20, r0, r11
+    iadd r0, r0, 1
+    blt r0, 128, x_loop
+
+    move r1, 0
+
+y_loop:
+    fbplot r20, r12, r1
+    fbplot r20, r13, r1
+    iadd r1, r1, 1
+    blt r1, 64, y_loop
+
+    move r0, 0
+
+diag_loop:
+    fbplot r20, r0, r0
+    move r2, 127
+    isub r2, r2, r0
+    fbplot r20, r2, r0
+    iadd r0, r0, 1
+    blt r0, 64, diag_loop
+
+    fbpresent1 r20
+    jump frame

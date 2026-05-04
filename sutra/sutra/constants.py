@@ -9,38 +9,35 @@ Brahma-Bija v1.6:
 - r0..r31 are real GPRs; t0..t7 are aliases for r24..r31 (scratch/volatile),
 - move dst, src is shared by word and bool values,
 - call/return use the hardware return stack in RTL,
-- fbclear/fbplot/fberase/fbpresent operate on a packed 64x64 1-bit framebuffer in data_mem,
+- fbsize/fbclear/fbplot/fberase/fbpresent operate on a configurable packed 1-bit framebuffer in data_mem,
 - cadd/csub/cmul/cabs2 and branch/wait/min/max are assembler macros,
 - .data/.code/.org/.word/.q7_25/.sin_lut build a separate data_mem image,
 - .word/.u32/.q7_25 accept comma-separated value lists, e.g. .word 1, 2, 3.
 """
-
 
 import math
 
 OPCODE_NOP = 0x00
 OPCODE_ALU_R = 0x01
 OPCODE_CMP_R = 0x02
-
 OPCODE_LOAD_I = 0x10
 OPCODE_LOAD_L = 0x11
 OPCODE_LOAD_M = 0x12
 OPCODE_SAVE_M = 0x13
 OPCODE_LOAD_MD = 0x14
 OPCODE_SAVE_MD = 0x15
-
 OPCODE_SAVE_BI = 0x20
 OPCODE_LOAD_BI = 0x21
 OPCODE_BOOL_R = 0x22
 OPCODE_LOAD_BR = 0x23
 OPCODE_SAVE_BR = 0x24
-
 OPCODE_WAIT = 0x30
 OPCODE_FBCLEAR = 0x31
 OPCODE_FBPLOT = 0x32
 OPCODE_FBERASE = 0x33
 OPCODE_FBPRESENT = 0x34
 OPCODE_FBPRESENT1 = 0x35
+OPCODE_FBSIZE = 0x36
 OPCODE_JUMP = 0x38
 OPCODE_CALL = 0x39
 OPCODE_RETURN = 0x3A
@@ -249,8 +246,8 @@ GPIO_INPIN_BASE = 64
 
 # Data labels are populated only during assemble_image().
 # They are accepted as immediates and direct memory addresses, e.g.
-#     move r21, sin_lut
-#     move r0, @sin_lut
+# move r21, sin_lut
+# move r0, @sin_lut
 DATA_SYMBOLS: dict[str, int] = {}
 
 INSTRUCTION_SUMMARY = [
@@ -277,6 +274,8 @@ INSTRUCTION_SUMMARY = [
     "cmp.feq bd, rs|value, rt|value, eps|value ; macro: abs(rs-rt) <= eps",
     "cadd/csub/cmul zd, zs, zt ; macro complex fixed-point",
     "cabs2 rd, zs ; macro, |z|²",
+    "fbsize width, height ; configure framebuffer width/height for fbclear/fbplot/fbpresent",
+    "fbclear rBase / fbplot rBase, rX, rY / fberase rBase, rX, rY / fbpresent1 rBase",
     "jump_if b0, label / jump_if_not b0, label",
     "beq/bne/blt/ble/bgt/bge rs, rt, label ; macro uses b7",
     "inc/dec/neg/fneg and imin/imax/fmin/fmax",
