@@ -64,7 +64,7 @@ def assemble_instruction(mnemonic: str, operands: list[str], pred: int = PRED_AL
 
     if m in ALU_R_FUNCTS:
         if len(operands) != 3:
-            raise AssemblerError(f"{m.lower()} wymaga 3 operandów")
+            raise AssemblerError(f"{m.lower()} requires 3 operands")
         rd = parse_register(operands[0])
         pre: list[int] = []
         avoid = {rd}
@@ -75,7 +75,7 @@ def assemble_instruction(mnemonic: str, operands: list[str], pred: int = PRED_AL
 
     if m in ALU_UNARY_FUNCTS:
         if len(operands) != 2:
-            raise AssemblerError(f"{m.lower()} wymaga 2 operandów")
+            raise AssemblerError(f"{m.lower()} requires 2 operands")
         rd = parse_register(operands[0])
         pre: list[int] = []
         rs = operand_to_reg(operands[1], pre, {rd}, pred)
@@ -83,21 +83,21 @@ def assemble_instruction(mnemonic: str, operands: list[str], pred: int = PRED_AL
 
     if m in SHIFT_FUNCTS:
         if len(operands) != 3:
-            raise AssemblerError(f"{m.lower()} wymaga 3 operandów")
+            raise AssemblerError(f"{m.lower()} requires 3 operands")
         rd = parse_register(operands[0])
         pre: list[int] = []
         rs = operand_to_reg(operands[1], pre, {rd}, pred)
         shamt = parse_small_int(operands[2])
         if not 0 <= shamt <= 31:
-            raise AssemblerError(f"shift amount {shamt} poza zakresem 0..31")
+            raise AssemblerError(f"shift amount {shamt} is out of range 0..31")
         return pre + [encode_r_format(OPCODE_ALU_R, rd, rs, shamt, SHIFT_FUNCTS[m], pred)]
 
     if m == "CMP.FEQ":
         if len(operands) != 4:
-            raise AssemblerError("cmp.feq wymaga 4 operandów: cmp.feq bd, rs, rt, eps")
+            raise AssemblerError("cmp.feq requires 4 operands: cmp.feq bd, rs, rt, eps")
         bd = parse_bool_register(operands[0])
         if bd >= 8:
-            raise AssemblerError("cmp.feq musi pisać do b0..b7")
+            raise AssemblerError("cmp.feq must write to b0..b7")
         pre: list[int] = []
         avoid: set[int] = set()
         rs = operand_to_reg(operands[1], pre, avoid, pred)
@@ -114,10 +114,10 @@ def assemble_instruction(mnemonic: str, operands: list[str], pred: int = PRED_AL
 
     if m in CMP_FUNCTS:
         if len(operands) != 3:
-            raise AssemblerError(f"{m.lower()} wymaga 3 operandów")
+            raise AssemblerError(f"{m.lower()} requires 3 operands")
         bd = parse_bool_register(operands[0])
         if bd >= 8:
-            raise AssemblerError("cmp musi pisać do b0..b7")
+            raise AssemblerError("cmp must write to b0..b7")
         pre: list[int] = []
         rs = operand_to_reg(operands[1], pre, set(), pred)
         rt = operand_to_reg(operands[2], pre, {rs}, pred)
@@ -125,7 +125,7 @@ def assemble_instruction(mnemonic: str, operands: list[str], pred: int = PRED_AL
 
     if m == "MOVE":
         if len(operands) != 2:
-            raise AssemblerError("move wymaga 2 operandów: move dst, src")
+            raise AssemblerError("move requires 2 operands: move dst, src")
 
         dst_raw, src_raw = operands[0].strip(), operands[1].strip()
 
@@ -140,11 +140,11 @@ def assemble_instruction(mnemonic: str, operands: list[str], pred: int = PRED_AL
                     validate_static_bool_access(val, "save")
                     return [encode_ib_format(OPCODE_SAVE_BI, 0, bs, val, pred)]
                 if offset != 0:
-                    raise AssemblerError("bool @r+offset nie jest jeszcze obsługiwane")
+                    raise AssemblerError("bool @r+offset is not supported yet")
                 return [encode_r_format(OPCODE_SAVE_BR, bs, val, 0, 0, pred)]
 
             if domain == "bool":
-                raise AssemblerError("Do bool/GPIO zapisuj tylko b0..b7 albo true/false/high/low; 0 i 1 są wartościami word")
+                raise AssemblerError("For bool/GPIO writes, use only b0..b7 or true/false/high/low; 0 and 1 are word values")
 
             pre: list[int] = []
             try:
@@ -159,7 +159,7 @@ def assemble_instruction(mnemonic: str, operands: list[str], pred: int = PRED_AL
         if dst_raw.upper().startswith("B"):
             bd = parse_bool_register(dst_raw)
             if bd >= 8:
-                raise AssemblerError("move do bool musi pisać do b0..b7")
+                raise AssemblerError("move to bool must write to b0..b7")
 
             if src_raw.startswith("@"):
                 kind, val, _domain, offset = parse_memory_operand(src_raw)
@@ -167,7 +167,7 @@ def assemble_instruction(mnemonic: str, operands: list[str], pred: int = PRED_AL
                     validate_static_bool_access(val, "load")
                     return [encode_ib_format(OPCODE_LOAD_BI, bd, 0, val, pred)]
                 if offset != 0:
-                    raise AssemblerError("bool @r+offset nie jest jeszcze obsługiwane")
+                    raise AssemblerError("bool @r+offset is not supported yet")
                 return [encode_r_format(OPCODE_LOAD_BR, bd, val, 0, 0, pred)]
 
             bs = parse_bool_register(src_raw)
@@ -188,37 +188,37 @@ def assemble_instruction(mnemonic: str, operands: list[str], pred: int = PRED_AL
             return encode_load_immediate(rd, parse_immediate(src_raw), pred)
 
     if m in ("LOAD", "SAVE", "BLOAD", "BSAVE"):
-        raise AssemblerError(f"{m.lower()} nie istnieje w Sutra v1.4; użyj move dst, src")
+        raise AssemblerError(f"{m.lower()} does not exist in Sutra v1.6; use move dst, src")
 
     if m in BOOL_R_FUNCTS:
         if len(operands) != 3:
-            raise AssemblerError(f"{m.lower()} wymaga 3 operandów")
+            raise AssemblerError(f"{m.lower()} requires 3 operands")
         bd = parse_bool_register(operands[0])
         bs = parse_bool_register(operands[1])
         bt = parse_bool_register(operands[2])
         if bd >= 8:
-            raise AssemblerError("bool op musi pisać do b0..b7")
+            raise AssemblerError("bool op must write to b0..b7")
         return [encode_r_format(OPCODE_BOOL_R, bd, bs, bt, BOOL_R_FUNCTS[m], pred)]
 
     if m in BOOL_UNARY_FUNCTS:
         if len(operands) != 2:
-            raise AssemblerError(f"{m.lower()} wymaga 2 operandów")
+            raise AssemblerError(f"{m.lower()} requires 2 operands")
         bd = parse_bool_register(operands[0])
         bs = parse_bool_register(operands[1])
         if bd >= 8:
-            raise AssemblerError("bnot musi pisać do b0..b7")
+            raise AssemblerError("bnot must write to b0..b7")
         return [encode_r_format(OPCODE_BOOL_R, bd, bs, 0, BOOL_UNARY_FUNCTS[m], pred)]
 
     if m == "WAIT":
         if len(operands) != 1:
-            raise AssemblerError("wait wymaga 1 operandu")
+            raise AssemblerError("wait requires 1 operand")
         pre: list[int] = []
         rs = operand_to_reg(operands[0], pre, set(), pred)
         return pre + [encode_r_format(OPCODE_WAIT, 0, rs, 0, pred=pred)]
 
     if m in ("JUMP", "JMP"):
         if len(operands) != 1:
-            raise AssemblerError("jump wymaga 1 operandu")
+            raise AssemblerError("jump requires 1 operand")
         try:
             return [encode_j_format(OPCODE_JUMP, parse_small_int(operands[0]), pred)]
         except Exception:
@@ -226,13 +226,13 @@ def assemble_instruction(mnemonic: str, operands: list[str], pred: int = PRED_AL
 
     if m == "CALL":
         if len(operands) != 1:
-            raise AssemblerError("call wymaga 1 operandu")
+            raise AssemblerError("call requires 1 operand")
         try:
             return [encode_j_format(OPCODE_CALL, parse_small_int(operands[0]), pred)]
         except Exception:
             raise _LabelReference(OPCODE_CALL, operands[0], pred)
 
-    raise AssemblerError(f"Nieznany mnemonik: {mnemonic}")
+    raise AssemblerError(f"Unknown mnemonic: {mnemonic}")
 
 
 def split_instruction(line: str):
@@ -257,7 +257,7 @@ def _prepare_lines(source: str):
         try:
             expanded, macro_counter = expand_macro_line(line, macro_counter)
         except AssemblerError as e:
-            raise AssemblerError(f"Linia {lineno}: {e}")
+            raise AssemblerError(f"Line {lineno}: {e}")
 
         for expanded_line in expanded:
             expanded_line = expanded_line.strip()
@@ -272,15 +272,15 @@ def _instruction_length(mnemonic: str, operands: list[str], pred: int, lineno: i
         return len(assemble_instruction(mnemonic, operands, pred))
     except _LabelReference:
         return 1
-    except AssemblerError as e:
-        raise AssemblerError(f"Linia {lineno}: {e}")
+    except AssemblerError:
+        raise
 
 
 def _parse_instruction_line(line: str):
     pred, instruction_line = parse_predicate_prefix(line)
     parts = split_instruction(instruction_line)
     if not parts:
-        raise AssemblerError("Pusta instrukcja")
+        raise AssemblerError("Empty instruction")
     return pred, parts[0], parts[1:]
 
 
@@ -296,7 +296,7 @@ def assemble(source: str) -> list[AssembledLine]:
             label = line[:-1].strip()
             key = label.lower()
             if key in labels:
-                raise AssemblerError(f"Linia {lineno}: duplikat etykiety {label}")
+                raise AssemblerError(f"Line {lineno}: duplicate label {label}")
             labels[key] = address
             continue
 
@@ -304,7 +304,7 @@ def assemble(source: str) -> list[AssembledLine]:
             pred, mnemonic, operands = _parse_instruction_line(line)
             length = _instruction_length(mnemonic, operands, pred, lineno)
         except AssemblerError as e:
-            raise AssemblerError(f"Linia {lineno}: {e}")
+            raise AssemblerError(f"Line {lineno}: {e}")
 
         program_lines.append((address, mnemonic, operands, pred, lineno, line))
         address += length
@@ -317,11 +317,11 @@ def assemble(source: str) -> list[AssembledLine]:
         except _LabelReference as ref:
             key = ref.label.lower()
             if key not in labels:
-                raise AssemblerError(f"Linia {lineno}: nieznana etykieta {ref.label}")
+                raise AssemblerError(f"Line {lineno}: unknown label {ref.label}")
             target = labels[key]
             words = [encode_j_format(ref.opcode, target - addr - 1, ref.pred)]
         except AssemblerError as e:
-            raise AssemblerError(f"Linia {lineno}: {e}")
+            raise AssemblerError(f"Line {lineno}: {e}")
 
         result.append(AssembledLine(address=addr, words=words, source=line))
 
