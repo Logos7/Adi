@@ -44,37 +44,37 @@ def expand_macro_line(line: str, counter: int):
 
     if m == "INC":
         if len(ops) != 1:
-            raise AssemblerError("inc wymaga 1 operandu: inc r0")
+            raise AssemblerError("inc requires 1 operand: inc r0")
         return [p(f"iadd {ops[0]}, {ops[0]}, 1")], counter
 
     if m == "DEC":
         if len(ops) != 1:
-            raise AssemblerError("dec wymaga 1 operandu: dec r0")
+            raise AssemblerError("dec requires 1 operand: dec r0")
         return [p(f"isub {ops[0]}, {ops[0]}, 1")], counter
 
     if m == "NEG":
         if len(ops) != 2:
-            raise AssemblerError("neg wymaga 2 operandów: neg rd, rs")
+            raise AssemblerError("neg requires 2 operands: neg rd, rs")
         return [p(f"isub {ops[0]}, 0, {ops[1]}")], counter
 
     if m == "FNEG":
         if len(ops) != 2:
-            raise AssemblerError("fneg wymaga 2 operandów: fneg rd, rs")
+            raise AssemblerError("fneg requires 2 operands: fneg rd, rs")
         return [p(f"fsub {ops[0]}, 0.0, {ops[1]}")], counter
 
     if m == "JUMP_IF":
         if pred_text:
-            raise AssemblerError("jump_if nie może mieć zewnętrznego predykatu")
+            raise AssemblerError("jump_if cannot be used with an external predicate")
         if len(ops) != 2:
-            raise AssemblerError("jump_if wymaga: jump_if b0, label")
+            raise AssemblerError("jump_if requires: jump_if b0, label")
         b = parse_predicate_register(ops[0])
         return [f"(b{b}) jump {ops[1]}"], counter
 
     if m == "JUMP_IF_NOT":
         if pred_text:
-            raise AssemblerError("jump_if_not nie może mieć zewnętrznego predykatu")
+            raise AssemblerError("jump_if_not cannot be used with an external predicate")
         if len(ops) != 2:
-            raise AssemblerError("jump_if_not wymaga: jump_if_not b0, label")
+            raise AssemblerError("jump_if_not requires: jump_if_not b0, label")
         b = parse_predicate_register(ops[0])
         if b == 7:
             return ["bnot b6, b7", f"(b6) jump {ops[1]}"], counter
@@ -82,16 +82,16 @@ def expand_macro_line(line: str, counter: int):
 
     if m in BRANCH_MACROS:
         if pred_text:
-            raise AssemblerError(f"{m.lower()} nie może mieć zewnętrznego predykatu")
+            raise AssemblerError(f"{m.lower()} cannot be used with an external predicate")
         if len(ops) != 3:
-            raise AssemblerError(f"{m.lower()} wymaga: {m.lower()} rs, rt, label")
+            raise AssemblerError(f"{m.lower()} requires: {m.lower()} rs, rt, label")
         return [f"{BRANCH_MACROS[m]} b7, {ops[0]}, {ops[1]}", f"(b7) jump {ops[2]}"], counter
 
     if m == "WAIT_RX":
         if pred_text:
-            raise AssemblerError("wait_rx nie może mieć zewnętrznego predykatu")
+            raise AssemblerError("wait_rx cannot be used with an external predicate")
         if len(ops) != 0:
-            raise AssemblerError("wait_rx nie przyjmuje operandów")
+            raise AssemblerError("wait_rx does not take operands")
         label = _unique_label("wait_rx", counter)
         done = label + "_done"
         counter += 1
@@ -99,9 +99,9 @@ def expand_macro_line(line: str, counter: int):
 
     if m == "READ_RX":
         if pred_text:
-            raise AssemblerError("read_rx nie może mieć zewnętrznego predykatu")
+            raise AssemblerError("read_rx cannot be used with an external predicate")
         if len(ops) != 1:
-            raise AssemblerError("read_rx wymaga: read_rx rd")
+            raise AssemblerError("read_rx requires: read_rx rd")
         label = _unique_label("read_rx", counter)
         done = label + "_done"
         counter += 1
@@ -109,9 +109,9 @@ def expand_macro_line(line: str, counter: int):
 
     if m == "WAIT_UART":
         if pred_text:
-            raise AssemblerError("wait_uart nie może mieć zewnętrznego predykatu")
+            raise AssemblerError("wait_uart cannot be used with an external predicate")
         if len(ops) != 0:
-            raise AssemblerError("wait_uart nie przyjmuje operandów")
+            raise AssemblerError("wait_uart does not take operands")
         label = _unique_label("wait_uart", counter)
         done = label + "_done"
         counter += 1
@@ -119,9 +119,9 @@ def expand_macro_line(line: str, counter: int):
 
     if m == "WRITE_TX":
         if pred_text:
-            raise AssemblerError("write_tx nie może mieć zewnętrznego predykatu")
+            raise AssemblerError("write_tx cannot be used with an external predicate")
         if len(ops) != 1:
-            raise AssemblerError("write_tx wymaga: write_tx rs")
+            raise AssemblerError("write_tx requires: write_tx rs")
         label = _unique_label("write_tx", counter)
         done = label + "_done"
         counter += 1
