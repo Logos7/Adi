@@ -1,8 +1,6 @@
 # Brahma-Bija RTL
 
-The RTL is intentionally written as simple **Verilog-2001** for Gowin / Tang Nano 20K.
-
-It does not require SystemVerilog mode.
+The RTL is intentionally written as simple **Verilog-2001** for Gowin / Tang Nano 20K. It does not require SystemVerilog mode.
 
 The current `program.hex` is the initial Sutra program image.
 
@@ -11,7 +9,13 @@ The current `program.hex` is the initial Sutra program image.
 To change the initial program image:
 
 ```powershell
-py tools\sutra2hex.py examples\bija\05_fractals\mandelbrot_uart.sutra cores\bija\rtl\src\program.hex
+py tools/sutra2hex.py examples/bija/fractals/mandelbrot.sutra cores/bija/rtl/src/program.hex
+```
+
+For programs that use `.data`, also write a data image:
+
+```powershell
+py tools/sutra2hex.py examples/bija/graphics_3d/wire_demos/wire_cube.sutra cores/bija/rtl/src/program.hex --data-output cores/bija/rtl/src/data.hex
 ```
 
 Then, in Gowin, it is best to do a full refresh:
@@ -25,7 +29,7 @@ Place & Route
 Programmer
 ```
 
-Gowin may keep old artifacts, especially when only `program.hex` has changed.
+Gowin may keep old artifacts, especially when only `program.hex` or `data.hex` has changed.
 
 ## Program ROM
 
@@ -35,9 +39,7 @@ In `brahma_bija_core.v`, the program is loaded with:
 $readmemh("src/program.hex", imem);
 ```
 
-The path is relative to the Gowin RTL project.
-
-Do not use an absolute path, because the project should remain portable after unpacking it into any directory.
+The path is relative to the Gowin RTL project. Do not use an absolute path, because the project should remain portable after unpacking it into any directory.
 
 ## UART
 
@@ -66,11 +68,7 @@ The current core has:
 bool_mem[0..127]
 ```
 
-`@pinN` in Sutra means **bool_mem[N]**.
-
-It is not an automatic connection to any arbitrary physical FPGA pin.
-
-Physical pin routing is done in `brahma_bija_top.v`.
+`@pinN` in Sutra means **bool_mem[N]**. It is not an automatic connection to any arbitrary physical FPGA pin. Physical pin routing is done in `brahma_bija_top.v`.
 
 On the Tang Nano 20K, the current top maps:
 
@@ -92,7 +90,7 @@ move @led0, high    ; LED is off
 
 ## UART bootloader
 
-Since v1.3.1, the top-level contains:
+The top-level contains:
 
 ```text
 uart_rx
@@ -114,13 +112,19 @@ After a UART upload, the bootloader writes new instructions into `imem` and rese
 Upload a Sutra program without rebuilding the bitstream:
 
 ```powershell
-py tools\sutra_upload.py COM9 examples\bija\05_fractals\julia_uart.sutra
+py tools/sutra_upload.py COM9 examples/bija/fractals/julia.sutra
 ```
 
 Viewer with GUI port and file selection:
 
 ```powershell
-py apps\bija\uart_viewer.py
+py apps/bija/uart_viewer.py
+```
+
+Upload through the viewer:
+
+```powershell
+py apps/bija/uart_viewer.py COM9 --upload examples/bija/graphics_3d/wire_demos/wire_cube.sutra
 ```
 
 ## UART / bootloader parameters
@@ -130,7 +134,8 @@ The UART and bootloader parameters are in `src/brahma_bija_top.v`:
 ```verilog
 localparam [15:0] UART_CLKS_PER_BIT = 16'd234;
 localparam [15:0] BOOT_MAX_WORDS = 16'd1024;
-localparam [31:0] BOOT_BYTE_TIMEOUT_CLKS = 32'd27000000;
+localparam [15:0] BOOT_MAX_DATA_WORDS = 16'd512;
+localparam [31:0] BOOT_BYTE_TIMEOUT_CLKS = 32'd270000000;
 ```
 
 For a 27 MHz clock:
