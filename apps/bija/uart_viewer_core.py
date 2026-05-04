@@ -2,58 +2,17 @@ from __future__ import annotations
 
 import os
 import time
-from dataclasses import dataclass
 
 import app_paths
-from adi_frames import AdiFrame, MAGIC_ADI0, MAGIC_ADI1, pop_frame
+from adi_frames import AdiFrame, pop_frame
 from clipboard_image import copy_rgb_to_windows_clipboard
+from program_upload import upload_graphics_program
 from serial_ports import available_ports, choose_default_port, parse_baud, reset_buffers, serial
-from sutra_upload import assemble_file, upload_words
-from viewer_palette import (
-    DEFAULT_PALETTE,
-    PALETTE_KEY_BY_LABEL,
-    PALETTE_KEYS,
-    PALETTE_LABELS,
-    frame_pixel_rgb,
-    normalize_palette,
-    palette_label,
-    rgb_hex,
-)
+from viewer_args import DEFAULT_SOURCE, ViewerDefaults, optional_byte, parse_int
+from viewer_palette import DEFAULT_PALETTE, PALETTE_KEY_BY_LABEL, PALETTE_LABELS, palette_label
+from viewer_render import render_frame
 
-DEFAULT_SOURCE = os.path.join("examples", "bija", "fractals", "julia.sutra")
 STATE_NAME = "uart_viewer_state.json"
-
-
-@dataclass(frozen=True)
-class ViewerDefaults:
-    port: str | None
-    baud: int
-    source: str
-    upload: str | None
-    width: int
-    height: int
-    max_iter: int
-    scale: int
-    palette: str
-    boot_timeout: float
-    ack_timeout: float
-
-
-def parse_int(value: str, name: str, min_value: int, max_value: int) -> int:
-    try:
-        x = int(value.strip())
-    except Exception:
-        raise ValueError(f"{name} must be an integer.")
-    if x < min_value or x > max_value:
-        raise ValueError(f"{name} must be in range {min_value}..{max_value}.")
-    return x
-
-
-def optional_byte(value: str, name: str) -> int | None:
-    text = value.strip()
-    if not text:
-        return None
-    return parse_int(text, name, 1, 255)
 
 
 def run_viewer_gui(defaults: ViewerDefaults) -> None:
@@ -270,19 +229,20 @@ def run_viewer_gui(defaults: ViewerDefaults) -> None:
                 raise ValueError("Port is empty.")
             baud = current_baud()
             path, width, height, max_iter, _scale, _palette = current_params()
-            normalized_path = path.replace("\\", "/").lower()
             close_serial()
-            words = assemble_file(
-                path,
-                width=width,
-                height=height,
-                max_iter=max_iter if "fractals" in normalized_path else None,
-                graphics="auto",
-            )
             status_var.set(f"Uploading: {os.path.basename(path)}")
             log(f"[UPLOAD] {path}\n")
             root.update_idletasks()
-            upload_words(port, baud, words, boot_timeout=defaults.boot_timeout, ack_timeout=defaults.ack_timeout)
+            upload_graphics_program(
+                port,
+                baud,
+                path,
+                width,
+                height,
+                max_iter,
+                defaults.boot_timeout,
+                defaults.ack_timeout,
+            )
             buffer.clear()
             counter["n"] = 0
             timing["last"] = None
@@ -349,36 +309,14 @@ def run_viewer_gui(defaults: ViewerDefaults) -> None:
             scale = defaults.scale
             palette = defaults.palette
 
+        rendered = render_frame(frame, max_iter, scale, palette)
         img = tk.PhotoImage(width=frame.width, height=frame.height)
-        rows = []
-        display_width = frame.width * scale
-        display_height = frame.height * scale
-        rgb_bytes = bytearray(display_width * display_height * 3)
-
-        for y in range(frame.height):
-            start = y * frame.width
-            row_hex = []
-            row_rgb = []
-            for x in range(frame.width):
-                rgb = frame_pixel_rgb(frame.pixels[start + x], max_iter, palette, frame.kind)
-                row_hex.append(rgb_hex(rgb))
-                row_rgb.append(rgb)
-            rows.append("{" + " ".join(row_hex) + "}")
-            for sy in range(scale):
-                dest = ((y * scale + sy) * display_width) * 3
-                for r, g, b in row_rgb:
-                    for _ in range(scale):
-                        rgb_bytes[dest] = r
-                        rgb_bytes[dest + 1] = g
-                        rgb_bytes[dest + 2] = b
-                        dest += 3
-
-        img.put(" ".join(rows))
+        img.put(rendered.photo_rows)
         image_ref["img"] = img.zoom(scale, scale)
-        display_ref["width"] = display_width
-        display_ref["height"] = display_height
-        display_ref["rgb"] = bytes(rgb_bytes)
-        canvas.configure(width=display_width, height=display_height)
+        display_ref["width"] = rendered.display_width
+        display_ref["height"] = rendered.display_height
+        display_ref["rgb"] = rendered.rgb
+        canvas.configure(width=rendered.display_width, height=rendered.display_height)
         canvas.delete("all")
         canvas.create_image(0, 0, image=image_ref["img"], anchor="nw")
 
@@ -398,7 +336,7 @@ def run_viewer_gui(defaults: ViewerDefaults) -> None:
         fps_text = "warming" if fps <= 0.0 else f"{fps:.1f}"
         status_var.set(
             f"Frame #{counter['n']}: {kind}, {frame.width}x{frame.height}, "
-            f"FPS={fps_text}, scale={scale}, image={display_width}x{display_height}, "
+            f"FPS={fps_text}, scale={scale}, image={rendered.display_width}x{rendered.display_height}, "
             f"palette={palette_label(palette)}, payload={frame.raw_size} bytes, maxIter={max_iter}"
         )
 
@@ -413,43 +351,3 @@ def run_viewer_gui(defaults: ViewerDefaults) -> None:
         root.after(150, connect)
     root.after(10, pump)
     root.mainloop()
-
-
-def build_defaults(args) -> ViewerDefaults:
-    if not 1 <= args.width <= 255:
-        raise SystemExit("width must be in range 1..255.")
-    if not 1 <= args.height <= 255:
-        raise SystemExit("height must be in range 1..255.")
-    if not 1 <= args.max_iter <= 255:
-        raise SystemExit("max-iter must be in range 1..255.")
-    if not 1 <= args.scale <= 32:
-        raise SystemExit("scale must be in range 1..32.")
-
-    upload = app_paths.as_repo_path(app_paths.resolve_repo_path(args.upload, DEFAULT_SOURCE)) if args.upload else None
-    return ViewerDefaults(
-        port=args.port,
-        baud=args.baud,
-        source=DEFAULT_SOURCE,
-        upload=upload,
-        width=args.width,
-        height=args.height,
-        max_iter=args.max_iter,
-        scale=args.scale,
-        palette=normalize_palette(args.palette),
-        boot_timeout=args.boot_timeout,
-        ack_timeout=args.ack_timeout,
-    )
-
-
-def add_viewer_args(parser) -> None:
-    parser.add_argument("port", nargs="?", help="COM port, for example COM9. Without a port, the GUI opens disconnected.")
-    parser.add_argument("--baud", type=int, default=115200)
-    parser.add_argument("--upload", help="Sutra program to upload before receiving ADI0 / ADI1 frames.")
-    parser.add_argument("--width", type=int, default=64, help="Frame width, 1..255.")
-    parser.add_argument("--height", type=int, default=64, help="Frame height, 1..255.")
-    parser.add_argument("--max-iter", type=int, default=64, help="Iteration value treated as interior color, 1..255.")
-    parser.add_argument("--scale", type=int, default=4)
-    parser.add_argument("--palette", choices=PALETTE_KEYS, default=DEFAULT_PALETTE)
-    parser.add_argument("--text", action="store_true", help="Deprecated. Use apps/bija/uart_terminal.py for text UART.")
-    parser.add_argument("--boot-timeout", type=float, default=30.0)
-    parser.add_argument("--ack-timeout", type=float, default=12.0)

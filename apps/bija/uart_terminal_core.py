@@ -6,18 +6,14 @@ import threading
 
 import app_paths
 from adi_frames import TerminalRxFilter
+from program_upload import upload_text_program
 from serial_ports import available_ports, choose_default_port, parse_baud, reset_buffers, serial
-from sutra_upload import ACK_ERR, ACK_OK, ACK_READY, assemble_file, upload_words
+from sutra_upload import ACK_ERR, ACK_OK, ACK_READY
+from terminal_args import DEFAULT_SOURCE
 
 BOOT_ACKS = (ACK_READY, ACK_OK, ACK_ERR)
-DEFAULT_SOURCE = os.path.join("examples", "bija", "basics", "echo_rx.sutra")
 MAX_TERMINAL_CHARS = 200_000
 STATE_NAME = "uart_terminal_state.json"
-
-
-def upload_text_program(port: str, baud: int, path: str, boot_timeout: float, ack_timeout: float) -> None:
-    words = assemble_file(path, graphics="off")
-    upload_words(port, baud, words, boot_timeout=boot_timeout, ack_timeout=ack_timeout)
 
 
 def run_cli(port: str, baud: int, upload: str | None, boot_timeout: float, ack_timeout: float) -> None:
@@ -270,12 +266,3 @@ def run_terminal_gui(port_arg: str | None, baud_arg: int, upload_arg: str | None
         root.after(150, connect)
     root.after(10, pump)
     root.mainloop()
-
-
-def add_terminal_args(parser) -> None:
-    parser.add_argument("port", nargs="?", help="COM port, for example COM9.")
-    parser.add_argument("upload", nargs="?", help="Optional Sutra program to upload before opening the terminal.")
-    parser.add_argument("--baud", type=int, default=115200)
-    parser.add_argument("--no-gui", action="store_true", help="Run as a text terminal in the console.")
-    parser.add_argument("--boot-timeout", type=float, default=30.0)
-    parser.add_argument("--ack-timeout", type=float, default=12.0)

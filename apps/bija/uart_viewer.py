@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import argparse
 
-from uart_viewer_core import add_viewer_args, build_defaults, run_viewer_gui
+from uart_viewer_core import run_viewer_gui
+from viewer_args import add_viewer_args, build_defaults
 
 
 def main() -> None:

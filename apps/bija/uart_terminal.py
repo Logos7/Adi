@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import argparse
 
-from uart_terminal_core import add_terminal_args, run_cli, run_terminal_gui
+from terminal_args import add_terminal_args
+from uart_terminal_core import run_cli, run_terminal_gui
 
 
 def main() -> None:
