@@ -1,96 +1,46 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-import pytest
-
-ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "tools"))
-
-from indra_asm import IndraError, parse_indra_source
-from indra_run import run_program
+from tools.indra_asm import parse_text
+from tools.indra_run import activate, run, saturate_i8
 
 
-def test_run_dense_with_shift_and_clamp() -> None:
-    program = parse_indra_source(
-        """
+def test_saturate_i8() -> None:
+    assert saturate_i8(-200) == -128
+    assert saturate_i8(-128) == -128
+    assert saturate_i8(0) == 0
+    assert saturate_i8(127) == 127
+    assert saturate_i8(200) == 127
+
+
+def test_activations() -> None:
+    assert activate(-10, "NONE") == -10
+    assert activate(200, "NONE") == 127
+    assert activate(-10, "RELU") == 0
+    assert activate(10, "RELU") == 10
+    assert activate(-200, "CLAMP") == -128
+    assert activate(200, "CLAMP") == 127
+    assert activate(-1, "SIGN") == -127
+    assert activate(0, "SIGN") == 127
+
+
+def test_run_q07_identity_like_layer() -> None:
+    source = """
 brain_test:
-  DENSE 2 2 W=w0 B=b0 ACT=RELU SHIFT=1
-  DENSE 2 1 W=w1 B=b1 ACT=CLAMP SHIFT=2
+  DENSE 2 2 W=w0 B=b0 ACT=CLAMP SHIFT=7
   END
 
 .data
+
 w0:
-  .i8 4, -2, 3, 1
-b0:
-  .i32 0, 0
-w1:
-  .i8 2, -4
-b1:
-  .i32 0
-"""
-    )
+  .i8 127, 0
+  .i8 0, 127
 
-    result = run_program(program, [10, 6])
-
-    assert result.layer_outputs[0] == [14, 18]
-    assert result.layer_outputs[1] == [-11]
-    assert result.output == [-11]
-
-
-def test_run_sign_activation() -> None:
-    program = parse_indra_source(
-        """
-brain_test:
-  DENSE 2 2 W=w0 B=b0 ACT=SIGN SHIFT=0
-  END
-
-.data
-w0:
-  .i8 1, 1, -1, -1
 b0:
   .i32 0, 0
 """
-    )
 
-    result = run_program(program, [10, -2])
-    assert result.output == [127, -127]
+    assembly = parse_text(source)
+    outputs, layers = run(assembly, [64, -64])
 
-
-def test_rejects_wrong_input_count() -> None:
-    program = parse_indra_source(
-        """
-brain_test:
-  DENSE 2 1 W=w0 B=b0 ACT=CLAMP
-  END
-
-.data
-w0:
-  .i8 1, 2
-b0:
-  .i32 0
-"""
-    )
-
-    with pytest.raises(IndraError, match="expects 2 inputs"):
-        run_program(program, [1])
-
-
-def test_rejects_input_outside_i8() -> None:
-    program = parse_indra_source(
-        """
-brain_test:
-  DENSE 1 1 W=w0 B=b0 ACT=CLAMP
-  END
-
-.data
-w0:
-  .i8 1
-b0:
-  .i32 0
-"""
-    )
-
-    with pytest.raises(IndraError, match="outside -128..127"):
-        run_program(program, [200])
+    assert outputs == [63, -64]
+    assert layers == [[63, -64]]

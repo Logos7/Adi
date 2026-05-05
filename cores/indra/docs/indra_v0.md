@@ -24,33 +24,24 @@ int32 accumulators
 
 ```indra
 brain_wolf:
-  DENSE 24 16 W=wolf_w0 B=wolf_b0 ACT=RELU SHIFT=5
-  DENSE 16 8  W=wolf_w1 B=wolf_b1 ACT=RELU SHIFT=4
-  DENSE 8  6  W=wolf_w2 B=wolf_b2 ACT=CLAMP SHIFT=4
+  DENSE 24 16 W=wolf_w0 B=wolf_b0 ACT=RELU SHIFT=7
+  DENSE 16 8  W=wolf_w1 B=wolf_b1 ACT=RELU SHIFT=7
+  DENSE 8  6  W=wolf_w2 B=wolf_b2 ACT=CLAMP SHIFT=7
   END
 ```
 
 ## v0 Instructions
 
 ```text
-DENSE in_count out_count W=weights B=biases ACT=activation SHIFT=shift
+DENSE in_count out_count W=weights B=biases ACT=activation [SHIFT=shift]
 END
 ```
 
-`SHIFT` is optional and defaults to `0`.
-
-## DENSE
-
-A dense layer computes:
+If `SHIFT` is omitted, the assembler uses:
 
 ```text
-acc = bias[out]
-acc += input[in] * weight[out, in]
-acc = acc >> SHIFT
-output[out] = activation(acc)
+SHIFT=7
 ```
-
-The shift is an arithmetic right shift. It is used as a simple fixed-point scaling step before activation and int8 saturation.
 
 ## v0 Activations
 
@@ -69,35 +60,33 @@ MAX_LAYER_WIDTH = 32
 MAX_LAYERS      = 4
 MAX_OUTPUTS     = 16
 MAC_LANES       = 8
-MAX_SHIFT       = 31
 ```
 
 ## Numeric Format
 
-```text
-inputs:      int8
-weights:     int8
-biases:      int32
-accumulator: int32
-outputs:     int8
-```
-
-## Core Idea
-
-Indra is not hardwired for one brain.
-
-It reads a small brain program:
+Indra v0 uses signed integer arithmetic with a normalized fixed-point interpretation.
 
 ```text
-DENSE
-DENSE
-DENSE
-END
+inputs:      int8,  scale = 1/128
+weights:     int8,  scale = 1/128
+biases:      int32, scale = 1/16384
+accumulator: int32, scale = 1/16384
+outputs:     int8,  scale = 1/128
 ```
 
-and executes it using the same neural hardware.
+A dense layer computes:
 
-Different creatures can use different brain programs and different weight blocks.
+```text
+acc = bias + sum(input[i] * weight[i])
+scaled = acc >> SHIFT
+output = activation_and_saturate_i8(scaled)
+```
+
+The natural default for normalized int8 values is:
+
+```text
+SHIFT=7
+```
 
 ## v0 Scope
 

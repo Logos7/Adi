@@ -1,73 +1,67 @@
-# Indra Binary Format v0
+# Indra Binary v0
 
-The Indra text format is packed into three binary blobs:
+This document describes the initial binary format produced by `tools/indra_pack.py`.
+
+## Output Files
+
+For a brain named `brain_bug`, the packer writes:
 
 ```text
-<name>.program.bin
-<name>.weights.bin
-<name>.biases.bin
+brain_bug.program.bin
+brain_bug.weights.bin
+brain_bug.biases.bin
+brain_bug.program.hex
+brain_bug.weights.hex
+brain_bug.biases.hex
+brain_bug.manifest.json
 ```
 
-A manifest is also emitted for debugging:
+## Numeric Convention
 
 ```text
-<name>.manifest.json
+int8 real scale       = 1/128
+accumulator scale     = 1/16384
+default layer SHIFT   = 7
 ```
 
-## Program Records
+## Program Stream
 
-Each program record is 16 bytes.
-
-### DENSE Record
+Supported opcodes:
 
 ```text
-byte  0      opcode       0x01
-byte  1      input_count
-byte  2      output_count
-byte  3      activation_id
-bytes 4..7   weight_offset_u32_le
-bytes 8..11  bias_offset_u32_le
-byte  12     shift
-byte  13     reserved
-byte  14     reserved
-byte  15     reserved
+0x01 = DENSE
+0xFF = END
 ```
 
-### END Record
+## DENSE Record
+
+A DENSE record is 12 bytes:
 
 ```text
-byte  0      opcode       0xFF
-bytes 1..15  zero
+u8  opcode
+u8  input_count
+u8  output_count
+u8  activation
+u8  shift
+u8  reserved0
+u16 weight_offset_bytes
+u16 bias_offset_i32
+u16 reserved1
+```
+
+All multi-byte fields are little-endian.
+
+## END Record
+
+```text
+u8 opcode = 0xFF
 ```
 
 ## Activation IDs
 
 ```text
-NONE  = 0
-RELU  = 1
-CLAMP = 2
-SIGN  = 3
-```
-
-## Weight Blob
-
-Weights are stored as signed int8 bytes.
-
-Layer weights are row-major by output neuron:
-
-```text
-out0: w00 w01 w02 ...
-out1: w10 w11 w12 ...
-```
-
-## Bias Blob
-
-Biases are stored as signed int32 little-endian values.
-
-## Shift
-
-The `shift` field is an arithmetic right shift applied after accumulation and before activation.
-
-```text
-acc = acc >> shift
+0 = NONE
+1 = RELU
+2 = CLAMP
+3 = SIGN
 ```

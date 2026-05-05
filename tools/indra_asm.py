@@ -1,24 +1,25 @@
 #!/usr/bin/env python3
-"""Indra v0 brain assembler parser and validator.
+"""
+Indra v0 brain assembler/parser.
 
-This tool parses the text .indra format used by the Indra neural processor.
-It validates layer descriptors, data labels, weight counts, bias counts, and
-basic v0 hardware limits.
+Numeric convention:
+- int8 activations and weights are normalized fixed-point values.
+- real = raw / 128.
+- int8 * int8 accumulates into int32 with accumulator scale 1 / 16384.
+- default layer SHIFT is 7.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Iterable
 
-MAX_INPUTS = 32
-MAX_LAYER_WIDTH = 32
-MAX_LAYERS = 4
-MAX_OUTPUTS = 16
-MAX_SHIFT = 31
+
+DEFAULT_SHIFT = 7
 
 ACTIVATIONS: dict[str, int] = {
     "NONE": 0,
@@ -27,298 +28,282 @@ ACTIVATIONS: dict[str, int] = {
     "SIGN": 3,
 }
 
-_DENSE_RE = re.compile(
-    r"^DENSE\s+"
-    r"(?P<in>\d+)\s+"
-    r"(?P<out>\d+)\s+"
-    r"W=(?P<w>[A-Za-z_][A-Za-z0-9_]*)\s+"
-    r"B=(?P<b>[A-Za-z_][A-Za-z0-9_]*)\s+"
-    r"ACT=(?P<act>[A-Za-z_][A-Za-z0-9_]*)"
-    r"(?:\s+SHIFT=(?P<shift>\d+))?"
-    r"\s*$"
-)
-
-_LABEL_RE = re.compile(r"^(?P<label>[A-Za-z_][A-Za-z0-9_]*):\s*$")
-
 
 class IndraError(ValueError):
-    """Raised when an Indra source file is invalid."""
+    pass
 
 
 @dataclass(frozen=True)
 class DenseLayer:
-    """A DENSE layer descriptor."""
-
     input_count: int
     output_count: int
     weight_label: str
     bias_label: str
     activation: str
-    shift: int = 0
-    line_no: int = 0
+    shift: int = DEFAULT_SHIFT
 
     @property
-    def weight_count(self) -> int:
+    def expected_weight_count(self) -> int:
         return self.input_count * self.output_count
 
     @property
-    def bias_count(self) -> int:
+    def expected_bias_count(self) -> int:
         return self.output_count
 
 
-@dataclass
-class DataSection:
-    """A named data section."""
-
-    label: str
-    kind: str
-    values: list[int] = field(default_factory=list)
-    line_no: int = 0
-
-
-@dataclass
-class BrainProgram:
-    """A parsed Indra brain program."""
-
+@dataclass(frozen=True)
+class Brain:
     name: str
-    layers: list[DenseLayer]
-    data: dict[str, DataSection]
-    data_order: list[str]
-    source_path: Path | None = None
+    layers: tuple[DenseLayer, ...]
 
-    def validate(self) -> None:
-        if not self.name:
-            raise IndraError("Missing brain label.")
-        if not self.layers:
-            raise IndraError(f"Brain '{self.name}' has no layers.")
-        if len(self.layers) > MAX_LAYERS:
-            raise IndraError(
-                f"Brain '{self.name}' has {len(self.layers)} layers, max is {MAX_LAYERS}."
-            )
 
-        previous_output: int | None = None
-        for index, layer in enumerate(self.layers):
-            if layer.input_count <= 0 or layer.output_count <= 0:
-                raise IndraError(f"Layer {index}: counts must be positive.")
-            if layer.input_count > MAX_INPUTS and index == 0:
-                raise IndraError(
-                    f"Layer {index}: input count {layer.input_count} exceeds {MAX_INPUTS}."
-                )
-            if layer.input_count > MAX_LAYER_WIDTH and index > 0:
-                raise IndraError(
-                    f"Layer {index}: input width {layer.input_count} exceeds {MAX_LAYER_WIDTH}."
-                )
-            if layer.output_count > MAX_LAYER_WIDTH and index < len(self.layers) - 1:
-                raise IndraError(
-                    f"Layer {index}: output width {layer.output_count} exceeds {MAX_LAYER_WIDTH}."
-                )
-            if layer.output_count > MAX_OUTPUTS and index == len(self.layers) - 1:
-                raise IndraError(
-                    f"Layer {index}: output count {layer.output_count} exceeds {MAX_OUTPUTS}."
-                )
-            if previous_output is not None and layer.input_count != previous_output:
-                raise IndraError(
-                    f"Layer {index}: input count {layer.input_count} does not match "
-                    f"previous output count {previous_output}."
-                )
-            previous_output = layer.output_count
+@dataclass(frozen=True)
+class DataSection:
+    i8: dict[str, tuple[int, ...]]
+    i32: dict[str, tuple[int, ...]]
 
-            if layer.activation not in ACTIVATIONS:
-                allowed = ", ".join(ACTIVATIONS)
-                raise IndraError(
-                    f"Layer {index}: unsupported activation '{layer.activation}'. Allowed: {allowed}."
-                )
-            if layer.shift < 0 or layer.shift > MAX_SHIFT:
-                raise IndraError(
-                    f"Layer {index}: SHIFT={layer.shift} is outside 0..{MAX_SHIFT}."
-                )
 
-            weight_data = self.data.get(layer.weight_label)
-            if weight_data is None:
-                raise IndraError(f"Layer {index}: missing weight label '{layer.weight_label}'.")
-            if weight_data.kind != ".i8":
-                raise IndraError(
-                    f"Layer {index}: weights '{layer.weight_label}' must use .i8, got {weight_data.kind}."
-                )
-            if len(weight_data.values) != layer.weight_count:
-                raise IndraError(
-                    f"Layer {index}: weights '{layer.weight_label}' have {len(weight_data.values)} "
-                    f"values, expected {layer.weight_count}."
-                )
+@dataclass(frozen=True)
+class Assembly:
+    brain: Brain
+    data: DataSection
 
-            bias_data = self.data.get(layer.bias_label)
-            if bias_data is None:
-                raise IndraError(f"Layer {index}: missing bias label '{layer.bias_label}'.")
-            if bias_data.kind != ".i32":
-                raise IndraError(
-                    f"Layer {index}: biases '{layer.bias_label}' must use .i32, got {bias_data.kind}."
-                )
-            if len(bias_data.values) != layer.bias_count:
-                raise IndraError(
-                    f"Layer {index}: biases '{layer.bias_label}' have {len(bias_data.values)} "
-                    f"values, expected {layer.bias_count}."
-                )
+
+_DENSE_RE = re.compile(
+    r"^DENSE\s+"
+    r"(?P<input>\d+)\s+"
+    r"(?P<output>\d+)\s+"
+    r"W=(?P<weight>[A-Za-z_][A-Za-z0-9_]*)\s+"
+    r"B=(?P<bias>[A-Za-z_][A-Za-z0-9_]*)\s+"
+    r"ACT=(?P<activation>[A-Za-z_][A-Za-z0-9_]*)"
+    r"(?:\s+SHIFT=(?P<shift>-?\d+))?"
+    r"$"
+)
+
+_LABEL_RE = re.compile(r"^(?P<label>[A-Za-z_][A-Za-z0-9_]*):$")
 
 
 def _strip_comment(line: str) -> str:
-    cut = len(line)
     for marker in (";", "#"):
-        index = line.find(marker)
-        if index != -1:
-            cut = min(cut, index)
-    return line[:cut].strip()
+        if marker in line:
+            line = line.split(marker, 1)[0]
+    return line.strip()
 
 
-def _parse_values(text: str, kind: str, line_no: int) -> list[int]:
-    raw_values = [part for part in re.split(r"[\s,]+", text.strip()) if part]
+def _parse_int(value: str, line_no: int) -> int:
+    try:
+        return int(value, 0)
+    except ValueError as exc:
+        raise IndraError(f"Line {line_no}: invalid integer: {value!r}") from exc
+
+
+def _parse_values(text: str, line_no: int, min_value: int, max_value: int) -> tuple[int, ...]:
+    if not text.strip():
+        raise IndraError(f"Line {line_no}: expected at least one value")
+
     values: list[int] = []
-    for raw in raw_values:
-        try:
-            value = int(raw, 0)
-        except ValueError as exc:
-            raise IndraError(f"Line {line_no}: invalid integer '{raw}'.") from exc
-
-        if kind == ".i8" and not -128 <= value <= 127:
-            raise IndraError(f"Line {line_no}: .i8 value {value} is outside -128..127.")
-        if kind == ".i32" and not -(2**31) <= value <= 2**31 - 1:
-            raise IndraError(f"Line {line_no}: .i32 value {value} is outside int32 range.")
+    for raw in text.split(","):
+        value = _parse_int(raw.strip(), line_no)
+        if value < min_value or value > max_value:
+            raise IndraError(
+                f"Line {line_no}: value {value} out of range {min_value}..{max_value}"
+            )
         values.append(value)
-    return values
+    return tuple(values)
 
 
-def parse_indra_source(text: str, source_path: Path | None = None) -> BrainProgram:
-    """Parse an Indra source string and return a validated brain program."""
-
-    brain_name = ""
+def parse_text(source: str) -> Assembly:
+    brain_name: str | None = None
     layers: list[DenseLayer] = []
-    data: dict[str, DataSection] = {}
-    data_order: list[str] = []
-    in_data = False
-    current_data_label: str | None = None
-    end_seen = False
 
-    for line_no, original_line in enumerate(text.splitlines(), start=1):
+    i8_data: dict[str, list[int]] = {}
+    i32_data: dict[str, list[int]] = {}
+
+    current_label: str | None = None
+    current_kind: str | None = None
+    in_data = False
+    ended = False
+
+    for line_no, original_line in enumerate(source.splitlines(), start=1):
         line = _strip_comment(original_line)
         if not line:
             continue
 
         if line == ".data":
             in_data = True
-            current_data_label = None
+            current_label = None
+            current_kind = None
             continue
 
         label_match = _LABEL_RE.match(line)
         if label_match:
             label = label_match.group("label")
             if in_data:
-                if label in data:
-                    raise IndraError(f"Line {line_no}: duplicate data label '{label}'.")
-                data[label] = DataSection(label=label, kind="", line_no=line_no)
-                data_order.append(label)
-                current_data_label = label
+                current_label = label
+                current_kind = None
             else:
-                if brain_name:
-                    raise IndraError(f"Line {line_no}: multiple brain labels are not supported in v0.")
+                if brain_name is not None:
+                    raise IndraError(f"Line {line_no}: multiple brain labels are not supported")
                 brain_name = label
             continue
 
         if in_data:
-            if current_data_label is None:
-                raise IndraError(f"Line {line_no}: data values must follow a label.")
-            if line.startswith(".i8"):
-                kind = ".i8"
-                payload = line[3:].strip()
-            elif line.startswith(".i32"):
-                kind = ".i32"
-                payload = line[4:].strip()
-            else:
-                raise IndraError(f"Line {line_no}: expected .i8 or .i32 data directive.")
+            if current_label is None:
+                raise IndraError(f"Line {line_no}: data directive without label")
 
-            section = data[current_data_label]
-            if section.kind and section.kind != kind:
-                raise IndraError(
-                    f"Line {line_no}: data label '{current_data_label}' mixes {section.kind} and {kind}."
-                )
-            section.kind = kind
-            section.values.extend(_parse_values(payload, kind, line_no))
+            if line.startswith(".i8 "):
+                values = _parse_values(line[4:].strip(), line_no, -128, 127)
+                if current_kind not in (None, "i8"):
+                    raise IndraError(f"Line {line_no}: label {current_label!r} mixes data kinds")
+                current_kind = "i8"
+                i8_data.setdefault(current_label, []).extend(values)
+                continue
+
+            if line.startswith(".i32 "):
+                values = _parse_values(line[5:].strip(), line_no, -(2**31), 2**31 - 1)
+                if current_kind not in (None, "i32"):
+                    raise IndraError(f"Line {line_no}: label {current_label!r} mixes data kinds")
+                current_kind = "i32"
+                i32_data.setdefault(current_label, []).extend(values)
+                continue
+
+            raise IndraError(f"Line {line_no}: unknown data directive: {line!r}")
+
+        if brain_name is None:
+            raise IndraError(f"Line {line_no}: expected brain label before instructions")
+
+        if ended:
+            raise IndraError(f"Line {line_no}: instruction after END")
+
+        if line == "END":
+            ended = True
             continue
-
-        if end_seen:
-            raise IndraError(f"Line {line_no}: unexpected instruction after END.")
 
         dense_match = _DENSE_RE.match(line)
         if dense_match:
-            activation = dense_match.group("act").upper()
+            activation = dense_match.group("activation").upper()
+            if activation not in ACTIVATIONS:
+                raise IndraError(f"Line {line_no}: unknown activation {activation!r}")
+
+            input_count = _parse_int(dense_match.group("input"), line_no)
+            output_count = _parse_int(dense_match.group("output"), line_no)
             shift_text = dense_match.group("shift")
+            shift = DEFAULT_SHIFT if shift_text is None else _parse_int(shift_text, line_no)
+
+            if input_count <= 0:
+                raise IndraError(f"Line {line_no}: input count must be positive")
+            if output_count <= 0:
+                raise IndraError(f"Line {line_no}: output count must be positive")
+            if shift < 0 or shift > 31:
+                raise IndraError(f"Line {line_no}: SHIFT must be in range 0..31")
+
             layers.append(
                 DenseLayer(
-                    input_count=int(dense_match.group("in")),
-                    output_count=int(dense_match.group("out")),
-                    weight_label=dense_match.group("w"),
-                    bias_label=dense_match.group("b"),
+                    input_count=input_count,
+                    output_count=output_count,
+                    weight_label=dense_match.group("weight"),
+                    bias_label=dense_match.group("bias"),
                     activation=activation,
-                    shift=int(shift_text) if shift_text is not None else 0,
-                    line_no=line_no,
+                    shift=shift,
                 )
             )
             continue
 
-        if line == "END":
-            end_seen = True
-            continue
+        raise IndraError(f"Line {line_no}: unknown instruction: {line!r}")
 
-        raise IndraError(f"Line {line_no}: cannot parse '{line}'.")
+    if brain_name is None:
+        raise IndraError("Missing brain label")
+    if not ended:
+        raise IndraError("Missing END")
+    if not layers:
+        raise IndraError("Brain must contain at least one layer")
 
-    if not end_seen:
-        raise IndraError("Missing END instruction.")
-
-    for section in data.values():
-        if not section.kind:
-            raise IndraError(f"Data label '{section.label}' has no data directive.")
-
-    program = BrainProgram(
-        name=brain_name,
-        layers=layers,
-        data=data,
-        data_order=data_order,
-        source_path=source_path,
+    assembly = Assembly(
+        brain=Brain(name=brain_name, layers=tuple(layers)),
+        data=DataSection(
+            i8={key: tuple(value) for key, value in i8_data.items()},
+            i32={key: tuple(value) for key, value in i32_data.items()},
+        ),
     )
-    program.validate()
-    return program
+
+    validate(assembly)
+    return assembly
 
 
-def parse_indra_file(path: str | Path) -> BrainProgram:
-    source_path = Path(path)
-    return parse_indra_source(source_path.read_text(encoding="utf-8"), source_path=source_path)
+def parse_file(path: str | Path) -> Assembly:
+    return parse_text(Path(path).read_text(encoding="utf-8"))
 
 
-def build_report(program: BrainProgram) -> str:
-    lines = [f"Brain: {program.name}"]
-    for index, layer in enumerate(program.layers):
-        weights = program.data[layer.weight_label]
-        biases = program.data[layer.bias_label]
+def validate(assembly: Assembly) -> None:
+    previous_output: int | None = None
+
+    for index, layer in enumerate(assembly.brain.layers):
+        if previous_output is not None and layer.input_count != previous_output:
+            raise IndraError(
+                f"Layer {index}: input count {layer.input_count} does not match "
+                f"previous output count {previous_output}"
+            )
+
+        weights = assembly.data.i8.get(layer.weight_label)
+        if weights is None:
+            raise IndraError(f"Layer {index}: missing weight label {layer.weight_label!r}")
+        if len(weights) != layer.expected_weight_count:
+            raise IndraError(
+                f"Layer {index}: weight label {layer.weight_label!r} has {len(weights)} values, "
+                f"expected {layer.expected_weight_count}"
+            )
+
+        biases = assembly.data.i32.get(layer.bias_label)
+        if biases is None:
+            raise IndraError(f"Layer {index}: missing bias label {layer.bias_label!r}")
+        if len(biases) != layer.expected_bias_count:
+            raise IndraError(
+                f"Layer {index}: bias label {layer.bias_label!r} has {len(biases)} values, "
+                f"expected {layer.expected_bias_count}"
+            )
+
+        previous_output = layer.output_count
+
+
+def to_dict(assembly: Assembly) -> dict:
+    return asdict(assembly)
+
+
+def report(assembly: Assembly) -> str:
+    lines = [f"Brain: {assembly.brain.name}"]
+
+    for index, layer in enumerate(assembly.brain.layers):
+        weights = assembly.data.i8[layer.weight_label]
+        biases = assembly.data.i32[layer.bias_label]
         lines.append(
-            f"Layer {index}: DENSE {layer.input_count} -> {layer.output_count}, "
-            f"weights={len(weights.values)}/{layer.weight_count}, "
-            f"biases={len(biases.values)}/{layer.bias_count}, "
-            f"act={layer.activation}, shift={layer.shift}"
+            "Layer "
+            f"{index}: DENSE {layer.input_count} -> {layer.output_count}, "
+            f"W={layer.weight_label} {len(weights)}/{layer.expected_weight_count}, "
+            f"B={layer.bias_label} {len(biases)}/{layer.expected_bias_count}, "
+            f"ACT={layer.activation}, SHIFT={layer.shift}"
         )
+
     lines.append("OK")
     return "\n".join(lines)
 
 
 def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Parse and validate an Indra v0 brain file.")
-    parser.add_argument("source", help="Path to a .indra file.")
+    parser.add_argument("source", help="Path to .indra source file.")
+    parser.add_argument("--json", action="store_true", help="Print parsed assembly as JSON.")
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     try:
-        program = parse_indra_file(args.source)
+        assembly = parse_file(args.source)
     except IndraError as exc:
         print(f"ERROR: {exc}")
         return 1
 
-    print(build_report(program))
+    if args.json:
+        print(json.dumps(to_dict(assembly), indent=2))
+    else:
+        print(report(assembly))
+
     return 0
 
 

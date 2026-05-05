@@ -1,7 +1,7 @@
 brain_wolf:
-  DENSE 24 16 W=wolf_w0 B=wolf_b0 ACT=RELU SHIFT=5
-  DENSE 16 8  W=wolf_w1 B=wolf_b1 ACT=RELU SHIFT=4
-  DENSE 8  6  W=wolf_w2 B=wolf_b2 ACT=CLAMP SHIFT=4
+  DENSE 24 16 W=wolf_w0 B=wolf_b0 ACT=RELU SHIFT=7
+  DENSE 16 8  W=wolf_w1 B=wolf_b1 ACT=RELU SHIFT=7
+  DENSE 8  6  W=wolf_w2 B=wolf_b2 ACT=CLAMP SHIFT=7
   END
 
 .data
