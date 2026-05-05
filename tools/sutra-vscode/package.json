@@ -1,8 +1,8 @@
 {
   "name": "sutra",
   "displayName": "Sutra Assembler",
-  "description": "Syntax highlighting for Sutra (Brahma-Bija assembler)",
-  "version": "1.4.3",
+  "description": "Syntax highlighting for Sutra v1.6 (Brahma-Bija assembler)",
+  "version": "1.6.0",
   "publisher": "adi-project",
   "engines": {
     "vscode": "^1.50.0"
