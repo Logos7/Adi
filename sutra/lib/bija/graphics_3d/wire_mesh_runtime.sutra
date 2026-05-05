@@ -1,20 +1,3 @@
-; Sutra include library.
-; 64x64 data-driven wire-mesh runtime with selectable ADI0/ADI1 presenter.
-;
-; Required data symbols/layout:
-; - sin_lut at data_mem[0]
-; - projected vertices base stored at data_mem[277]
-; - mesh vertex base stored at data_mem[278]
-; - mesh edge base stored at data_mem[279]
-; - present mode stored at data_mem[273], 0 = ADI0, 1 = ADI1
-; - framebuffer base at data_mem[384]
-;
-; Runtime registers:
-; - r20 = framebuffer base = 384
-; - r21 = sin LUT base = 0
-; - r22 = angle period = 256
-; - r18 = angle, 0..255
-
 .code
 wire_mesh_main:
     move r20, 384
