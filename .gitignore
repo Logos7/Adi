@@ -30,4 +30,5 @@ Thumbs.db
 # Adi local/runtime
 *.tmp
 *.uart.log
+tools/sutra-vscode/*.vsix
 artifacts/
