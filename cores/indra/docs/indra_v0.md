@@ -24,18 +24,33 @@ int32 accumulators
 
 ```indra
 brain_wolf:
-  DENSE 24 16 W=wolf_w0 B=wolf_b0 ACT=RELU
-  DENSE 16 8  W=wolf_w1 B=wolf_b1 ACT=RELU
-  DENSE 8  6  W=wolf_w2 B=wolf_b2 ACT=CLAMP
+  DENSE 24 16 W=wolf_w0 B=wolf_b0 ACT=RELU SHIFT=5
+  DENSE 16 8  W=wolf_w1 B=wolf_b1 ACT=RELU SHIFT=4
+  DENSE 8  6  W=wolf_w2 B=wolf_b2 ACT=CLAMP SHIFT=4
   END
 ```
 
 ## v0 Instructions
 
 ```text
-DENSE in_count out_count W=weights B=biases ACT=activation
+DENSE in_count out_count W=weights B=biases ACT=activation SHIFT=shift
 END
 ```
+
+`SHIFT` is optional and defaults to `0`.
+
+## DENSE
+
+A dense layer computes:
+
+```text
+acc = bias[out]
+acc += input[in] * weight[out, in]
+acc = acc >> SHIFT
+output[out] = activation(acc)
+```
+
+The shift is an arithmetic right shift. It is used as a simple fixed-point scaling step before activation and int8 saturation.
 
 ## v0 Activations
 
@@ -54,6 +69,7 @@ MAX_LAYER_WIDTH = 32
 MAX_LAYERS      = 4
 MAX_OUTPUTS     = 16
 MAC_LANES       = 8
+MAX_SHIFT       = 31
 ```
 
 ## Numeric Format

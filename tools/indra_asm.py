@@ -1,39 +1,61 @@
 #!/usr/bin/env python3
+"""Indra v0 brain assembler parser and validator.
+
+This tool parses the text .indra format used by the Indra neural processor.
+It validates layer descriptors, data labels, weight counts, bias counts, and
+basic v0 hardware limits.
+"""
+
 from __future__ import annotations
 
 import argparse
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
-ACTIVATIONS = {
+MAX_INPUTS = 32
+MAX_LAYER_WIDTH = 32
+MAX_LAYERS = 4
+MAX_OUTPUTS = 16
+MAX_SHIFT = 31
+
+ACTIVATIONS: dict[str, int] = {
     "NONE": 0,
     "RELU": 1,
     "CLAMP": 2,
     "SIGN": 3,
 }
 
-DENSE_RE = re.compile(
-    r"^DENSE\s+(?P<inputs>\d+)\s+(?P<outputs>\d+)\s+W=(?P<weights>[A-Za-z_][A-Za-z0-9_]*)\s+B=(?P<biases>[A-Za-z_][A-Za-z0-9_]*)\s+ACT=(?P<activation>[A-Za-z_][A-Za-z0-9_]*)$"
+_DENSE_RE = re.compile(
+    r"^DENSE\s+"
+    r"(?P<in>\d+)\s+"
+    r"(?P<out>\d+)\s+"
+    r"W=(?P<w>[A-Za-z_][A-Za-z0-9_]*)\s+"
+    r"B=(?P<b>[A-Za-z_][A-Za-z0-9_]*)\s+"
+    r"ACT=(?P<act>[A-Za-z_][A-Za-z0-9_]*)"
+    r"(?:\s+SHIFT=(?P<shift>\d+))?"
+    r"\s*$"
 )
 
-LABEL_RE = re.compile(r"^(?P<label>[A-Za-z_][A-Za-z0-9_]*):$")
-DATA_RE = re.compile(r"^\.(?P<kind>i8|i32)\s+(?P<values>.+)$")
+_LABEL_RE = re.compile(r"^(?P<label>[A-Za-z_][A-Za-z0-9_]*):\s*$")
 
 
-class IndraAsmError(Exception):
-    pass
+class IndraError(ValueError):
+    """Raised when an Indra source file is invalid."""
 
 
 @dataclass(frozen=True)
 class DenseLayer:
+    """A DENSE layer descriptor."""
+
     input_count: int
     output_count: int
     weight_label: str
     bias_label: str
     activation: str
-    line_no: int
+    shift: int = 0
+    line_no: int = 0
 
     @property
     def weight_count(self) -> int:
@@ -44,191 +66,233 @@ class DenseLayer:
         return self.output_count
 
 
-@dataclass(frozen=True)
-class DataBlock:
+@dataclass
+class DataSection:
+    """A named data section."""
+
     label: str
     kind: str
-    values: tuple[int, ...]
-    line_no: int
+    values: list[int] = field(default_factory=list)
+    line_no: int = 0
 
 
-@dataclass(frozen=True)
+@dataclass
 class BrainProgram:
+    """A parsed Indra brain program."""
+
     name: str
-    layers: tuple[DenseLayer, ...]
-    data: dict[str, DataBlock]
+    layers: list[DenseLayer]
+    data: dict[str, DataSection]
+    data_order: list[str]
+    source_path: Path | None = None
+
+    def validate(self) -> None:
+        if not self.name:
+            raise IndraError("Missing brain label.")
+        if not self.layers:
+            raise IndraError(f"Brain '{self.name}' has no layers.")
+        if len(self.layers) > MAX_LAYERS:
+            raise IndraError(
+                f"Brain '{self.name}' has {len(self.layers)} layers, max is {MAX_LAYERS}."
+            )
+
+        previous_output: int | None = None
+        for index, layer in enumerate(self.layers):
+            if layer.input_count <= 0 or layer.output_count <= 0:
+                raise IndraError(f"Layer {index}: counts must be positive.")
+            if layer.input_count > MAX_INPUTS and index == 0:
+                raise IndraError(
+                    f"Layer {index}: input count {layer.input_count} exceeds {MAX_INPUTS}."
+                )
+            if layer.input_count > MAX_LAYER_WIDTH and index > 0:
+                raise IndraError(
+                    f"Layer {index}: input width {layer.input_count} exceeds {MAX_LAYER_WIDTH}."
+                )
+            if layer.output_count > MAX_LAYER_WIDTH and index < len(self.layers) - 1:
+                raise IndraError(
+                    f"Layer {index}: output width {layer.output_count} exceeds {MAX_LAYER_WIDTH}."
+                )
+            if layer.output_count > MAX_OUTPUTS and index == len(self.layers) - 1:
+                raise IndraError(
+                    f"Layer {index}: output count {layer.output_count} exceeds {MAX_OUTPUTS}."
+                )
+            if previous_output is not None and layer.input_count != previous_output:
+                raise IndraError(
+                    f"Layer {index}: input count {layer.input_count} does not match "
+                    f"previous output count {previous_output}."
+                )
+            previous_output = layer.output_count
+
+            if layer.activation not in ACTIVATIONS:
+                allowed = ", ".join(ACTIVATIONS)
+                raise IndraError(
+                    f"Layer {index}: unsupported activation '{layer.activation}'. Allowed: {allowed}."
+                )
+            if layer.shift < 0 or layer.shift > MAX_SHIFT:
+                raise IndraError(
+                    f"Layer {index}: SHIFT={layer.shift} is outside 0..{MAX_SHIFT}."
+                )
+
+            weight_data = self.data.get(layer.weight_label)
+            if weight_data is None:
+                raise IndraError(f"Layer {index}: missing weight label '{layer.weight_label}'.")
+            if weight_data.kind != ".i8":
+                raise IndraError(
+                    f"Layer {index}: weights '{layer.weight_label}' must use .i8, got {weight_data.kind}."
+                )
+            if len(weight_data.values) != layer.weight_count:
+                raise IndraError(
+                    f"Layer {index}: weights '{layer.weight_label}' have {len(weight_data.values)} "
+                    f"values, expected {layer.weight_count}."
+                )
+
+            bias_data = self.data.get(layer.bias_label)
+            if bias_data is None:
+                raise IndraError(f"Layer {index}: missing bias label '{layer.bias_label}'.")
+            if bias_data.kind != ".i32":
+                raise IndraError(
+                    f"Layer {index}: biases '{layer.bias_label}' must use .i32, got {bias_data.kind}."
+                )
+            if len(bias_data.values) != layer.bias_count:
+                raise IndraError(
+                    f"Layer {index}: biases '{layer.bias_label}' have {len(bias_data.values)} "
+                    f"values, expected {layer.bias_count}."
+                )
 
 
-def strip_comment(line: str) -> str:
-    line = line.split(";", 1)[0]
-    line = line.split("#", 1)[0]
-    return line.strip()
+def _strip_comment(line: str) -> str:
+    cut = len(line)
+    for marker in (";", "#"):
+        index = line.find(marker)
+        if index != -1:
+            cut = min(cut, index)
+    return line[:cut].strip()
 
 
-def parse_values(text: str, line_no: int) -> tuple[int, ...]:
+def _parse_values(text: str, kind: str, line_no: int) -> list[int]:
+    raw_values = [part for part in re.split(r"[\s,]+", text.strip()) if part]
     values: list[int] = []
-    for raw in text.split(","):
-        item = raw.strip()
-        if not item:
-            continue
+    for raw in raw_values:
         try:
-            values.append(int(item, 0))
-        except ValueError as ex:
-            raise IndraAsmError(f"line {line_no}: invalid integer value: {item}") from ex
-    if not values:
-        raise IndraAsmError(f"line {line_no}: data directive has no values")
-    return tuple(values)
+            value = int(raw, 0)
+        except ValueError as exc:
+            raise IndraError(f"Line {line_no}: invalid integer '{raw}'.") from exc
+
+        if kind == ".i8" and not -128 <= value <= 127:
+            raise IndraError(f"Line {line_no}: .i8 value {value} is outside -128..127.")
+        if kind == ".i32" and not -(2**31) <= value <= 2**31 - 1:
+            raise IndraError(f"Line {line_no}: .i32 value {value} is outside int32 range.")
+        values.append(value)
+    return values
 
 
-def parse_indra_source(text: str) -> BrainProgram:
-    brain_name: str | None = None
+def parse_indra_source(text: str, source_path: Path | None = None) -> BrainProgram:
+    """Parse an Indra source string and return a validated brain program."""
+
+    brain_name = ""
     layers: list[DenseLayer] = []
-    data: dict[str, DataBlock] = {}
-    section = "program"
-    current_label: str | None = None
-    current_kind: str | None = None
-    current_values: list[int] = []
-    current_line = 0
-    ended = False
+    data: dict[str, DataSection] = {}
+    data_order: list[str] = []
+    in_data = False
+    current_data_label: str | None = None
+    end_seen = False
 
-    def flush_data() -> None:
-        nonlocal current_label, current_kind, current_values, current_line
-        if current_label is None:
-            return
-        if current_kind is None:
-            raise IndraAsmError(f"line {current_line}: data label '{current_label}' has no data directive")
-        if current_label in data:
-            raise IndraAsmError(f"line {current_line}: duplicate data label: {current_label}")
-        data[current_label] = DataBlock(current_label, current_kind, tuple(current_values), current_line)
-        current_label = None
-        current_kind = None
-        current_values = []
-        current_line = 0
-
-    for line_no, raw_line in enumerate(text.splitlines(), start=1):
-        line = strip_comment(raw_line)
+    for line_no, original_line in enumerate(text.splitlines(), start=1):
+        line = _strip_comment(original_line)
         if not line:
             continue
 
         if line == ".data":
-            if brain_name is None:
-                raise IndraAsmError(f"line {line_no}: .data appears before brain label")
-            if not ended:
-                raise IndraAsmError(f"line {line_no}: .data appears before END")
-            section = "data"
+            in_data = True
+            current_data_label = None
             continue
 
-        label_match = LABEL_RE.match(line)
+        label_match = _LABEL_RE.match(line)
         if label_match:
             label = label_match.group("label")
-            if section == "program":
-                if brain_name is not None:
-                    raise IndraAsmError(f"line {line_no}: unexpected program label: {label}")
-                brain_name = label
+            if in_data:
+                if label in data:
+                    raise IndraError(f"Line {line_no}: duplicate data label '{label}'.")
+                data[label] = DataSection(label=label, kind="", line_no=line_no)
+                data_order.append(label)
+                current_data_label = label
             else:
-                flush_data()
-                current_label = label
-                current_line = line_no
+                if brain_name:
+                    raise IndraError(f"Line {line_no}: multiple brain labels are not supported in v0.")
+                brain_name = label
             continue
 
-        if section == "program":
-            if brain_name is None:
-                raise IndraAsmError(f"line {line_no}: expected brain label")
-            if line == "END":
-                ended = True
-                continue
-            if ended:
-                raise IndraAsmError(f"line {line_no}: instruction after END")
-            dense_match = DENSE_RE.match(line)
-            if not dense_match:
-                raise IndraAsmError(f"line {line_no}: invalid instruction: {line}")
-            activation = dense_match.group("activation").upper()
-            if activation not in ACTIVATIONS:
-                raise IndraAsmError(f"line {line_no}: unsupported activation: {activation}")
+        if in_data:
+            if current_data_label is None:
+                raise IndraError(f"Line {line_no}: data values must follow a label.")
+            if line.startswith(".i8"):
+                kind = ".i8"
+                payload = line[3:].strip()
+            elif line.startswith(".i32"):
+                kind = ".i32"
+                payload = line[4:].strip()
+            else:
+                raise IndraError(f"Line {line_no}: expected .i8 or .i32 data directive.")
+
+            section = data[current_data_label]
+            if section.kind and section.kind != kind:
+                raise IndraError(
+                    f"Line {line_no}: data label '{current_data_label}' mixes {section.kind} and {kind}."
+                )
+            section.kind = kind
+            section.values.extend(_parse_values(payload, kind, line_no))
+            continue
+
+        if end_seen:
+            raise IndraError(f"Line {line_no}: unexpected instruction after END.")
+
+        dense_match = _DENSE_RE.match(line)
+        if dense_match:
+            activation = dense_match.group("act").upper()
+            shift_text = dense_match.group("shift")
             layers.append(
                 DenseLayer(
-                    input_count=int(dense_match.group("inputs")),
-                    output_count=int(dense_match.group("outputs")),
-                    weight_label=dense_match.group("weights"),
-                    bias_label=dense_match.group("biases"),
+                    input_count=int(dense_match.group("in")),
+                    output_count=int(dense_match.group("out")),
+                    weight_label=dense_match.group("w"),
+                    bias_label=dense_match.group("b"),
                     activation=activation,
+                    shift=int(shift_text) if shift_text is not None else 0,
                     line_no=line_no,
                 )
             )
             continue
 
-        data_match = DATA_RE.match(line)
-        if not data_match:
-            raise IndraAsmError(f"line {line_no}: invalid data line: {line}")
-        if current_label is None:
-            raise IndraAsmError(f"line {line_no}: data directive without label")
-        kind = data_match.group("kind")
-        values = parse_values(data_match.group("values"), line_no)
-        if current_kind is None:
-            current_kind = kind
-        elif current_kind != kind:
-            raise IndraAsmError(f"line {line_no}: mixed data kinds under label '{current_label}'")
-        current_values.extend(values)
+        if line == "END":
+            end_seen = True
+            continue
 
-    flush_data()
+        raise IndraError(f"Line {line_no}: cannot parse '{line}'.")
 
-    if brain_name is None:
-        raise IndraAsmError("missing brain label")
-    if not layers:
-        raise IndraAsmError("brain has no layers")
-    if not ended:
-        raise IndraAsmError("missing END")
+    if not end_seen:
+        raise IndraError("Missing END instruction.")
 
-    program = BrainProgram(brain_name, tuple(layers), data)
-    validate_program(program)
+    for section in data.values():
+        if not section.kind:
+            raise IndraError(f"Data label '{section.label}' has no data directive.")
+
+    program = BrainProgram(
+        name=brain_name,
+        layers=layers,
+        data=data,
+        data_order=data_order,
+        source_path=source_path,
+    )
+    program.validate()
     return program
 
 
-def read_indra_file(path: Path) -> BrainProgram:
-    return parse_indra_source(path.read_text(encoding="utf-8"))
+def parse_indra_file(path: str | Path) -> BrainProgram:
+    source_path = Path(path)
+    return parse_indra_source(source_path.read_text(encoding="utf-8"), source_path=source_path)
 
 
-def validate_int_range(block: DataBlock) -> None:
-    if block.kind == "i8":
-        lo, hi = -128, 127
-    elif block.kind == "i32":
-        lo, hi = -(2**31), 2**31 - 1
-    else:
-        raise IndraAsmError(f"line {block.line_no}: unsupported data kind: {block.kind}")
-    for value in block.values:
-        if value < lo or value > hi:
-            raise IndraAsmError(
-                f"line {block.line_no}: value {value} outside {block.kind} range [{lo}, {hi}]"
-            )
-
-
-def validate_program(program: BrainProgram) -> None:
-    for layer in program.layers:
-        if layer.input_count <= 0 or layer.output_count <= 0:
-            raise IndraAsmError(f"line {layer.line_no}: layer dimensions must be positive")
-        if layer.weight_label not in program.data:
-            raise IndraAsmError(f"line {layer.line_no}: missing weight block: {layer.weight_label}")
-        if layer.bias_label not in program.data:
-            raise IndraAsmError(f"line {layer.line_no}: missing bias block: {layer.bias_label}")
-        weights = program.data[layer.weight_label]
-        biases = program.data[layer.bias_label]
-        if weights.kind != "i8":
-            raise IndraAsmError(f"line {weights.line_no}: weight block '{weights.label}' must use .i8")
-        if biases.kind != "i32":
-            raise IndraAsmError(f"line {biases.line_no}: bias block '{biases.label}' must use .i32")
-        validate_int_range(weights)
-        validate_int_range(biases)
-        if len(weights.values) != layer.weight_count:
-            raise IndraAsmError(
-                f"line {layer.line_no}: layer expects {layer.weight_count} weights in '{weights.label}', got {len(weights.values)}"
-            )
-        if len(biases.values) != layer.bias_count:
-            raise IndraAsmError(
-                f"line {layer.line_no}: layer expects {layer.bias_count} biases in '{biases.label}', got {len(biases.values)}"
-            )
-
-
-def format_report(program: BrainProgram) -> str:
+def build_report(program: BrainProgram) -> str:
     lines = [f"Brain: {program.name}"]
     for index, layer in enumerate(program.layers):
         weights = program.data[layer.weight_label]
@@ -237,22 +301,24 @@ def format_report(program: BrainProgram) -> str:
             f"Layer {index}: DENSE {layer.input_count} -> {layer.output_count}, "
             f"weights={len(weights.values)}/{layer.weight_count}, "
             f"biases={len(biases.values)}/{layer.bias_count}, "
-            f"activation={layer.activation}"
+            f"act={layer.activation}, shift={layer.shift}"
         )
     lines.append("OK")
     return "\n".join(lines)
 
 
 def main(argv: Iterable[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Validate an Indra v0 brain source file.")
-    parser.add_argument("source", type=Path)
-    args = parser.parse_args(argv)
+    parser = argparse.ArgumentParser(description="Parse and validate an Indra v0 brain file.")
+    parser.add_argument("source", help="Path to a .indra file.")
+    args = parser.parse_args(list(argv) if argv is not None else None)
+
     try:
-        program = read_indra_file(args.source)
-    except IndraAsmError as ex:
-        print(f"ERROR: {ex}")
+        program = parse_indra_file(args.source)
+    except IndraError as exc:
+        print(f"ERROR: {exc}")
         return 1
-    print(format_report(program))
+
+    print(build_report(program))
     return 0
 
 

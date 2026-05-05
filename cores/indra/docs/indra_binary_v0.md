@@ -1,96 +1,73 @@
 # Indra Binary Format v0
 
-Indra v0 source files are packed into three binary images and one JSON manifest.
+The Indra text format is packed into three binary blobs:
 
 ```text
 <name>.program.bin
 <name>.weights.bin
 <name>.biases.bin
-<name>.manifest.json
 ```
 
-Hex text mirrors are also emitted for inspection and future FPGA memory initialization.
+A manifest is also emitted for debugging:
 
 ```text
-<name>.program.hex
-<name>.weights.hex
-<name>.biases.hex
+<name>.manifest.json
 ```
 
 ## Program Records
 
-Each instruction record is 16 bytes.
-
-All multi-byte fields use little-endian byte order.
+Each program record is 16 bytes.
 
 ### DENSE Record
 
 ```text
-byte  0      opcode        1 = DENSE
-byte  1      activation    activation id
-byte  2      input_count   unsigned byte
-byte  3      output_count  unsigned byte
-bytes 4..7   weight_offset byte offset in weights image
-bytes 8..11  bias_offset   byte offset in biases image
-bytes 12..15 reserved      zero
+byte  0      opcode       0x01
+byte  1      input_count
+byte  2      output_count
+byte  3      activation_id
+bytes 4..7   weight_offset_u32_le
+bytes 8..11  bias_offset_u32_le
+byte  12     shift
+byte  13     reserved
+byte  14     reserved
+byte  15     reserved
 ```
 
 ### END Record
 
 ```text
-byte  0      opcode        255 = END
+byte  0      opcode       0xFF
 bytes 1..15  zero
 ```
 
 ## Activation IDs
 
 ```text
-0 = NONE
-1 = RELU
-2 = CLAMP
-3 = SIGN
+NONE  = 0
+RELU  = 1
+CLAMP = 2
+SIGN  = 3
 ```
 
-## Weight Image
+## Weight Blob
 
-Weights are packed as raw signed int8 values.
+Weights are stored as signed int8 bytes.
 
-The source layout is row-major by output neuron.
-
-For this layer:
-
-```indra
-DENSE 4 3 W=w0 B=b0 ACT=RELU
-```
-
-weights are stored as:
+Layer weights are row-major by output neuron:
 
 ```text
-out0_in0, out0_in1, out0_in2, out0_in3,
-out1_in0, out1_in1, out1_in2, out1_in3,
-out2_in0, out2_in1, out2_in2, out2_in3
+out0: w00 w01 w02 ...
+out1: w10 w11 w12 ...
 ```
 
-## Bias Image
+## Bias Blob
 
-Biases are packed as signed int32 values, little-endian.
+Biases are stored as signed int32 little-endian values.
 
-One bias is stored per output neuron.
+## Shift
 
-## Manifest
-
-The JSON manifest is intended for tools and tests. The hardware does not need to consume it.
-
-It records:
+The `shift` field is an arithmetic right shift applied after accumulation and before activation.
 
 ```text
-format
-brain name
-record size
-program image size
-weight image size
-bias image size
-layer descriptors
-opcodes
-activation ids
+acc = acc >> shift
 ```

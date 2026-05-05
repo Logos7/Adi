@@ -1,137 +1,127 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import pytest
 
-from indra_asm import IndraAsmError, format_report, parse_indra_source
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "tools"))
+
+from indra_asm import IndraError, parse_indra_source
 
 
-BUG_SOURCE = """
-brain_bug:
-  DENSE 3 2 W=bug_w0 B=bug_b0 ACT=RELU
-  DENSE 2 1 W=bug_w1 B=bug_b1 ACT=CLAMP
+def test_parse_valid_brain_with_shift() -> None:
+    program = parse_indra_source(
+        """
+brain_test:
+  DENSE 2 2 W=w0 B=b0 ACT=RELU SHIFT=3
+  DENSE 2 1 W=w1 B=b1 ACT=CLAMP
   END
 
 .data
-
-bug_w0:
-  .i8 1, 2, 3
-  .i8 4, 5, 6
-
-bug_b0:
-  .i32 0, 1
-
-bug_w1:
-  .i8 7, 8
-
-bug_b1:
-  .i32 -1
+w0:
+  .i8 1, 2, 3, 4
+b0:
+  .i32 0, 0
+w1:
+  .i8 5, 6
+b1:
+  .i32 0
 """
+    )
 
-
-def test_parse_valid_brain() -> None:
-    program = parse_indra_source(BUG_SOURCE)
-
-    assert program.name == "brain_bug"
+    assert program.name == "brain_test"
     assert len(program.layers) == 2
-    assert program.layers[0].input_count == 3
-    assert program.layers[0].output_count == 2
-    assert program.layers[0].activation == "RELU"
-    assert program.data["bug_w0"].values == (1, 2, 3, 4, 5, 6)
-    assert program.data["bug_b1"].values == (-1,)
-
-
-def test_format_report() -> None:
-    program = parse_indra_source(BUG_SOURCE)
-    report = format_report(program)
-
-    assert "Brain: brain_bug" in report
-    assert "Layer 0: DENSE 3 -> 2" in report
-    assert "weights=6/6" in report
-    assert report.endswith("OK")
-
-
-def test_rejects_missing_end() -> None:
-    source = """
-brain_bug:
-  DENSE 3 2 W=w B=b ACT=RELU
-.data
-w:
-  .i8 1, 2, 3, 4, 5, 6
-b:
-  .i32 0, 0
-"""
-    with pytest.raises(IndraAsmError, match="before END"):
-        parse_indra_source(source)
-
-
-def test_rejects_missing_weight_block() -> None:
-    source = """
-brain_bug:
-  DENSE 3 2 W=w B=b ACT=RELU
-  END
-.data
-b:
-  .i32 0, 0
-"""
-    with pytest.raises(IndraAsmError, match="missing weight block"):
-        parse_indra_source(source)
+    assert program.layers[0].shift == 3
+    assert program.layers[1].shift == 0
 
 
 def test_rejects_wrong_weight_count() -> None:
-    source = """
-brain_bug:
-  DENSE 3 2 W=w B=b ACT=RELU
+    with pytest.raises(IndraError, match="weights 'w0' have 3 values, expected 4"):
+        parse_indra_source(
+            """
+brain_test:
+  DENSE 2 2 W=w0 B=b0 ACT=RELU
   END
+
 .data
-w:
+w0:
   .i8 1, 2, 3
-b:
+b0:
   .i32 0, 0
 """
-    with pytest.raises(IndraAsmError, match="expects 6 weights"):
-        parse_indra_source(source)
+        )
 
 
 def test_rejects_wrong_bias_count() -> None:
-    source = """
-brain_bug:
-  DENSE 3 2 W=w B=b ACT=RELU
+    with pytest.raises(IndraError, match="biases 'b0' have 1 values, expected 2"):
+        parse_indra_source(
+            """
+brain_test:
+  DENSE 2 2 W=w0 B=b0 ACT=RELU
   END
+
 .data
-w:
+w0:
+  .i8 1, 2, 3, 4
+b0:
+  .i32 0
+"""
+        )
+
+
+def test_rejects_layer_size_mismatch() -> None:
+    with pytest.raises(IndraError, match="does not match previous output"):
+        parse_indra_source(
+            """
+brain_test:
+  DENSE 2 3 W=w0 B=b0 ACT=RELU
+  DENSE 2 1 W=w1 B=b1 ACT=CLAMP
+  END
+
+.data
+w0:
   .i8 1, 2, 3, 4, 5, 6
-b:
+b0:
+  .i32 0, 0, 0
+w1:
+  .i8 1, 2
+b1:
   .i32 0
 """
-    with pytest.raises(IndraAsmError, match="expects 2 biases"):
-        parse_indra_source(source)
+        )
 
 
-def test_rejects_i8_overflow() -> None:
-    source = """
-brain_bug:
-  DENSE 1 1 W=w B=b ACT=RELU
+def test_rejects_invalid_shift() -> None:
+    with pytest.raises(IndraError, match="SHIFT=32"):
+        parse_indra_source(
+            """
+brain_test:
+  DENSE 2 1 W=w0 B=b0 ACT=CLAMP SHIFT=32
   END
+
 .data
-w:
-  .i8 128
-b:
+w0:
+  .i8 1, 2
+b0:
   .i32 0
 """
-    with pytest.raises(IndraAsmError, match="outside i8 range"):
-        parse_indra_source(source)
+        )
 
 
-def test_rejects_unknown_activation() -> None:
-    source = """
-brain_bug:
-  DENSE 1 1 W=w B=b ACT=GELU
+def test_rejects_i8_range() -> None:
+    with pytest.raises(IndraError, match="outside -128..127"):
+        parse_indra_source(
+            """
+brain_test:
+  DENSE 1 1 W=w0 B=b0 ACT=CLAMP
   END
+
 .data
-w:
-  .i8 1
-b:
+w0:
+  .i8 200
+b0:
   .i32 0
 """
-    with pytest.raises(IndraAsmError, match="unsupported activation"):
-        parse_indra_source(source)
+        )

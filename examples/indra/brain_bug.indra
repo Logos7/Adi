@@ -1,6 +1,6 @@
 brain_bug:
-  DENSE 12 8 W=bug_w0 B=bug_b0 ACT=RELU
-  DENSE 8  4 W=bug_w1 B=bug_b1 ACT=CLAMP
+  DENSE 12 8 W=bug_w0 B=bug_b0 ACT=RELU SHIFT=4
+  DENSE 8  4 W=bug_w1 B=bug_b1 ACT=CLAMP SHIFT=4
   END
 
 .data
