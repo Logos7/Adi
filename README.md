@@ -2,7 +2,7 @@
 
 **Adi** is an experimental FPGA computing playground built around a custom soft CPU, a small assembler, UART tooling, and visual demos running directly on hardware.
 
-At the center of the project is **Brahma**, a custom CPU core, and **Sutra**, a minimal assembly language used to write programs for it.
+At the center of the project is **Brahma**, a custom CPU core, and **Sutra**, an assembly language used to write programs for it.
 
 ![Adi fractal demo 1](docs/images/julia.png)
 ![Adi fractal demo 2](docs/images/mandelbrot.png)
@@ -46,7 +46,9 @@ It supports labels, instructions, memory-mapped I/O, framebuffer operations, hel
 
 ### UART bootloader
 
-The FPGA design can wait for a host-side upload over UART. The Python tools repeatedly send the `ADI!` handshake until the FPGA replies with `READY`, then upload the assembled code image and, when present, the data image.
+The FPGA design can wait for a host-side upload over UART.
+
+The Python tools repeatedly send the `ADI!` handshake until the FPGA replies with `ADI_BOOT_READY`, then upload the assembled code image and, when present, the data image.
 
 ### Viewer and terminal tools
 
@@ -55,12 +57,40 @@ Adi currently has two main host-side tools:
 - a text UART terminal,
 - a graphical UART viewer.
 
-The terminal is useful for text-based experiments. The viewer is useful for graphical programs, including fractals and simple framebuffer-style demos.
+The terminal is useful for text-based experiments.
+
+The viewer is useful for graphical programs, including fractals and simple framebuffer-style demos.
 
 It understands the current ADI frame formats used by the examples:
 
 - **ADI0** — raw 8-bit pixels, useful for fractals and byte-per-pixel graphics,
 - **ADI1** — packed 1-bit 64x64 framebuffer, useful for wireframe and monochrome framebuffer demos.
+
+---
+
+## Example programs
+
+Current example programs live under:
+
+```text
+examples/bija/basics
+examples/bija/fractals
+examples/bija/graphics_2d
+examples/bija/graphics_3d
+```
+
+The current 3D graphics examples are split into wireframe demos and point-cloud demos:
+
+```text
+examples/bija/graphics_3d/wire_demos/wire_cube.sutra
+examples/bija/graphics_3d/wire_demos/wire_octahedron.sutra
+examples/bija/graphics_3d/wire_demos/wire_spherical_spiral.sutra
+examples/bija/graphics_3d/wire_demos/wire_tetrahedron.sutra
+
+examples/bija/graphics_3d/point_demos/point_sphere.sutra
+examples/bija/graphics_3d/point_demos/point_torus.sutra
+examples/bija/graphics_3d/point_demos/starfield_3d.sutra
+```
 
 ---
 
@@ -97,10 +127,22 @@ Run the graphical UART viewer:
 py apps/bija/uart_viewer.py
 ```
 
-Upload a Sutra example through the viewer:
+Upload a Sutra fractal example through the viewer:
 
 ```powershell
 py apps/bija/uart_viewer.py COM9 --upload examples/bija/fractals/julia.sutra
+```
+
+Upload a Sutra 3D wireframe example through the viewer:
+
+```powershell
+py apps/bija/uart_viewer.py COM9 --upload examples/bija/graphics_3d/wire_demos/wire_cube.sutra
+```
+
+Upload a Sutra 3D point-cloud example through the viewer:
+
+```powershell
+py apps/bija/uart_viewer.py COM9 --upload examples/bija/graphics_3d/point_demos/point_torus.sutra
 ```
 
 Adjust `COM9` to match your own serial port.
