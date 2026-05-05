@@ -1,0 +1,7 @@
+Adi     = całe repo
+Agni    = mały CPU, obecne Bija, Tang Nano 20K
+Brahma  = duży przyszły CPU
+Indra   = NPU / brain processor
+Nada    = DSP / synth / reverb
+Sutra   = assembly
+Mantra  = high-level language kompilowany do Sutry
