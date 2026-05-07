@@ -21,7 +21,7 @@ Adi v2 is organized around several independent axes:
 
 Agni is the small general-purpose soft CPU line.
 
-It is the successor name for the old Bija/Brahma-Bija work and is currently the main working CPU target for Tang Nano 20K experiments.
+It is currently the main working CPU target for Tang Nano 20K experiments.
 
 ### Brahma
 
@@ -223,7 +223,7 @@ Adjust `COM9` to match the actual serial port.
 
 ## Legacy notes
 
-The old Bija name is retired.
+
 
 Old standalone UART viewer and terminal workflows are being replaced by Adi.Studio. Temporary or transitional scripts may still exist under `tools/`, but new user-facing development should move toward `apps/Adi.Studio/`.
 

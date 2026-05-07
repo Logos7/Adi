@@ -6,7 +6,7 @@
     "python.analysis.extraPaths": [
         "./tools",
         "./sutra",
-        "./cores/bija"
+        "./cores/agni"
     ],
     "files.exclude": {
         "**/__pycache__": true
