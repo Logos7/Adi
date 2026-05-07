@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from tools.indra_pack import OP_DENSE, OP_END, pack_to_directory
+from tools.indra.pack import OP_DENSE, OP_END, pack_to_directory
 
 
 def test_pack_writes_expected_files(tmp_path) -> None:

@@ -6,13 +6,22 @@ import argparse
 import os
 import sys
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "sutra"))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 
 from sutra import CONSTANT_SUMMARY, INSTRUCTION_SUMMARY, assemble_image
-from sutra_expand import IncludeError, expand_file
 
+try:
+    from .sutra_expand import IncludeError, expand_file
+except ImportError:
+    import os
+    import sys
+
+    ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    sys.path.insert(0, ROOT)
+
+    from tools.sutra.sutra_expand import IncludeError, expand_file
 
 def write_hex(path: str, words: list[int]) -> None:
     with open(path, "w", encoding="utf-8") as f:

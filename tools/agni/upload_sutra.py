@@ -24,14 +24,17 @@ import sys
 import time
 from dataclasses import dataclass
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "sutra"))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 
 from sutra import SutraImage, assemble, assemble_image, flatten_program
 
 try:
-    from sutra_expand import IncludeError, expand_file
+    from tools.sutra.sutra_expand import IncludeError, expand_file
+except ModuleNotFoundError:
+    sys.path.insert(0, ROOT)
+    from tools.sutra.sutra_expand import IncludeError, expand_file
 except Exception:
     IncludeError = Exception
     expand_file = None

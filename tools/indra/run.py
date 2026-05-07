@@ -17,9 +17,9 @@ import argparse
 from typing import Iterable
 
 try:
-    from .indra_asm import Assembly, IndraError, parse_file
+    from .parse import Assembly, IndraError, parse_file
 except ImportError:
-    from indra_asm import Assembly, IndraError, parse_file
+    from parse import Assembly, IndraError, parse_file
 
 def saturate_i8(value: int) -> int:
     if value < -128:

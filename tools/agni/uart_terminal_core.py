@@ -8,7 +8,10 @@ import app_paths
 from adi_frames import TerminalRxFilter
 from program_upload import upload_text_program
 from serial_ports import available_ports, choose_default_port, parse_baud, reset_buffers, serial
-from sutra_upload import ACK_ERR, ACK_OK, ACK_READY
+try:
+    from tools.agni.upload_sutra import ACK_ERR, ACK_OK, ACK_READY
+except ModuleNotFoundError:
+    from upload_sutra import ACK_ERR, ACK_OK, ACK_READY
 from terminal_args import DEFAULT_SOURCE
 
 BOOT_ACKS = (ACK_READY, ACK_OK, ACK_ERR)

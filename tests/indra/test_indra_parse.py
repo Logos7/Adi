@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from tools.indra_asm import DEFAULT_SHIFT, IndraError, parse_text
+from tools.indra.parse import DEFAULT_SHIFT, IndraError, parse_text
 
 
 def test_parse_valid_brain_with_explicit_shift() -> None:

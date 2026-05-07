@@ -20,7 +20,7 @@ Gowin is only needed after changing the RTL/CPU:
 
 Then upload the program:
 
-    py tools\sutra_upload.py COM9 examples\agni\05_fractals\julia_uart.sutra
+    py tools\\agni\\upload_sutra.py COM9 examples\agni\05_fractals\julia_uart.sutra
 
 Or use the viewer with upload support:
 

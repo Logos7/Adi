@@ -12,9 +12,9 @@ from pathlib import Path
 from typing import Iterable
 
 try:
-    from .indra_asm import ACTIVATIONS, Assembly, parse_file
+    from .parse import ACTIVATIONS, Assembly, parse_file
 except ImportError:
-    from indra_asm import ACTIVATIONS, Assembly, parse_file
+    from parse import ACTIVATIONS, Assembly, parse_file
 
 OP_DENSE = 0x01
 OP_END = 0xFF

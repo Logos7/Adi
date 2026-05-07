@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from sutra_upload import assemble_file, upload_words
+try:
+    from tools.agni.upload_sutra import assemble_file, upload_words
+except ModuleNotFoundError:
+    from upload_sutra import assemble_file, upload_words
 
 
 def upload_text_program(port: str, baud: int, path: str, boot_timeout: float, ack_timeout: float) -> None:

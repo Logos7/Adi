@@ -1,6 +1,6 @@
 # Indra Binary v0
 
-This document describes the initial binary format produced by `tools/indra_pack.py`.
+This document describes the initial binary format produced by `tools/indra/pack.py`.
 
 ## Output Files
 

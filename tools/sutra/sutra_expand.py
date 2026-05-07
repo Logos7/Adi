@@ -7,7 +7,7 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 INCLUDE_RE = re.compile(
     r'^\s*\.include\s+(?P<target>"[^"]+"|<[^>]+>|\S+)\s*(?:;.*)?$'
