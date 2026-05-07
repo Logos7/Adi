@@ -24,34 +24,32 @@ import sys
 import time
 from dataclasses import dataclass
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-SUTRA_ROOT = os.path.join(ROOT, "sutra")
-
-for path in (SUTRA_ROOT, ROOT):
-    if path not in sys.path:
-        sys.path.insert(0, path)
-
-# Force the real Sutra package to win over tools/sutra.
-import os
-import sys
-
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 SUTRA_ROOT = os.path.join(ROOT, "sutra")
 TOOLS_ROOT = os.path.join(ROOT, "tools")
 
-while TOOLS_ROOT in sys.path:
-    sys.path.remove(TOOLS_ROOT)
 
-while SUTRA_ROOT in sys.path:
-    sys.path.remove(SUTRA_ROOT)
+def _remove_sys_path(path: str) -> None:
+    path = os.path.abspath(path)
+    sys.path[:] = [p for p in sys.path if os.path.abspath(p or os.getcwd()) != path]
 
-sys.path.insert(0, SUTRA_ROOT)
-from sutra import SutraImage, assemble, assemble_image, flatten_program
+
+def _prepend_sys_path(path: str) -> None:
+    _remove_sys_path(path)
+    sys.path.insert(0, os.path.abspath(path))
+
+
+_remove_sys_path(TOOLS_ROOT)
+_prepend_sys_path(ROOT)
+_prepend_sys_path(SUTRA_ROOT)
+
+from sutra import SutraImage, assemble_image
 
 try:
     from tools.sutra.sutra_expand import IncludeError, expand_file
 except ModuleNotFoundError:
-    sys.path.insert(0, ROOT)
+    _prepend_sys_path(ROOT)
     from tools.sutra.sutra_expand import IncludeError, expand_file
 except Exception:
     IncludeError = Exception
@@ -276,7 +274,7 @@ def assemble_file(
     height: int | None = None,
     max_iter: int | None = None,
     graphics: str = "auto",
-):
+) -> UploadImage:
     source = read_sutra_source(path)
     return assemble_source(patch_sutra_params(source, width=width, height=height, max_iter=max_iter, graphics=graphics))
 
@@ -436,3 +434,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    
