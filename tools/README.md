@@ -1,26 +1,48 @@
 # Tools
 
-This directory contains command-line tools, developer utilities, build scripts, packers, checkers, formatters, and small hardware-facing helpers.
+This directory contains command-line tools, developer utilities, build scripts,
+packers, checkers, formatters, and small hardware-facing helpers.
 
 Large user-facing applications belong in `apps/`.
 
----
-
-## Suggested tool groups
+## Tool groups
 
 ```text
-tools/fpga/      FPGA build/program/list tools
-tools/sutra/     Sutra CLI tools
-tools/mantra/    Mantra CLI tools
-tools/indra/     Indra parser, packer, runner, inspectors
-tools/nada/      Nada parser, packer, audio render helpers
-tools/dev/       repository maintenance and migration helpers
+tools/
+  agni/          Agni-specific command-line helpers.
+  dev/           Repository maintenance and migration helpers.
+  fpga/          FPGA build, programming, and toolchain helpers.
+  indra/         Indra parser, packer, runner, and inspectors.
+  mantra/        Mantra command-line tools.
+  nada/          Nada parser, packer, and audio render helpers.
+  sutra/         Sutra command-line tools.
+  sutra-vscode/  VS Code extension for Sutra syntax support.
 ```
 
----
+## Transitional entrypoints
 
-## Transitional state
+Adi v2 is migrating from old top-level scripts toward grouped tools and the
+future integrated `apps/Adi.Studio` workflow.
 
-Adi 2.0 is moving away from separate UART viewer/terminal scripts toward `apps/Adi.Studio`.
+Some legacy top-level scripts may temporarily remain in this directory as
+compatibility entrypoints during the migration.
 
-Legacy scripts may temporarily remain here during migration, but new integrated workflows should be designed for Adi.Studio.
+Examples:
+
+```text
+tools/sutra2hex.py
+tools/sutra_expand.py
+tools/sutra_upload.py
+tools/indra_asm.py
+tools/indra_pack.py
+tools/indra_run.py
+```
+
+New code should prefer the grouped tool packages where available.
+
+## Rule of thumb
+
+Use this directory for small tools that are useful from the command line.
+
+Use `apps/` for larger interactive applications, graphical tools, viewers,
+editors, and integrated workflows.
