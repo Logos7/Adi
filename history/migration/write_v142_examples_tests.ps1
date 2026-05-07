@@ -405,7 +405,7 @@ pixel_done:
     jump start
 '@
 
-W "cores/bija/tests/test_v14_macros_uart_rx.py" @'
+W "cores/agni/tests/test_v14_macros_uart_rx.py" @'
 from sutra import assemble, flatten_program
 from sim import CPU
 
@@ -561,7 +561,7 @@ if __name__ == '__main__':
     print('OK')
 '@
 
-W "cores/bija/tests/test_examples_compile.py" @'
+W "cores/agni/tests/test_examples_compile.py" @'
 from pathlib import Path
 from sutra import assemble, flatten_program
 

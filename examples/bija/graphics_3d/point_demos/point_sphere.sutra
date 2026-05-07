@@ -1,8 +1,0 @@
-.include "lib/bija/geometry/point_sphere_mesh.sutra"
-
-.code
-main:
-    move @273, 1
-    jump point_sphere_main
-
-.include "lib/bija/graphics_3d/point_sphere_runtime.sutra"

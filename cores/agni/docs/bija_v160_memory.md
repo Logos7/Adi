@@ -1,4 +1,4 @@
-# Brahma-Bija v1.6 memory profile
+# Brahma-agni v1.6 memory profile
 
 v1.6 expands the local CPU memories while keeping the v1.5 UART payload format.
 

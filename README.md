@@ -73,23 +73,23 @@ It understands the current ADI frame formats used by the examples:
 Current example programs live under:
 
 ```text
-examples/bija/basics
-examples/bija/fractals
-examples/bija/graphics_2d
-examples/bija/graphics_3d
+examples/agni/basics
+examples/agni/fractals
+examples/agni/graphics_2d
+examples/agni/graphics_3d
 ```
 
 The current 3D graphics examples are split into wireframe demos and point-cloud demos:
 
 ```text
-examples/bija/graphics_3d/wire_demos/wire_cube.sutra
-examples/bija/graphics_3d/wire_demos/wire_octahedron.sutra
-examples/bija/graphics_3d/wire_demos/wire_spherical_spiral.sutra
-examples/bija/graphics_3d/wire_demos/wire_tetrahedron.sutra
+examples/agni/graphics_3d/wire_demos/wire_cube.sutra
+examples/agni/graphics_3d/wire_demos/wire_octahedron.sutra
+examples/agni/graphics_3d/wire_demos/wire_spherical_spiral.sutra
+examples/agni/graphics_3d/wire_demos/wire_tetrahedron.sutra
 
-examples/bija/graphics_3d/point_demos/point_sphere.sutra
-examples/bija/graphics_3d/point_demos/point_torus.sutra
-examples/bija/graphics_3d/point_demos/starfield_3d.sutra
+examples/agni/graphics_3d/point_demos/point_sphere.sutra
+examples/agni/graphics_3d/point_demos/point_torus.sutra
+examples/agni/graphics_3d/point_demos/starfield_3d.sutra
 ```
 
 ---
@@ -112,37 +112,37 @@ py -m pip install -r requirements-dev.txt
 Run tests:
 
 ```powershell
-py -m pytest -q cores/bija/tests
+py -m pytest -q cores/agni/tests
 ```
 
 Run the UART terminal:
 
 ```powershell
-py apps/bija/uart_terminal.py
+py apps/agni/uart_terminal.py
 ```
 
 Run the graphical UART viewer:
 
 ```powershell
-py apps/bija/uart_viewer.py
+py apps/agni/uart_viewer.py
 ```
 
 Upload a Sutra fractal example through the viewer:
 
 ```powershell
-py apps/bija/uart_viewer.py COM9 --upload examples/bija/fractals/julia.sutra
+py apps/agni/uart_viewer.py COM9 --upload examples/agni/fractals/julia.sutra
 ```
 
 Upload a Sutra 3D wireframe example through the viewer:
 
 ```powershell
-py apps/bija/uart_viewer.py COM9 --upload examples/bija/graphics_3d/wire_demos/wire_cube.sutra
+py apps/agni/uart_viewer.py COM9 --upload examples/agni/graphics_3d/wire_demos/wire_cube.sutra
 ```
 
 Upload a Sutra 3D point-cloud example through the viewer:
 
 ```powershell
-py apps/bija/uart_viewer.py COM9 --upload examples/bija/graphics_3d/point_demos/point_torus.sutra
+py apps/agni/uart_viewer.py COM9 --upload examples/agni/graphics_3d/point_demos/point_torus.sutra
 ```
 
 Adjust `COM9` to match your own serial port.
@@ -154,7 +154,7 @@ Adjust `COM9` to match your own serial port.
 Run the full current test suite with:
 
 ```powershell
-py -m pytest -q cores/bija/tests
+py -m pytest -q cores/agni/tests
 ```
 
 The tests cover the assembler, simulator behavior, CPU-level functionality, example compilation, direct UART write conventions, and the Sutra v1.5 code/data image path.
@@ -162,7 +162,7 @@ The tests cover the assembler, simulator behavior, CPU-level functionality, exam
 Python sources can also be syntax-checked with:
 
 ```powershell
-py -m compileall -q sutra cores/bija/sim tools apps/bija
+py -m compileall -q sutra cores/agni/sim tools apps/agni
 ```
 
 GitHub Actions runs the test suite automatically on pushes and pull requests.

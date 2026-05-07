@@ -1,7 +1,7 @@
 """
-Sutra — assembler for the Brahma-Bija processor.
+Sutra — assembler for the Brahma-agni processor.
 
-Brahma-Bija v1.6:
+Brahma-agni v1.6:
 - official style is lowercase; the parser is case-insensitive,
 - immediates have no prefix: 123, 1.0, π, √500, true, high,
 - memory / MMIO / GPIO always use @: @10, @uart_tx, @led0, @r1,

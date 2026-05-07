@@ -156,4 +156,4 @@ main:
     move @273, 1
     jump wire_mesh_main
 
-.include "lib/bija/graphics_3d/wire_mesh_runtime.sutra"
+.include "lib/agni/graphics_3d/wire_mesh_runtime.sutra"

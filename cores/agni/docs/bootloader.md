@@ -1,4 +1,4 @@
-# Brahma-Bija UART Bootloader
+# Brahma-agni UART Bootloader
 
 Since v1.3.2, Sutra programs can be loaded over UART without pressing reset and without using Gowin.
 
@@ -6,7 +6,7 @@ Since v1.3.2, Sutra programs can be loaded over UART without pressing reset and 
 
 The bitstream contains:
 
-    UART RX → bootloader FSM → program RAM → Brahma-Bija CPU
+    UART RX → bootloader FSM → program RAM → Brahma-agni CPU
 
 After FPGA configuration, the bootloader keeps the CPU in reset by default and waits for the first upload. This prevents the old program from flooding UART with frames before you have time to start the uploader. After a successful upload, the CPU starts at `pc = 0`.
 
@@ -20,15 +20,15 @@ Gowin is only needed after changing the RTL/CPU:
 
 Then upload the program:
 
-    py tools\sutra_upload.py COM9 examples\bija\05_fractals\julia_uart.sutra
+    py tools\sutra_upload.py COM9 examples\agni\05_fractals\julia_uart.sutra
 
 Or use the viewer with upload support:
 
-    py apps\bija\uart_viewer.py COM9 --upload examples\bija\05_fractals\julia_uart.sutra --scale 4
+    py apps\agni\uart_viewer.py COM9 --upload examples\agni\05_fractals\julia_uart.sutra --scale 4
 
 Most convenient: run it without arguments and select the port and file in the window:
 
-    py apps\bija\uart_viewer.py
+    py apps\agni\uart_viewer.py
 
 ## Protocol v1.3.2
 
@@ -61,7 +61,7 @@ If, despite v1.3.2, you still only see small bytes such as `\x01`, `\x02`, `\x03
 
 ## Parameters
 
-In `cores/bija/rtl/src/brahma_bija_top.v`, the local parameters are:
+In `cores/agni/rtl/src/brahma_agni_top.v`, the local parameters are:
 
     localparam [15:0] UART_CLKS_PER_BIT = 16'd234;
     localparam [15:0] BOOT_MAX_WORDS = 16'd1024;
@@ -92,7 +92,7 @@ If the program is larger, the uploader aborts before sending it.
 
 ## UART pins
 
-In `constraints/brahma_bija.cst`:
+In `constraints/brahma_agni.cst`:
 
     uart_tx = pin69
     uart_rx = pin70

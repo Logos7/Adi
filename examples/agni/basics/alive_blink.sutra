@@ -1,4 +1,4 @@
-; Sutra v1.4
+; Sutra v1.6
 ; LED sanity check.
 ; Board LEDs are active-low: low = on, high = off.
 

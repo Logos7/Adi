@@ -1,9 +1,9 @@
 ; Sutra v1.4
 ; Emits ADI0 64x64 frame with maxIter=64.
-; Use apps/bija/uart_viewer.py.
+; Use apps/agni/uart_viewer.py.
 
-; Mandelbrot set.
-; z0 = z, z1 = c.
+; Tricorn / Mandelbar set.
+; z = conj(z)^2 + c.
 
 frame:
     move r0, 65
@@ -36,6 +36,7 @@ iter_loop:
     bgt r8, 4.0, pixel_done
     bge r11, 64, pixel_done
 
+    fneg r1, r1
     cmul z0, z0, z0
     cadd z0, z0, z1
 

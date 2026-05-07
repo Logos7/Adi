@@ -37,7 +37,7 @@ def save_json_state(name: str, state: dict[str, Any]) -> None:
 
 
 def default_examples_dir() -> str:
-    return os.path.join(ROOT, "examples", "bija")
+    return os.path.join(ROOT, "examples", "agni")
 
 
 def load_last_sutra_dir(state_name: str) -> str:

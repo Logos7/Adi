@@ -1,6 +1,6 @@
 # Sutra VS Code Extension
 
-Syntax highlighting for Sutra v1.6, the Brahma-Bija assembler language used by Adi.
+Syntax highlighting for Sutra v1.6, the Brahma-agni assembler language used by Adi.
 
 ## Covered syntax
 
@@ -15,7 +15,7 @@ Syntax highlighting for Sutra v1.6, the Brahma-Bija assembler language used by A
 ## Example
 
 ```asm
-.include "lib/bija/graphics_3d/wire_mesh_runtime.sutra"
+.include "lib/agni/graphics_3d/wire_mesh_runtime.sutra"
 
 .data
 .org 0

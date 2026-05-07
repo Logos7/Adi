@@ -1,0 +1,10 @@
+; Sutra v1.6
+; Double UART echo.
+; Type text in apps/agni/uart_terminal.py and the CPU echoes twice each byte.
+
+loop:
+    read_rx r0
+    write_tx r0
+    write_tx r0
+
+    jump loop

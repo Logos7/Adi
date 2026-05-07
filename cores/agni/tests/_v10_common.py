@@ -1,7 +1,7 @@
 import os, sys
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
 sys.path.insert(0, os.path.join(ROOT, "sutra"))
-sys.path.insert(0, os.path.join(ROOT, "cores", "bija"))
+sys.path.insert(0, os.path.join(ROOT, "cores", "agni"))
 from sutra import assemble, flatten_program, AssemblerError
 from sim import CPU, disassemble
 

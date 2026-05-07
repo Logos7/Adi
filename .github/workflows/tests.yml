@@ -40,19 +40,19 @@ jobs:
 
       - name: Compile Python sources
         run: |
-          python -m compileall -q sutra cores/bija/sim tools apps/bija
+          python -m compileall -q sutra cores/agni/sim tools apps/agni
 
       - name: Run tests on Linux
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          export PYTHONPATH="$GITHUB_WORKSPACE/sutra:$GITHUB_WORKSPACE/cores/bija"
-          python -m pytest -q cores/bija/tests
+          export PYTHONPATH="$GITHUB_WORKSPACE/sutra:$GITHUB_WORKSPACE/cores/agni"
+          python -m pytest -q cores/agni/tests
 
       - name: Run tests on Windows
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $env:PYTHONPATH = "$env:GITHUB_WORKSPACE\sutra;$env:GITHUB_WORKSPACE\cores\bija"
-          python -m pytest -q cores/bija/tests
+          $env:PYTHONPATH = "$env:GITHUB_WORKSPACE\sutra;$env:GITHUB_WORKSPACE\cores\agni"
+          python -m pytest -q cores/agni/tests
         

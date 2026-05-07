@@ -2,17 +2,17 @@
 """
 Adi UART Terminal
 
-Single-window text UART terminal and uploader for Brahma-Bija.
+Single-window text UART terminal and uploader for Brahma-agni.
 
 Typical usage:
 
-    py apps/bija/uart_terminal.py
+    py apps/agni/uart_terminal.py
 
-    py apps/bija/uart_terminal.py COM9 examples/bija/basics/echo_rx.sutra
+    py apps/agni/uart_terminal.py COM9 examples/agni/basics/echo_rx.sutra
 
 CLI mode:
 
-    py apps/bija/uart_terminal.py COM9 examples/bija/basics/echo_rx.sutra --no-gui
+    py apps/agni/uart_terminal.py COM9 examples/agni/basics/echo_rx.sutra --no-gui
 """
 
 from __future__ import annotations

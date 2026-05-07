@@ -1,4 +1,4 @@
-"""Brahma-Bija v1.4 — prosty symulator CPU."""
+"""Brahma-agni v1.4 — prosty symulator CPU."""
 
 from dataclasses import dataclass, field
 

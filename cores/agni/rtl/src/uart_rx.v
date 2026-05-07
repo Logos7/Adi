@@ -1,6 +1,6 @@
 // =============================================================================
 // uart_rx.v
-// Prosty odbiornik UART 8N1 dla Brahma-Bija bootloadera.
+// Prosty odbiornik UART 8N1 dla Brahma-agni bootloadera.
 // Verilog-2001 / Gowin-safe.
 // =============================================================================
 

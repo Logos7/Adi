@@ -1,5 +1,5 @@
 ; Emits ADI0 frame: 'A' 'D' 'I' '0' 64 64, then 4096 pixel bytes.
-; Use apps/bija/uart_viewer.py.
+; Use apps/agni/uart_viewer.py.
 
 frame:
     move r0, 65
@@ -21,10 +21,8 @@ row_loop:
     move r4, 0
 
 col_loop:
-    iand r6, r4, 8
-    iand r7, r5, 8
-    ixor r0, r6, r7
-    shl r0, r0, 2
+    iadd r0, r4, r5
+    shr r0, r0, 1
     write_tx r0
 
     inc r4

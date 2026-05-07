@@ -1,4 +1,4 @@
-# Brahma-Bija ISA / Sutra v1.4
+# Brahma-agni ISA / Sutra v1.4
 
 ## Style
 
@@ -88,7 +88,7 @@ bool_mem[0..127]        bool/GPIO RAM
 
 Important: `@pinN` means **bool_mem[N] address**, not a magical connection to any arbitrary physical FPGA pin.
 
-Physical pin routing is done by `brahma_bija_top.v`.
+Physical pin routing is done by `brahma_agni_top.v`.
 
 On the Tang Nano 20K, the current `top.v` maps only:
 

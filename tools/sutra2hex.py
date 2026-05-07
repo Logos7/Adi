@@ -21,7 +21,7 @@ def write_hex(path: str, words: list[int]) -> None:
 
 
 def print_instructions() -> None:
-    print("Sutra / Brahma-Bija instructions:")
+    print("Sutra / Brahma-agni instructions:")
     for item in INSTRUCTION_SUMMARY:
         print(f"  {item}")
 

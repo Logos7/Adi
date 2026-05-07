@@ -1,7 +1,7 @@
 {
   "name": "sutra",
   "displayName": "Sutra Assembler",
-  "description": "Syntax highlighting for Sutra v1.6 (Brahma-Bija assembler)",
+  "description": "Syntax highlighting for Sutra v1.6 (Brahma-agni assembler)",
   "version": "1.6.0",
   "publisher": "adi-project",
   "engines": {
