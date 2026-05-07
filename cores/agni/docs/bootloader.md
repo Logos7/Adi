@@ -1,4 +1,4 @@
-# Brahma-agni UART Bootloader
+# Agni UART Bootloader
 
 Since v1.3.2, Sutra programs can be loaded over UART without pressing reset and without using Gowin.
 
@@ -6,7 +6,7 @@ Since v1.3.2, Sutra programs can be loaded over UART without pressing reset and 
 
 The bitstream contains:
 
-    UART RX → bootloader FSM → program RAM → Brahma-agni CPU
+    UART RX → bootloader FSM → program RAM → Agni CPU
 
 After FPGA configuration, the bootloader keeps the CPU in reset by default and waits for the first upload. This prevents the old program from flooding UART with frames before you have time to start the uploader. After a successful upload, the CPU starts at `pc = 0`.
 
@@ -61,7 +61,7 @@ If, despite v1.3.2, you still only see small bytes such as `\x01`, `\x02`, `\x03
 
 ## Parameters
 
-In `cores/agni/rtl/src/brahma_agni_top.v`, the local parameters are:
+In `cores/agni/rtl/src/agni_top.v`, the local parameters are:
 
     localparam [15:0] UART_CLKS_PER_BIT = 16'd234;
     localparam [15:0] BOOT_MAX_WORDS = 16'd1024;
@@ -92,7 +92,7 @@ If the program is larger, the uploader aborts before sending it.
 
 ## UART pins
 
-In `constraints/brahma_agni.cst`:
+In `constraints/agni.cst`:
 
     uart_tx = pin69
     uart_rx = pin70

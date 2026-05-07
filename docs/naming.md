@@ -62,8 +62,3 @@ systems/agni/tang_nano_20k/uart_bootloader
 
 ---
 
-## Legacy naming
-
-The old **Bija** name is retired.
-
-Code, documentation, examples, and paths should use **Agni** for the small CPU line.

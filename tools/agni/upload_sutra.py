@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Sutra UART uploader for Brahma-agni bootloader v1.6.
+Sutra UART uploader for Agni bootloader v1.6.
 
 v1.6 payload is compatible with v1.5 protocol:
 

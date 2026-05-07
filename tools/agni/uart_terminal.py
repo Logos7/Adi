@@ -2,7 +2,7 @@
 """
 Adi UART Terminal
 
-Single-window text UART terminal and uploader for Brahma-agni.
+Single-window text UART terminal and uploader for Agni.
 
 Typical usage:
 

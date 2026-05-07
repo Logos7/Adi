@@ -1,6 +1,6 @@
 # Sutra VS Code Extension
 
-Syntax highlighting for Sutra v1.6, the Brahma-agni assembler language used by Adi.
+Syntax highlighting for Sutra v1.6, the Agni assembler language used by Adi.
 
 ## Covered syntax
 
