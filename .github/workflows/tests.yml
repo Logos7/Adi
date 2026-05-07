@@ -1,9 +1,10 @@
-name: tests
+﻿name: tests
 
 on:
   push:
     branches:
       - main
+      - refactor/**
   pull_request:
   workflow_dispatch:
 
@@ -40,19 +41,18 @@ jobs:
 
       - name: Compile Python sources
         run: |
-          python -m compileall -q sutra cores/agni/sim tools apps/agni
+          python -m compileall -q sutra cores/agni/sim tools apps
 
-      - name: Run tests on Linux
+      - name: Run full test suite on Linux
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          export PYTHONPATH="$GITHUB_WORKSPACE/sutra:$GITHUB_WORKSPACE/cores/agni"
-          python -m pytest -q cores/agni/tests
+          export PYTHONPATH="$GITHUB_WORKSPACE:$GITHUB_WORKSPACE/sutra:$GITHUB_WORKSPACE/cores/agni"
+          python -m pytest -q
 
-      - name: Run tests on Windows
+      - name: Run full test suite on Windows
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $env:PYTHONPATH = "$env:GITHUB_WORKSPACE\sutra;$env:GITHUB_WORKSPACE\cores\agni"
-          python -m pytest -q cores/agni/tests
-        
+          $env:PYTHONPATH = "$env:GITHUB_WORKSPACE;$env:GITHUB_WORKSPACE\sutra;$env:GITHUB_WORKSPACE\cores\agni"
+          python -m pytest -q
