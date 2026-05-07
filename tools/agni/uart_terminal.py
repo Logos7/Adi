@@ -6,18 +6,27 @@ Single-window text UART terminal and uploader for Agni.
 
 Typical usage:
 
-    py apps/agni/uart_terminal.py
+    py tools/agni/uart_terminal.py
 
-    py apps/agni/uart_terminal.py COM9 examples/agni/basics/echo_rx.sutra
+    py tools/agni/uart_terminal.py COM9 examples/agni/basics/blink.sutra
 
 CLI mode:
 
-    py apps/agni/uart_terminal.py COM9 examples/agni/basics/echo_rx.sutra --no-gui
+    py tools/agni/uart_terminal.py COM9 examples/agni/basics/blink.sutra --no-gui
 """
 
 from __future__ import annotations
 
 import argparse
+import os
+import sys
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+SUTRA_ROOT = os.path.join(ROOT, "sutra")
+
+for path in (SUTRA_ROOT, ROOT):
+    if path not in sys.path:
+        sys.path.insert(0, path)
 
 from terminal_args import add_terminal_args
 from uart_terminal_core import run_cli, run_terminal_gui

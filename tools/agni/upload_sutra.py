@@ -25,9 +25,27 @@ import time
 from dataclasses import dataclass
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-sys.path.insert(0, os.path.join(ROOT, "sutra"))
-sys.path.insert(0, os.path.join(ROOT, "tools"))
+SUTRA_ROOT = os.path.join(ROOT, "sutra")
 
+for path in (SUTRA_ROOT, ROOT):
+    if path not in sys.path:
+        sys.path.insert(0, path)
+
+# Force the real Sutra package to win over tools/sutra.
+import os
+import sys
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+SUTRA_ROOT = os.path.join(ROOT, "sutra")
+TOOLS_ROOT = os.path.join(ROOT, "tools")
+
+while TOOLS_ROOT in sys.path:
+    sys.path.remove(TOOLS_ROOT)
+
+while SUTRA_ROOT in sys.path:
+    sys.path.remove(SUTRA_ROOT)
+
+sys.path.insert(0, SUTRA_ROOT)
 from sutra import SutraImage, assemble, assemble_image, flatten_program
 
 try:
