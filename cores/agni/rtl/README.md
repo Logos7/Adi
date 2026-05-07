@@ -1,4 +1,4 @@
-# Brahma-agni RTL
+# Agni RTL
 
 The RTL is intentionally written as simple **Verilog-2001** for Gowin / Tang Nano 20K.
 
@@ -33,7 +33,7 @@ Gowin may keep old artifacts, especially when only `program.hex` has changed.
 
 ## Program ROM
 
-In `brahma_agni_core.v`, the program is loaded with:
+In `agni_core.v`, the program is loaded with:
 
 ```verilog
 $readmemh("src/program.hex", imem);
@@ -78,7 +78,7 @@ bool_mem[0..127]
 
 It is not an automatic connection to any arbitrary physical FPGA pin.
 
-Physical pin routing is done in `brahma_agni_top.v`.
+Physical pin routing is done in `agni_top.v`.
 
 On the Tang Nano 20K, the current top maps:
 
@@ -108,7 +108,7 @@ Since v1.3.1, the top-level contains:
 uart_rx
 uart_tx
 uart_rx.v
-brahma_agni_bootloader.v
+agni_bootloader.v
 ```
 
 `program.hex` is still the initial fallback loaded through:
@@ -171,7 +171,7 @@ py apps\agni\uart_viewer.py
 
 ## UART / bootloader parameters
 
-The UART and bootloader parameters are in `src/brahma_agni_top.v`:
+The UART and bootloader parameters are in `src/agni_top.v`:
 
 ```verilog
 localparam [15:0] UART_CLKS_PER_BIT = 16'd234;

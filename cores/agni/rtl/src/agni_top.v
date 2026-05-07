@@ -1,10 +1,10 @@
 // =============================================================================
-// brahma_agni_top.v
-// Top-level dla procesora Brahma-agni na Tang Nano 20K.
+// agni_top.v
+// Top-level dla procesora Agni na Tang Nano 20K.
 // Wersja Verilog-2001, bez wymagania trybu SystemVerilog w Gowin.
 // =============================================================================
 
-module brahma_agni_top (
+module agni_top (
     input wire clk_27mhz,
     output wire [5:0] led,
     input wire uart_rx,
@@ -90,7 +90,7 @@ module brahma_agni_top (
 
     assign cpu_uart_tx_ready = uart_tx_ready & ~boot_busy;
 
-    brahma_agni_core core (
+    agni_core core (
         .clk (clk),
         .rst (core_rst),
         .gpio_out (gpio_out),
@@ -121,7 +121,7 @@ module brahma_agni_top (
         .valid (rx_valid)
     );
 
-    brahma_agni_bootloader #(
+    agni_bootloader #(
         .MAX_WORDS(BOOT_MAX_WORDS),
         .MAX_DATA_WORDS(BOOT_MAX_DATA_WORDS),
         .BYTE_TIMEOUT_CLKS(BOOT_BYTE_TIMEOUT_CLKS),

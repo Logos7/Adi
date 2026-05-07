@@ -1,6 +1,6 @@
 // =============================================================================
-// brahma_agni_core.v
-// Brahma-agni multicycle CPU core.
+// agni_core.v
+// Agni multicycle CPU core.
 //
 // Verilog-2001 / Gowin-friendly version:
 // - no SystemVerilog-only constructs,
@@ -10,7 +10,7 @@
 // - framebuffer size is configurable with fbsize width, height.
 // =============================================================================
 
-module brahma_agni_core (
+module agni_core (
     input wire clk,
     input wire rst,
 

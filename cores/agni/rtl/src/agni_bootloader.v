@@ -1,6 +1,6 @@
 // =============================================================================
-// brahma_agni_bootloader.v
-// UART bootloader for Brahma-agni.
+// agni_bootloader.v
+// UART bootloader for Agni.
 //
 // v1.5:
 //   - uploads separate instruction memory and data_mem blob
@@ -19,7 +19,7 @@
 // Verilog-2001 / Gowin-safe.
 // =============================================================================
 
-module brahma_agni_bootloader #(
+module agni_bootloader #(
     parameter [15:0] MAX_WORDS = 16'd2048,
     parameter [15:0] MAX_DATA_WORDS = 16'd2048,
     parameter [31:0] BYTE_TIMEOUT_CLKS = 32'd270000000,
