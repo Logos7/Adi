@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from tools.indra_asm import parse_text
-from tools.indra_run import activate, run, saturate_i8
+from tools.indra.parse import parse_text
+from tools.indra.run import activate, run, saturate_i8
 
 
 def test_saturate_i8() -> None:

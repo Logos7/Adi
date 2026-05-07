@@ -32,3 +32,11 @@ Thumbs.db
 *.uart.log
 tools/sutra-vscode/*.vsix
 artifacts/
+# Gowin generated files
+cores/*/rtl/impl/
+cores/*/rtl/*.gprj.user
+
+# .NET build output
+[Bb]in/
+[Oo]bj/
+

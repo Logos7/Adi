@@ -1,107 +1,199 @@
 # Adi
 
-**Adi** is an experimental FPGA computing playground built around a custom soft CPU, a small assembler, UART tooling, and visual demos running directly on hardware.
+Adi is an experimental FPGA computing laboratory.
 
-At the center of the project is **Brahma**, a custom CPU core, and **Sutra**, an assembly language used to write programs for it.
+It is not a single CPU, a single board project, or a single tool. Adi is a small hardware/software universe for building and exploring soft processors, languages, FPGA systems, development tools, and visual/audio/AI experiments from the ground up.
 
-![Adi fractal demo 1](docs/images/julia.png)
-![Adi fractal demo 2](docs/images/mandelbrot.png)
-![Adi fractal demo 3](docs/images/spiral.png)
+## Current direction
 
-UART viewer screenshots.
+Adi v2 is organized around several independent axes:
 
----
+- **processors / cores** — reusable computation engines such as Agni, Brahma, Indra, and Nada,
+- **boards** — physical FPGA boards such as Tang Nano 20K, Tang Mega 138K, and Basys 3,
+- **toolchains** — FPGA vendor/build flows such as Gowin and Vivado,
+- **systems** — concrete combinations of processor, board, variant, top-level RTL, and build configuration,
+- **languages** — Sutra as the low-level assembly layer and Mantra as the future high-level language,
+- **applications** — especially Adi.Studio, the planned integrated C# environment.
 
-## What is this?
+## Main names
 
-Adi is a hardware/software experiment for learning, testing, and building small computing systems from the ground up.
+### Agni
 
-It includes:
+Agni is the small general-purpose soft CPU line.
 
-- a custom soft CPU implemented in Verilog,
-- a small assembler called **Sutra**,
-- a UART bootloader for uploading programs to FPGA hardware,
-- Python tools for upload, terminal I/O, and graphical frame viewing,
-- example programs written in Sutra,
-- simulator and assembler tests,
-- GitHub Actions CI for regression checks.
-
-The project is intentionally experimental. The architecture, instruction set, examples, and tooling are still evolving.
-
----
-
-## Main components
+It is currently the main working CPU target for Tang Nano 20K experiments.
 
 ### Brahma
 
-**Brahma** is the custom CPU core. It is designed as a small, understandable soft CPU that can run on FPGA hardware and be extended step by step.
+Brahma is the future larger general-purpose soft CPU line.
 
-The current focus is not maximum performance, but clarity, experimentation, and building a complete working stack.
+It is intended for bigger FPGA targets such as Tang Mega 138K or later boards with more resources.
+
+### Indra
+
+Indra is the neural/AI brain processor line.
+
+It is intended for compact programmable neural-network-style agents and small inference engines.
+
+### Nada
+
+Nada is the audio/DSP processor line.
+
+It is intended for synthesis, oscillators, filters, delay, reverb, and other programmable audio experiments.
 
 ### Sutra
 
-**Sutra** is the assembly language used to write programs for Brahma.
+Sutra is the low-level assembly language and assembler infrastructure.
 
-It supports labels, instructions, memory-mapped I/O, framebuffer operations, helper macros, and since **v1.5** a split code/data image with `.data`, `.code`, `.org`, `.word`, `.q7_25`, `.sin_lut`, and `.zero` directives.
+It currently targets Agni and is intended to become shared infrastructure for Agni and Brahma.
 
-### UART bootloader
+### Mantra
 
-The FPGA design can wait for a host-side upload over UART.
+Mantra is Adi's future high-level language.
 
-The Python tools repeatedly send the `ADI!` handshake until the FPGA replies with `ADI_BOOT_READY`, then upload the assembled code image and, when present, the data image.
+Mantra will lower into Sutra, which is then assembled for processor targets such as Agni and Brahma.
 
-### Viewer and terminal tools
+### Adi.Studio
 
-Adi currently has two main host-side tools:
+Adi.Studio is the planned main C# desktop application for Adi.
 
-- a text UART terminal,
-- a graphical UART viewer.
+It will replace the old separate UART viewer and UART terminal workflow with one integrated environment for editing, building, uploading, running, and observing programs.
 
-The terminal is useful for text-based experiments.
-
-The viewer is useful for graphical programs, including fractals and simple framebuffer-style demos.
-
-It understands the current ADI frame formats used by the examples:
-
-- **ADI0** — raw 8-bit pixels, useful for fractals and byte-per-pixel graphics,
-- **ADI1** — packed 1-bit 64x64 framebuffer, useful for wireframe and monochrome framebuffer demos.
-
----
-
-## Example programs
-
-Current example programs live under:
+## Repository layout
 
 ```text
-examples/agni/basics
-examples/agni/fractals
-examples/agni/graphics_2d
-examples/agni/graphics_3d
+Adi/
+├─ apps/
+│  └─ Adi.Studio/
+├─ boards/
+│  ├─ tang_nano_20k/
+│  ├─ tang_mega_138k/
+│  └─ basys3/
+├─ cores/
+│  ├─ agni/
+│  ├─ brahma/
+│  ├─ indra/
+│  └─ nada/
+├─ docs/
+├─ examples/
+├─ mantra/
+├─ sutra/
+├─ systems/
+├─ tests/
+└─ tools/
 ```
 
-The current 3D graphics examples are split into wireframe demos and point-cloud demos:
+## Directory model
+
+### `cores/`
+
+Reusable processor cores and their processor-specific documentation, RTL, simulators, and tests.
+
+A core should not depend on one specific physical board.
+
+Examples:
 
 ```text
-examples/agni/graphics_3d/wire_demos/wire_cube.sutra
-examples/agni/graphics_3d/wire_demos/wire_octahedron.sutra
-examples/agni/graphics_3d/wire_demos/wire_spherical_spiral.sutra
-examples/agni/graphics_3d/wire_demos/wire_tetrahedron.sutra
-
-examples/agni/graphics_3d/point_demos/point_sphere.sutra
-examples/agni/graphics_3d/point_demos/point_torus.sutra
-examples/agni/graphics_3d/point_demos/starfield_3d.sutra
+cores/agni/
+cores/brahma/
+cores/indra/
+cores/nada/
 ```
 
----
+### `boards/`
+
+Physical FPGA board definitions.
+
+A board definition describes the board itself: constraints, pin mappings, clocks, and board-specific notes.
+
+Examples:
+
+```text
+boards/tang_nano_20k/
+boards/tang_mega_138k/
+boards/basys3/
+```
+
+Different Gowin boards are still different boards. They only happen to use the same toolchain family.
+
+### `systems/`
+
+Complete FPGA systems.
+
+A system combines:
+
+- a processor/core,
+- a board,
+- a system variant,
+- top-level RTL,
+- build configuration for a specific toolchain.
+
+Directory pattern:
+
+```text
+systems/<core>/<board>/<variant>/
+```
+
+Examples:
+
+```text
+systems/agni/tang_nano_20k/uart_bootloader/
+systems/agni/basys3/uart_bootloader/
+systems/indra/tang_nano_20k/basic_dense/
+systems/nada/tang_nano_20k/audio_pwm/
+```
+
+### `sutra/`
+
+Sutra language implementation, assembler infrastructure, target definitions, libraries, and tests.
+
+### `mantra/`
+
+Mantra language implementation and tests.
+
+### `tools/`
+
+Command-line tools, build helpers, upload helpers, packers, formatters, checkers, and migration utilities.
+
+Tooling should be grouped by domain:
+
+```text
+tools/agni/
+tools/fpga/
+tools/indra/
+tools/mantra/
+tools/nada/
+tools/sutra/
+tools/dev/
+```
+
+### `apps/`
+
+Larger user-facing applications.
+
+The primary planned application is:
+
+```text
+apps/Adi.Studio/
+```
+
+## Important rule
+
+A core is not a board.
+
+Agni is not Tang Nano 20K.
+Tang Nano 20K is not Agni.
+Agni on Tang Nano 20K is a system.
+
+In repository terms:
+
+```text
+cores/agni/
+boards/tang_nano_20k/
+systems/agni/tang_nano_20k/uart_bootloader/
+```
 
 ## Quick start
-
-Clone the repository:
-
-```powershell
-git clone https://github.com/Logos7/Adi.git
-cd Adi
-```
 
 Install development dependencies:
 
@@ -109,79 +201,41 @@ Install development dependencies:
 py -m pip install -r requirements-dev.txt
 ```
 
-Run tests:
+Run the full test suite:
 
 ```powershell
-py -m pytest -q cores/agni/tests
+py -m pytest -q
 ```
 
-Run the UART terminal:
+Compile a Sutra example for Agni:
 
 ```powershell
-py apps/agni/uart_terminal.py
+py tools\sutra\sutra2hex.py examples\agni\fractals\mandelbrot.sutra cores\agni\rtl\src\program.hex
 ```
 
-Run the graphical UART viewer:
+Upload a Sutra program to an Agni UART bootloader system:
 
 ```powershell
-py apps/agni/uart_viewer.py
+py tools\agni\upload_sutra.py COM9 examples\agni\fractals\julia.sutra
 ```
 
-Upload a Sutra fractal example through the viewer:
+Adjust `COM9` to match the actual serial port.
 
-```powershell
-py apps/agni/uart_viewer.py COM9 --upload examples/agni/fractals/julia.sutra
-```
+## Legacy notes
 
-Upload a Sutra 3D wireframe example through the viewer:
 
-```powershell
-py apps/agni/uart_viewer.py COM9 --upload examples/agni/graphics_3d/wire_demos/wire_cube.sutra
-```
 
-Upload a Sutra 3D point-cloud example through the viewer:
-
-```powershell
-py apps/agni/uart_viewer.py COM9 --upload examples/agni/graphics_3d/point_demos/point_torus.sutra
-```
-
-Adjust `COM9` to match your own serial port.
-
----
-
-## Testing
-
-Run the full current test suite with:
-
-```powershell
-py -m pytest -q cores/agni/tests
-```
-
-The tests cover the assembler, simulator behavior, CPU-level functionality, example compilation, direct UART write conventions, and the Sutra v1.5 code/data image path.
-
-Python sources can also be syntax-checked with:
-
-```powershell
-py -m compileall -q sutra cores/agni/sim tools apps/agni
-```
-
-GitHub Actions runs the test suite automatically on pushes and pull requests.
-
----
+Old standalone UART viewer and terminal workflows are being replaced by Adi.Studio. Temporary or transitional scripts may still exist under `tools/`, but new user-facing development should move toward `apps/Adi.Studio/`.
 
 ## Philosophy
 
-Adi is not just a single CPU or a single tool.
-
-It is a small universe for exploring how computation can be built layer by layer:
+Adi is a small universe for exploring computation layer by layer:
 
 ```text
-logic gates -> CPU -> assembler -> programs -> graphics -> interaction
+logic gates -> processors -> languages -> programs -> graphics/audio/AI -> interaction
 ```
 
 The goal is to keep the system understandable while still making it powerful enough to produce visible, exciting results on real FPGA hardware.
-
----
 
 ## License
 

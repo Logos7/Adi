@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "tools"))
 
 from sutra import assemble_image
-from sutra_expand import IncludeError, expand_file
+from tools.sutra.sutra_expand import IncludeError, expand_file
 
 EXAMPLES = ROOT / "examples"
 

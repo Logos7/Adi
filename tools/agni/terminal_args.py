@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-DEFAULT_SOURCE = os.path.join("examples", "agni", "basics", "echo_rx.sutra")
+DEFAULT_SOURCE = os.path.join("examples", "agni", "basics", "alive_blink.sutra")
 
 
 def add_terminal_args(parser) -> None:

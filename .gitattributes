@@ -1,19 +1,47 @@
+# Text normalization
 * text=auto eol=lf
 
+# Windows command files
 *.bat text eol=crlf
 *.cmd text eol=crlf
 *.ps1 text eol=crlf
 
+# Source files
+*.py text eol=lf
+*.pyw text eol=lf
+*.v text eol=lf
+*.sv text eol=lf
+*.vh text eol=lf
+*.cst text eol=lf
+*.sutra text eol=lf
+*.mantra text eol=lf
+*.nada text eol=lf
+
+# Project and documentation files
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.ini text eol=lf
+*.cfg text eol=lf
+*.sh text eol=lf
+*.hex text eol=lf
+*.mem text eol=lf
+
+# Binary assets and build artifacts
 *.png binary
 *.jpg binary
 *.jpeg binary
 *.gif binary
 *.ico binary
-
 *.zip binary
 *.tar.gz binary
 *.vsix binary
-
 *.fs binary
 *.bit binary
 *.bin binary
+*.exe binary
+*.dll binary
+*.pdf binary

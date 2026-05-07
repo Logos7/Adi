@@ -1,4 +1,4 @@
-"""Sutra — assembler for the Brahma-agni processor."""
+"""Sutra — assembler for the Agni processor."""
 
 from . import constants as _constants
 from . import errors as _errors
