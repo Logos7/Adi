@@ -35,3 +35,8 @@ artifacts/
 # Gowin generated files
 cores/*/rtl/impl/
 cores/*/rtl/*.gprj.user
+
+# .NET build output
+[Bb]in/
+[Oo]bj/
+

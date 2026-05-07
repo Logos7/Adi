@@ -1,0 +1,29 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "apps", "apps", "{1787FE1D-075E-9E68-7218-25F1BD1BBEAB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Adi.Studio", "apps\Adi.Studio\Adi.Studio.csproj", "{55902B2D-9F77-1FFC-6232-042229DD78E5}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{55902B2D-9F77-1FFC-6232-042229DD78E5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{55902B2D-9F77-1FFC-6232-042229DD78E5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{55902B2D-9F77-1FFC-6232-042229DD78E5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{55902B2D-9F77-1FFC-6232-042229DD78E5}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{55902B2D-9F77-1FFC-6232-042229DD78E5} = {1787FE1D-075E-9E68-7218-25F1BD1BBEAB}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D2E3CA49-8513-44D9-B8C5-8644032B8AF8}
+	EndGlobalSection
+EndGlobal
