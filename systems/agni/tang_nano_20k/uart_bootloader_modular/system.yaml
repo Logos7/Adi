@@ -1,0 +1,30 @@
+system:
+  name: agni_tang_nano_20k_uart_bootloader_modular
+  core: agni
+  board: tang_nano_20k
+  variant: uart_bootloader_modular
+  status: experimental_manifest
+  description: Manifest-first composition of the stable Agni UART bootloader system.
+
+toolchain:
+  vendor: gowin
+  device: gw2ar18c-001
+  constraints_out: systems/agni/tang_nano_20k/uart_bootloader_modular/build/gowin/generated/tang_nano_20k_uart.cst
+
+sources:
+  verilog:
+    - cores/agni/rtl/src/agni_core.v
+    - cores/agni/rtl/src/agni_bootloader.v
+    - cores/agni/rtl/src/uart_rx.v
+    - cores/agni/rtl/src/uart_tx.v
+    - systems/agni/tang_nano_20k/uart_bootloader/rtl/agni_top.v
+
+constraints:
+  fragments:
+    - boards/tang_nano_20k/constraints/gowin/fragments/clock_27mhz.cst
+    - boards/tang_nano_20k/constraints/gowin/fragments/leds.cst
+    - boards/tang_nano_20k/constraints/gowin/fragments/uart_bl616.cst
+
+notes:
+  - This manifest mirrors the stable uart_bootloader system instead of replacing it.
+  - HDMI should become a sibling system, not a modification of this reference path.
