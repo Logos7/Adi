@@ -4,6 +4,12 @@ __pycache__/
 .venv/
 venv/
 
+# .NET / C#
+[Bb]in/
+[Oo]bj/
+.vs/
+*.rsuser
+
 # Gowin / FPGA build outputs
 cores/**/impl/
 cores/**/obj/
@@ -16,6 +22,19 @@ cores/**/*.rpt
 cores/**/*.log
 cores/**/*.tmp
 cores/**/*.bak
+
+systems/**/impl/
+systems/**/obj/
+systems/**/*.fs
+systems/**/*.bin
+systems/**/*.bit
+systems/**/*.vo
+systems/**/*.vvp
+systems/**/*.rpt
+systems/**/*.log
+systems/**/*.tmp
+systems/**/*.bak
+systems/**/*.gprj.user
 
 # Editors
 .vscode/
@@ -30,13 +49,4 @@ Thumbs.db
 # Adi local/runtime
 *.tmp
 *.uart.log
-tools/sutra-vscode/*.vsix
 artifacts/
-# Gowin generated files
-cores/*/rtl/impl/
-cores/*/rtl/*.gprj.user
-
-# .NET build output
-[Bb]in/
-[Oo]bj/
-

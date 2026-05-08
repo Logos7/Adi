@@ -19,30 +19,28 @@ tools/
   sutra-vscode/  VS Code extension for Sutra syntax support.
 ```
 
-## Transitional entrypoints
+## Current convention
 
-Adi v2 is migrating from old top-level scripts toward grouped tools and the
-future integrated `apps/Adi.Studio` workflow.
+Adi v2 uses grouped tool directories instead of old top-level helper scripts.
 
-Some legacy top-level scripts may temporarily remain in this directory as
-compatibility entrypoints during the migration.
-
-Examples:
+Prefer paths such as:
 
 ```text
-tools/sutra2hex.py
-tools/sutra_expand.py
-tools/sutra_upload.py
-tools/indra_asm.py
-tools/indra_pack.py
-tools/indra_run.py
+tools/agni/upload_sutra.py
+tools/agni/uart_terminal.py
+tools/agni/uart_viewer.py
+tools/sutra/...
+tools/indra/...
+tools/mantra/...
+tools/nada/...
 ```
 
-New code should prefer the grouped tool packages where available.
+New command-line helpers should be placed in the appropriate grouped tool
+directory.
 
 ## Rule of thumb
 
-Use this directory for small tools that are useful from the command line.
+Use `tools/` for small tools that are useful from the command line.
 
 Use `apps/` for larger interactive applications, graphical tools, viewers,
 editors, and integrated workflows.
