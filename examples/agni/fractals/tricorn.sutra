@@ -1,6 +1,6 @@
 ; Sutra v1.4
 ; Emits ADI0 64x64 frame with maxIter=64.
-; Use apps/agni/uart_viewer.py.
+; Use tools/agni/uart_viewer.py.
 
 ; Tricorn / Mandelbar set.
 ; z = conj(z)^2 + c.

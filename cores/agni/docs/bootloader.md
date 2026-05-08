@@ -24,11 +24,11 @@ Then upload the program:
 
 Or use the viewer with upload support:
 
-    py apps\agni\uart_viewer.py COM9 --upload examples\agni\05_fractals\julia_uart.sutra --scale 4
+    py tools\agni\uart_viewer.py COM9 --upload examples\agni\fractals\julia_uart.sutra --scale 4
 
 Most convenient: run it without arguments and select the port and file in the window:
 
-    py apps\agni\uart_viewer.py
+    py tools\agni\uart_viewer.py
 
 ## Protocol v1.3.2
 

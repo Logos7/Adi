@@ -1,6 +1,6 @@
 ; Sutra v1.4
 ; Emits animated ADI0 64x64 Mandelbrot frames.
-; Use apps/agni/uart_viewer.py.
+; Use tools/agni/uart_viewer.py.
 
 ; Mandelbrot:
 ; z(n+1) = z(n)^2 + c

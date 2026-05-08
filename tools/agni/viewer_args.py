@@ -76,6 +76,6 @@ def add_viewer_args(parser) -> None:
     parser.add_argument("--max-iter", type=int, default=64, help="Iteration value treated as interior color, 1..255.")
     parser.add_argument("--scale", type=int, default=4)
     parser.add_argument("--palette", choices=PALETTE_KEYS, default=DEFAULT_PALETTE)
-    parser.add_argument("--text", action="store_true", help="Deprecated. Use apps/agni/uart_terminal.py for text UART.")
+    parser.add_argument("--text", action="store_true", help="Deprecated. Use tools/agni/uart_terminal.py for text UART.")
     parser.add_argument("--boot-timeout", type=float, default=30.0)
     parser.add_argument("--ack-timeout", type=float, default=12.0)
