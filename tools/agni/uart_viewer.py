@@ -12,7 +12,7 @@ def main() -> None:
     add_viewer_args(parser)
     args = parser.parse_args()
     if args.text:
-        raise SystemExit("Text mode was moved to apps/agni/uart_terminal.py.")
+        raise SystemExit("Text mode was moved to tools/agni/uart_terminal.py.")
     run_viewer_gui(build_defaults(args))
 
 

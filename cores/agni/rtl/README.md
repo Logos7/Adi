@@ -164,7 +164,7 @@ py tools\\agni\\upload_sutra.py COM9 examples\agni\graphics_3d\wire_demos\wire_c
 Viewer with GUI port and file selection:
 
 ```powershell
-py apps\agni\uart_viewer.py
+py tools\agni\uart_viewer.py
 ```
 
 ---
