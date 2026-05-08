@@ -61,7 +61,7 @@ If, despite v1.3.2, you still only see small bytes such as `\x01`, `\x02`, `\x03
 
 ## Parameters
 
-In `cores/agni/rtl/src/agni_top.v`, the local parameters are:
+In `systems/agni/tang_nano_20k/uart_bootloader/rtl/agni_top.v`, the local parameters are:
 
     localparam [15:0] UART_CLKS_PER_BIT = 16'd234;
     localparam [15:0] BOOT_MAX_WORDS = 16'd1024;
@@ -92,7 +92,7 @@ If the program is larger, the uploader aborts before sending it.
 
 ## UART pins
 
-In `constraints/agni.cst`:
+In `boards/tang_nano_20k/constraints/gowin/tang_nano_20k.cst`:
 
     uart_tx = pin69
     uart_rx = pin70

@@ -78,7 +78,7 @@ bool_mem[0..127]
 
 It is not an automatic connection to any arbitrary physical FPGA pin.
 
-Physical pin routing is done in `agni_top.v`.
+Physical pin routing is done in `systems/agni/tang_nano_20k/uart_bootloader/rtl/agni_top.v`.
 
 On the Tang Nano 20K, the current top maps:
 
@@ -171,7 +171,7 @@ py tools\agni\uart_viewer.py
 
 ## UART / bootloader parameters
 
-The UART and bootloader parameters are in `src/agni_top.v`:
+The UART and bootloader parameters are in `systems/agni/tang_nano_20k/uart_bootloader/rtl/agni_top.v`:
 
 ```verilog
 localparam [15:0] UART_CLKS_PER_BIT = 16'd234;

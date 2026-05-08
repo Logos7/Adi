@@ -88,7 +88,7 @@ bool_mem[0..127]        bool/GPIO RAM
 
 Important: `@pinN` means **bool_mem[N] address**, not a magical connection to any arbitrary physical FPGA pin.
 
-Physical pin routing is done by `agni_top.v`.
+Physical pin routing is done by `systems/agni/tang_nano_20k/uart_bootloader/rtl/agni_top.v`.
 
 On the Tang Nano 20K, the current `top.v` maps only:
 
