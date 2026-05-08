@@ -1,0 +1,47 @@
+schema: adi.block.v0
+id: ip/video_320x200_1bpp
+kind: peripheral
+name: 320x200 1bpp Video
+status: planned
+summary: Retro 1-bit framebuffer video block intended for HDMI/DVI scanout.
+
+implementation:
+  language: verilog
+  source_root: rtl/video
+  planned_sources:
+    - rtl/video/framebuffer/fb_320x200_1bpp.v
+    - rtl/video/timing/video_timing_640x480.v
+    - rtl/video/scale/scale_320x200_to_640x480.v
+    - rtl/video/dvi/tmds_encoder.v
+    - rtl/video/dvi/dvi_out.v
+
+video:
+  logical_width: 320
+  logical_height: 200
+  bits_per_pixel: 1
+  framebuffer_words_32: 2000
+  output_mode: 640x480_60hz
+  scale_x: 2
+  scale_y: 2
+  vertical_border_pixels: 40
+
+interfaces:
+  - id: pixel_clock
+    kind: clock_sink
+  - id: system_clock
+    kind: clock_sink
+  - id: reset
+    kind: reset_sink
+  - id: mmio
+    kind: memory_mapped_io
+  - id: hdmi
+    kind: external_output
+
+studio:
+  palette_group: video
+  icon: monitor
+  default_instance_id: video0
+
+notes:
+  - The logical framebuffer is 320x200 and should be scan-converted to a standard 640x480 HDMI/DVI timing.
+  - HDMI output should be added as a separate system variant without changing ADI0 or ADI1 UART frame protocols.

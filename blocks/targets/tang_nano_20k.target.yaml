@@ -1,0 +1,42 @@
+schema: adi.target.v0
+id: targets/tang_nano_20k
+kind: board_target
+name: Tang Nano 20K
+status: active
+summary: Sipeed Tang Nano 20K FPGA board target.
+
+vendor:
+  family: gowin
+  toolchain: gowin
+
+board:
+  source_root: boards/tang_nano_20k
+  constraints:
+    current:
+      - boards/tang_nano_20k/constraints/gowin/tang_nano_20k.cst
+    fragments_planned:
+      - boards/tang_nano_20k/constraints/gowin/fragments/clock_27mhz.cst
+      - boards/tang_nano_20k/constraints/gowin/fragments/leds.cst
+      - boards/tang_nano_20k/constraints/gowin/fragments/uart_bl616.cst
+      - boards/tang_nano_20k/constraints/gowin/fragments/hdmi.cst
+
+clocks:
+  - id: board_clock
+    frequency_hz: 27000000
+
+external_interfaces:
+  - id: leds
+    kind: gpio_output
+  - id: uart_bl616
+    kind: uart
+  - id: hdmi
+    kind: video_output
+
+studio:
+  palette_group: targets
+  icon: fpga-board
+  default_instance_id: tang_nano_20k
+
+notes:
+  - This is a physical target descriptor, not a CPU block.
+  - Systems map reusable blocks onto this target through constraints and board-level top wrappers.

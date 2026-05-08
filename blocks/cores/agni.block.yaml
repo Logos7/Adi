@@ -1,0 +1,39 @@
+schema: adi.block.v0
+id: cores/agni
+kind: core
+name: Agni CPU
+status: active
+summary: Small reusable general-purpose soft CPU core for Adi systems.
+
+implementation:
+  language: verilog
+  source_root: cores/agni
+  primary_sources:
+    - cores/agni/rtl/src/agni_core.v
+  current_related_sources:
+    - cores/agni/rtl/src/agni_bootloader.v
+    - cores/agni/rtl/src/agni_top.v
+    - cores/agni/rtl/src/uart_rx.v
+    - cores/agni/rtl/src/uart_tx.v
+
+interfaces:
+  - id: clock
+    kind: clock_sink
+  - id: reset
+    kind: reset_sink
+  - id: program_memory
+    kind: memory_instruction
+  - id: data_memory
+    kind: memory_data
+  - id: mmio
+    kind: memory_mapped_io
+
+studio:
+  palette_group: cores
+  icon: cpu
+  default_instance_id: agni0
+
+notes:
+  - Agni should not depend on a specific physical board.
+  - Board-specific top-level wrappers belong in systems, not in this block descriptor.
+  - The current related UART and bootloader sources are listed for compatibility and future extraction planning.

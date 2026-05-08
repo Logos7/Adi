@@ -1,0 +1,43 @@
+schema: adi.block.v0
+id: ip/uart
+kind: peripheral
+name: UART
+status: extraction_candidate
+summary: Reusable UART RX/TX peripheral block.
+
+implementation:
+  language: verilog
+  source_root: rtl/uart
+  primary_sources: []
+  current_related_sources:
+    - cores/agni/rtl/src/uart_rx.v
+    - cores/agni/rtl/src/uart_tx.v
+
+interfaces:
+  - id: clock
+    kind: clock_sink
+  - id: reset
+    kind: reset_sink
+  - id: serial_rx
+    kind: external_input
+  - id: serial_tx
+    kind: external_output
+  - id: mmio
+    kind: memory_mapped_io
+
+parameters:
+  - name: baud_rate
+    type: integer
+    default: 115200
+  - name: clock_hz
+    type: integer
+    default: 27000000
+
+studio:
+  palette_group: peripherals
+  icon: serial-port
+  default_instance_id: uart0
+
+notes:
+  - Current UART sources live under Agni and should later be extracted into rtl/uart.
+  - This descriptor lets system manifests refer to UART as a reusable block before the physical extraction is done.

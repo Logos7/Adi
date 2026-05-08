@@ -1,0 +1,32 @@
+schema: adi.block.v0
+id: cores/brahma
+kind: core
+name: Brahma CPU
+status: planned
+summary: Future larger general-purpose soft CPU core for bigger FPGA targets.
+
+implementation:
+  language: verilog
+  source_root: cores/brahma
+  primary_sources: []
+
+interfaces:
+  - id: clock
+    kind: clock_sink
+  - id: reset
+    kind: reset_sink
+  - id: program_memory
+    kind: memory_instruction
+  - id: data_memory
+    kind: memory_data
+  - id: mmio
+    kind: memory_mapped_io
+
+studio:
+  palette_group: cores
+  icon: cpu
+  default_instance_id: brahma0
+
+notes:
+  - This descriptor reserves the block identity for future multi-core and larger-board systems.
+  - Systems may instantiate Brahma next to one or more Agni cores once implementation sources exist.

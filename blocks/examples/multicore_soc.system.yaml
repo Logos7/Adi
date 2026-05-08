@@ -1,0 +1,66 @@
+schema: adi.system.v0
+id: examples/multicore_soc
+name: Multi-core SoC example
+status: example
+summary: Example composition showing that one block type can be instantiated multiple times.
+
+target:
+  board: targets/tang_nano_20k
+  vendor: gowin
+
+instances:
+  - id: agni0
+    block: cores/agni
+
+  - id: agni1
+    block: cores/agni
+
+  - id: brahma0
+    block: cores/brahma
+
+  - id: uart0
+    block: ip/uart
+
+  - id: video0
+    block: ip/video_320x200_1bpp
+
+  - id: bus0
+    block: ip/interconnect
+    status: planned
+
+connections:
+  - from: agni0.mmio
+    to: bus0.master0
+
+  - from: agni1.mmio
+    to: bus0.master1
+
+  - from: brahma0.mmio
+    to: bus0.master2
+
+  - from: bus0.slave0
+    to: uart0.mmio
+
+  - from: bus0.slave1
+    to: video0.mmio
+
+address_map:
+  - master: agni0
+    slave: uart0
+    base: 0x0000F000
+    size: 0x00000100
+
+  - master: agni0
+    slave: video0
+    base: 0x00010000
+    size: 0x00002000
+
+  - master: agni1
+    slave: video0
+    base: 0x00010000
+    size: 0x00002000
+
+notes:
+  - This is not intended to build today.
+  - It documents the intended block-versus-instance model for Adi.Studio.
+  - The same Agni block descriptor can produce agni0 and agni1 instances.
