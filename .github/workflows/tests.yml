@@ -56,3 +56,19 @@ jobs:
         run: |
           $env:PYTHONPATH = "$env:GITHUB_WORKSPACE;$env:GITHUB_WORKSPACE\sutra;$env:GITHUB_WORKSPACE\cores\agni"
           python -m pytest -q
+
+  dotnet-build:
+    name: .NET build
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build Adi solution
+        run: dotnet build Adi.sln --configuration Debug
