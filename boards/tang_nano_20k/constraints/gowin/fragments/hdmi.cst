@@ -1,0 +1,11 @@
+// Tang Nano 20K HDMI / DVI-compatible TMDS output.
+// Gowin LVDS pair constraints list both package pins on the positive signal name.
+// The matching negative outputs are inferred by the differential output primitive/wrapper.
+IO_LOC "hdmi_tmds_clk_p" 33,34;
+IO_PORT "hdmi_tmds_clk_p" IO_TYPE=LVDS25 PULL_MODE=NONE DRIVE=3.5 BANK_VCCIO=3.3;
+IO_LOC "hdmi_tmds_data_p[0]" 35,36;
+IO_PORT "hdmi_tmds_data_p[0]" IO_TYPE=LVDS25 PULL_MODE=NONE DRIVE=3.5 BANK_VCCIO=3.3;
+IO_LOC "hdmi_tmds_data_p[1]" 37,38;
+IO_PORT "hdmi_tmds_data_p[1]" IO_TYPE=LVDS25 PULL_MODE=NONE DRIVE=3.5 BANK_VCCIO=3.3;
+IO_LOC "hdmi_tmds_data_p[2]" 39,40;
+IO_PORT "hdmi_tmds_data_p[2]" IO_TYPE=LVDS25 PULL_MODE=NONE DRIVE=3.5 BANK_VCCIO=3.3;

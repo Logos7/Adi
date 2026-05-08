@@ -1,0 +1,30 @@
+board: tang_nano_20k
+name: Tang Nano 20K
+vendor: sipeed
+fpga:
+  family: gowin_gw2a
+  device: GW2AR-LV18QN88C8/I7
+  gowin_part: GW2AR-18C
+clocks:
+  clk_27mhz:
+    frequency_hz: 27000000
+    pin: 4
+interfaces:
+  uart_bl616:
+    fpga_rx_pin: 70
+    fpga_tx_pin: 69
+    default_baud: 115200
+  leds:
+    count: 6
+    active: low
+    pins: [15, 16, 17, 18, 19, 20]
+  hdmi:
+    mode: dvi_compatible_tmds
+    clock_pair_pins: [33, 34]
+    data0_pair_pins: [35, 36]
+    data1_pair_pins: [37, 38]
+    data2_pair_pins: [39, 40]
+constraints:
+  gowin:
+    uart: boards/tang_nano_20k/constraints/gowin/tang_nano_20k_uart.cst
+    uart_hdmi: boards/tang_nano_20k/constraints/gowin/tang_nano_20k_uart_hdmi.cst

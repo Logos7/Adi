@@ -1,0 +1,7 @@
+// Tang Nano 20K BL616 USB-UART bridge.
+// FPGA RX receives from BL616 TX on pin 70.
+// FPGA TX drives BL616 RX on pin 69.
+IO_LOC "uart_rx" 70;
+IO_PORT "uart_rx" IO_TYPE=LVCMOS33 PULL_MODE=UP BANK_VCCIO=3.3;
+IO_LOC "uart_tx" 69;
+IO_PORT "uart_tx" IO_TYPE=LVCMOS33 DRIVE=8 BANK_VCCIO=3.3;

@@ -1,0 +1,3 @@
+// Tang Nano 20K onboard 27 MHz oscillator.
+IO_LOC "clk_27mhz" 4;
+IO_PORT "clk_27mhz" PULL_MODE=UP IO_TYPE=LVCMOS33 BANK_VCCIO=3.3;
