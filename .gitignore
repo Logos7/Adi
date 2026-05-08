@@ -10,6 +10,16 @@ venv/
 .vs/
 *.rsuser
 
+# FPGA generated outputs
+systems/**/build/**/generated/
+systems/**/build/**/impl/
+systems/**/build/**/temp/
+systems/**/build/**/*.fs
+systems/**/build/**/*.bit
+systems/**/build/**/*.jed
+systems/**/build/**/*.log
+systems/**/build/**/*.rpt
+
 # Gowin / FPGA build outputs
 cores/**/impl/
 cores/**/obj/
