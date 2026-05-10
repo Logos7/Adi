@@ -1,0 +1,54 @@
+[
+ {
+  "InstFile" : "D:/Adi/experimental/hdmi_320x200_1bpp_v2/src/video_top.v",
+  "InstLine" : 1,
+  "InstName" : "video_top",
+  "ModuleFile" : "D:/Adi/experimental/hdmi_320x200_1bpp_v2/src/video_top.v",
+  "ModuleLine" : 1,
+  "ModuleName" : "video_top",
+  "SubInsts" : [
+   {
+    "InstFile" : "D:/Adi/experimental/hdmi_320x200_1bpp_v2/src/video_top.v",
+    "InstLine" : 33,
+    "InstName" : "u_tmds_rpll",
+    "ModuleFile" : "D:/Adi/experimental/hdmi_320x200_1bpp_v2/src/gowin_rpll/TMDS_rPLL.v",
+    "ModuleLine" : 9,
+    "ModuleName" : "TMDS_rPLL"
+   },
+   {
+    "InstFile" : "D:/Adi/experimental/hdmi_320x200_1bpp_v2/src/video_top.v",
+    "InstLine" : 75,
+    "InstName" : "u_pattern",
+    "ModuleFile" : "D:/Adi/experimental/hdmi_320x200_1bpp_v2/src/pattern_320x200_1bpp.v",
+    "ModuleLine" : 1,
+    "ModuleName" : "pattern_320x200_1bpp"
+   },
+   {
+    "InstFile" : "D:/Adi/experimental/hdmi_320x200_1bpp_v2/src/video_top.v",
+    "InstLine" : 100,
+    "InstName" : "u_dvi_tx",
+    "ModuleFile" : "D:/Adi/experimental/hdmi_320x200_1bpp_v2/src/dvi_tx/dvi_tx.v",
+    "ModuleLine" : 1072,
+    "ModuleName" : "DVI_TX_Top",
+    "SubInsts" : [
+     {
+      "InstFile" : "D:/Adi/experimental/hdmi_320x200_1bpp_v2/src/dvi_tx/dvi_tx.v",
+      "InstLine" : 1103,
+      "InstName" : "rgb2dvi_inst",
+      "ModuleFile" : "D:/Adi/experimental/hdmi_320x200_1bpp_v2/src/dvi_tx/dvi_tx.v",
+      "ModuleLine" : 10,
+      "ModuleName" : "~rgb2dvi.DVI_TX_Top"
+     }
+    ]
+   },
+   {
+    "InstFile" : "D:/Adi/experimental/hdmi_320x200_1bpp_v2/src/video_top.v",
+    "InstLine" : 116,
+    "InstName" : "u_key_led_ctrl",
+    "ModuleFile" : "D:/Adi/experimental/hdmi_320x200_1bpp_v2/src/key_led_ctrl.v",
+    "ModuleLine" : 1,
+    "ModuleName" : "key_led_ctrl"
+   }
+  ]
+ }
+]

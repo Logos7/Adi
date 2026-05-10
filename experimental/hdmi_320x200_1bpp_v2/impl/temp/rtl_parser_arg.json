@@ -1,0 +1,33 @@
+{
+ "Device" : "GW2AR-18C",
+ "Files" : [
+  {
+   "Path" : "D:/Adi/experimental/hdmi_320x200_1bpp_v2/src/dvi_tx/dvi_tx.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "D:/Adi/experimental/hdmi_320x200_1bpp_v2/src/gowin_rpll/TMDS_rPLL.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "D:/Adi/experimental/hdmi_320x200_1bpp_v2/src/key_led_ctrl.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "D:/Adi/experimental/hdmi_320x200_1bpp_v2/src/pattern_320x200_1bpp.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "D:/Adi/experimental/hdmi_320x200_1bpp_v2/src/video_top.v",
+   "Type" : "verilog"
+  }
+ ],
+ "IncludePath" : [
+
+ ],
+ "LoopLimit" : 2000,
+ "ResultFile" : "D:/Adi/experimental/hdmi_320x200_1bpp_v2/impl/temp/rtl_parser.result",
+ "Top" : "",
+ "VerilogStd" : "verilog_2001",
+ "VhdlStd" : "vhdl_93"
+}

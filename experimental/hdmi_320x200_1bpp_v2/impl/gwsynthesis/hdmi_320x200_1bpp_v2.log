@@ -1,0 +1,35 @@
+GowinSynthesis start
+Running parser ...
+Analyzing Verilog file 'D:\Adi\experimental\hdmi_320x200_1bpp_v2\src\dvi_tx\dvi_tx.v'
+Analyzing Verilog file 'D:\Adi\experimental\hdmi_320x200_1bpp_v2\src\gowin_rpll\TMDS_rPLL.v'
+Analyzing Verilog file 'D:\Adi\experimental\hdmi_320x200_1bpp_v2\src\key_led_ctrl.v'
+Analyzing Verilog file 'D:\Adi\experimental\hdmi_320x200_1bpp_v2\src\pattern_320x200_1bpp.v'
+Analyzing Verilog file 'D:\Adi\experimental\hdmi_320x200_1bpp_v2\src\video_top.v'
+Compiling module 'video_top'("D:\Adi\experimental\hdmi_320x200_1bpp_v2\src\video_top.v":1)
+Compiling module 'TMDS_rPLL'("D:\Adi\experimental\hdmi_320x200_1bpp_v2\src\gowin_rpll\TMDS_rPLL.v":9)
+Compiling module 'pattern_320x200_1bpp'("D:\Adi\experimental\hdmi_320x200_1bpp_v2\src\pattern_320x200_1bpp.v":1)
+WARN  (EX3791) : Expression size 11 truncated to fit in target size 9("D:\Adi\experimental\hdmi_320x200_1bpp_v2\src\pattern_320x200_1bpp.v":71)
+WARN  (EX3791) : Expression size 11 truncated to fit in target size 8("D:\Adi\experimental\hdmi_320x200_1bpp_v2\src\pattern_320x200_1bpp.v":72)
+Compiling module 'DVI_TX_Top'("D:\Adi\experimental\hdmi_320x200_1bpp_v2\src\dvi_tx\dvi_tx.v":1072)
+Compiling module '**'("D:\Adi\experimental\hdmi_320x200_1bpp_v2\src\dvi_tx\dvi_tx.v":1071)
+Compiling module 'key_led_ctrl'("D:\Adi\experimental\hdmi_320x200_1bpp_v2\src\key_led_ctrl.v":1)
+NOTE  (EX0101) : Current top module is "video_top"
+[5%] Running netlist conversion ...
+Running device independent optimization ...
+[10%] Optimizing Phase 0 completed
+[15%] Optimizing Phase 1 completed
+[25%] Optimizing Phase 2 completed
+Running inference ...
+[30%] Inferring Phase 0 completed
+[40%] Inferring Phase 1 completed
+[50%] Inferring Phase 2 completed
+[55%] Inferring Phase 3 completed
+Running technical mapping ...
+[60%] Tech-Mapping Phase 0 completed
+[65%] Tech-Mapping Phase 1 completed
+[75%] Tech-Mapping Phase 2 completed
+[80%] Tech-Mapping Phase 3 completed
+[90%] Tech-Mapping Phase 4 completed
+[95%] Generate netlist file "D:\Adi\experimental\hdmi_320x200_1bpp_v2\impl\gwsynthesis\hdmi_320x200_1bpp_v2.vg" completed
+[100%] Generate report file "D:\Adi\experimental\hdmi_320x200_1bpp_v2\impl\gwsynthesis\hdmi_320x200_1bpp_v2_syn.rpt.html" completed
+GowinSynthesis finish
