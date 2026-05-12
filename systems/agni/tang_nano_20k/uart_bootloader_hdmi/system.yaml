@@ -1,0 +1,33 @@
+system:
+  name: agni_tang_nano_20k_uart_bootloader_hdmi
+  core: agni
+  board: tang_nano_20k
+  variant: uart_bootloader_hdmi
+  status: experimental
+  description: Agni UART bootloader system with HDMI scanout from an external dual-clock 1bpp framebuffer.
+
+toolchain:
+  vendor: gowin
+  project: systems/agni/tang_nano_20k/uart_bootloader_hdmi/agni_hdmi.gprj
+  device: gw2ar18c-000
+
+sources:
+  verilog:
+    - cores/agni/rtl/src/agni_core.v
+    - cores/agni/rtl/src/agni_bootloader.v
+    - cores/agni/rtl/src/uart_rx.v
+    - cores/agni/rtl/src/uart_tx.v
+    - rtl/video/framebuffer/framebuffer_1bpp_dual_clock.v
+    - rtl/video/hdmi/hdmi_scanout_1bpp_patterns.v
+    - experimental/hdmi_320x200_1bpp_v2/src/dvi_tx/dvi_tx.v
+    - experimental/hdmi_320x200_1bpp_v2/src/gowin_rpll/TMDS_rPLL.v
+    - systems/agni/tang_nano_20k/uart_bootloader_hdmi/rtl/agni_hdmi_top.v
+
+constraints:
+  cst: systems/agni/tang_nano_20k/uart_bootloader_hdmi/rtl/agni_hdmi.cst
+  sdc: systems/agni/tang_nano_20k/uart_bootloader_hdmi/rtl/agni_hdmi.sdc
+
+notes:
+  - Existing UART framebuffer presentation is intentionally preserved.
+  - HDMI mode 0 reads the external framebuffer; modes 1..7 keep the standalone HDMI patterns.
+  - The external framebuffer address is normalized to word 0, so Sutra programs may keep their existing data_mem framebuffer base.

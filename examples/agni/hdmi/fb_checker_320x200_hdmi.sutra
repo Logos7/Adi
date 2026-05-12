@@ -1,0 +1,46 @@
+; Agni HDMI 320x200 checker/grid demo.
+; This demo only draws to the HDMI framebuffer; it does not transmit UART frames.
+
+main:
+    move r20, 0
+    fbsize 320, 200
+
+loop:
+    fbclear r20
+
+    move r2, 0
+
+row_loop:
+    move r1, 0
+
+col_loop:
+    iand r4, r1, 16
+    iand r5, r2, 16
+    ixor r6, r4, r5
+    cmp.ne b0, r6, 0
+    jump_if b0, plot_pixel
+
+    iand r7, r1, 31
+    cmp.eq b0, r7, 0
+    jump_if b0, plot_pixel
+
+    iand r7, r2, 31
+    cmp.eq b0, r7, 0
+    jump_if b0, plot_pixel
+
+    jump skip_pixel
+
+plot_pixel:
+    fbplot r20, r1, r2
+
+skip_pixel:
+    inc r1
+    cmp.lt b0, r1, 320
+    jump_if b0, col_loop
+
+    inc r2
+    cmp.lt b0, r2, 200
+    jump_if b0, row_loop
+
+    wait 6000000
+    jump loop

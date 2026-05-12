@@ -6,7 +6,7 @@ import time
 import app_paths
 from adi_frames import AdiFrame, pop_frame
 from clipboard_image import copy_rgb_to_windows_clipboard
-from program_upload import upload_graphics_program
+from program_upload import upload_graphics_program, upload_text_program
 from serial_ports import available_ports, choose_default_port, parse_baud, reset_buffers, serial
 from viewer_args import DEFAULT_SOURCE, ViewerDefaults, optional_byte, parse_int
 from viewer_palette import DEFAULT_PALETTE, PALETTE_KEY_BY_LABEL, PALETTE_LABELS, palette_label
@@ -219,7 +219,7 @@ def run_viewer_gui(defaults: ViewerDefaults) -> None:
             log(f"[SAVE IMAGE ERR] {e}\n")
             messagebox.showerror("Save image", str(e))
 
-    def upload() -> None:
+    def upload(hdmi_program: bool = False) -> None:
         if uploading_ref["active"]:
             return
         uploading_ref["active"] = True
@@ -233,23 +233,31 @@ def run_viewer_gui(defaults: ViewerDefaults) -> None:
             status_var.set(f"Uploading: {os.path.basename(path)}")
             log(f"[UPLOAD] {path}\n")
             root.update_idletasks()
-            upload_graphics_program(
-                port,
-                baud,
-                path,
-                width,
-                height,
-                max_iter,
-                defaults.boot_timeout,
-                defaults.ack_timeout,
-            )
+            if hdmi_program:
+                upload_text_program(port, baud, path, defaults.boot_timeout, defaults.ack_timeout)
+            else:
+                upload_graphics_program(
+                    port,
+                    baud,
+                    path,
+                    width,
+                    height,
+                    max_iter,
+                    defaults.boot_timeout,
+                    defaults.ack_timeout,
+                )
             buffer.clear()
             counter["n"] = 0
             timing["last"] = None
             timing["fps"] = 0.0
-            open_serial(clear_buffers=False)
-            status_var.set("Upload OK. Waiting for ADI0 / ADI1 frames...")
-            log("[UPLOAD OK]\n")
+            if hdmi_program:
+                close_serial()
+                status_var.set("Upload OK. HDMI program running on FPGA.")
+                log("[UPLOAD OK] HDMI program; UART viewer is not waiting for frames.\n")
+            else:
+                open_serial(clear_buffers=False)
+                status_var.set("Upload OK. Waiting for ADI0 / ADI1 frames...")
+                log("[UPLOAD OK]\n")
         except SystemExit as e:
             status_var.set("Upload failed")
             log(f"[UPLOAD ERR] {e}\n")
@@ -271,7 +279,8 @@ def run_viewer_gui(defaults: ViewerDefaults) -> None:
 
     ttk.Button(connection_buttons, text="Connect", command=connect).pack(side="left")
     ttk.Button(connection_buttons, text="Disconnect", command=disconnect).pack(side="left", padx=(6, 0))
-    ttk.Button(actions, text="Upload / Run", command=upload).pack(side="left")
+    ttk.Button(actions, text="Upload / View UART", command=lambda: upload(False)).pack(side="left")
+    ttk.Button(actions, text="Upload HDMI", command=lambda: upload(True)).pack(side="left", padx=(6, 0))
     ttk.Button(actions, text="Copy image", command=copy_image).pack(side="left", padx=(6, 0))
     ttk.Button(actions, text="Save image...", command=save_image).pack(side="left", padx=(6, 0))
     ttk.Button(actions, text="Clear", command=clear).pack(side="left", padx=(6, 0))
@@ -346,7 +355,7 @@ def run_viewer_gui(defaults: ViewerDefaults) -> None:
 
     root.protocol("WM_DELETE_WINDOW", on_close)
     if defaults.upload:
-        root.after(150, upload)
+        root.after(150, lambda: upload(False))
     elif defaults.port:
         root.after(150, connect)
     root.after(10, pump)

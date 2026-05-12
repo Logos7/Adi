@@ -64,6 +64,11 @@ module agni_top (
     wire boot_cpu_reset;
     wire boot_busy;
     wire boot_waiting;
+    wire fb_ext_we_unused;
+    wire [10:0] fb_ext_addr_unused;
+    wire [31:0] fb_ext_wdata_unused;
+    wire [8:0] fb_ext_width_unused;
+    wire [7:0] fb_ext_height_unused;
 
     reg [31:0] boot_blink_counter;
     reg boot_blink_led_on;
@@ -108,7 +113,14 @@ module agni_top (
 
         .boot_data_we (boot_data_we),
         .boot_data_addr (boot_data_addr),
-        .boot_data_word (boot_data_word)
+        .boot_data_word (boot_data_word),
+
+        .fb_ext_we (fb_ext_we_unused),
+        .fb_ext_addr (fb_ext_addr_unused),
+        .fb_ext_wdata (fb_ext_wdata_unused),
+        .fb_ext_rdata (32'd0),
+        .fb_ext_width (fb_ext_width_unused),
+        .fb_ext_height (fb_ext_height_unused)
     );
 
     uart_rx #(

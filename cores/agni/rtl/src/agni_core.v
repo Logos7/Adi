@@ -29,7 +29,14 @@ module agni_core (
 
     input wire boot_data_we,
     input wire [10:0] boot_data_addr,
-    input wire [31:0] boot_data_word
+    input wire [31:0] boot_data_word,
+
+    output reg fb_ext_we,
+    output reg [10:0] fb_ext_addr,
+    output reg [31:0] fb_ext_wdata,
+    input wire [31:0] fb_ext_rdata,
+    output wire [8:0] fb_ext_width,
+    output wire [7:0] fb_ext_height
 );
     // -------------------------------------------------------------------------
     // Opcodes
@@ -159,7 +166,7 @@ module agni_core (
     reg fb_tx_kind;
     reg fb_present_packed;
 
-    reg [7:0] fb_width;
+    reg [8:0] fb_width;
     reg [7:0] fb_height;
     reg [15:0] fb_pixels;
     reg [10:0] fb_last_word_index;
@@ -168,6 +175,7 @@ module agni_core (
     reg [15:0] fb_pixel_work;
     reg [15:0] fb_pixels_work;
     reg [10:0] fb_word_offset_work;
+    reg [10:0] fb_ext_word_index;
     reg [11:0] fb_addr12_work;
 
     reg [10:0] addr11_work;
@@ -220,6 +228,9 @@ module agni_core (
             assign gpio_out[gpio_i] = bool_mem[gpio_i];
         end
     endgenerate
+
+    assign fb_ext_width = fb_width;
+    assign fb_ext_height = fb_height;
 
     // -------------------------------------------------------------------------
     // Instruction fields
@@ -428,6 +439,9 @@ module agni_core (
             data_rd_addr <= 11'd0;
             data_wr_addr <= 11'd0;
             data_wr_data <= 32'd0;
+            fb_ext_we <= 1'b0;
+            fb_ext_addr <= 11'd0;
+            fb_ext_wdata <= 32'd0;
             load_dst_reg <= 5'd0;
             fb_base <= 11'd0;
             fb_addr <= 11'd0;
@@ -439,7 +453,7 @@ module agni_core (
             fb_header_index <= 3'd0;
             fb_tx_kind <= 1'b0;
             fb_present_packed <= 1'b0;
-            fb_width <= 8'd64;
+            fb_width <= 9'd64;
             fb_height <= 8'd64;
             fb_pixels <= 16'd4096;
             fb_last_word_index <= 11'd127;
@@ -448,6 +462,7 @@ module agni_core (
             fb_pixel_work <= 16'd0;
             fb_pixels_work <= 16'd0;
             fb_word_offset_work <= 11'd0;
+            fb_ext_word_index <= 11'd0;
             fb_addr12_work <= 12'd0;
             addr11_work <= 11'd0;
             addr14_work <= 14'd0;
@@ -481,6 +496,7 @@ module agni_core (
         end else begin
             uart_tx_valid <= 1'b0;
             data_we <= 1'b0;
+            fb_ext_we <= 1'b0;
 
             if (uart_rx_valid) begin
                 uart_rx_buf <= uart_rx_data;
@@ -735,17 +751,21 @@ module agni_core (
                             end
 
                             OP_FBSIZE: begin
-                                if ((rs_value[31:8] != 24'd0) ||
+                                if ((rs_value[31:9] != 23'd0) ||
                                     (rt_value[31:8] != 24'd0) ||
-                                    (rs_value[7:0] == 8'd0) ||
+                                    (rs_value[8:0] == 9'd0) ||
                                     (rt_value[7:0] == 8'd0)) begin
                                     state <= S_HALT;
                                 end else begin
-                                    fb_pixels_work = {8'd0, rs_value[7:0]} * {8'd0, rt_value[7:0]};
-                                    fb_width <= rs_value[7:0];
+                                    fb_pixels_work = {7'd0, rs_value[8:0]} * {8'd0, rt_value[7:0]};
+                                    fb_width <= rs_value[8:0];
                                     fb_height <= rt_value[7:0];
                                     fb_pixels <= fb_pixels_work;
-                                    fb_last_word_index <= ((fb_pixels_work + 16'd31) >> 5) - 16'd1;
+                                    if (fb_pixels_work[4:0] == 5'd0) begin
+                                        fb_last_word_index <= fb_pixels_work[15:5] - 11'd1;
+                                    end else begin
+                                        fb_last_word_index <= fb_pixels_work[15:5];
+                                    end
                                     pc <= pc + 32'd1;
                                     state <= S_FETCH;
                                 end
@@ -763,14 +783,14 @@ module agni_core (
                             end
 
                             OP_FBPLOT: begin
-                                if ((rs_value[31:8] != 24'd0) ||
+                                if ((rs_value[31:9] != 23'd0) ||
                                     (rt_value[31:8] != 24'd0) ||
-                                    (rs_value[7:0] >= fb_width) ||
+                                    (rs_value[8:0] >= fb_width) ||
                                     (rt_value[7:0] >= fb_height)) begin
                                     pc <= pc + 32'd1;
                                     state <= S_FETCH;
                                 end else begin
-                                    fb_pixel_work = ({8'd0, rt_value[7:0]} * {8'd0, fb_width}) + {8'd0, rs_value[7:0]};
+                                    fb_pixel_work = ({8'd0, rt_value[7:0]} * {7'd0, fb_width}) + {7'd0, rs_value[8:0]};
                                     fb_word_offset_work = fb_pixel_work[15:5];
                                     fb_addr12_work = {1'b0, rd_value[10:0]} + {1'b0, fb_word_offset_work};
                                     if (fb_addr12_work > 12'd2047) begin
@@ -780,20 +800,22 @@ module agni_core (
                                         fb_bit_mask <= 32'h0000_0001 << fb_pixel_work[4:0];
                                         fb_set_bit <= 1'b1;
                                         data_rd_addr <= fb_addr12_work[10:0];
+                                        fb_ext_word_index <= fb_word_offset_work;
+                                        fb_ext_addr <= fb_word_offset_work;
                                         state <= S_FB_RMW_WAIT;
                                     end
                                 end
                             end
 
                             OP_FBERASE: begin
-                                if ((rs_value[31:8] != 24'd0) ||
+                                if ((rs_value[31:9] != 23'd0) ||
                                     (rt_value[31:8] != 24'd0) ||
-                                    (rs_value[7:0] >= fb_width) ||
+                                    (rs_value[8:0] >= fb_width) ||
                                     (rt_value[7:0] >= fb_height)) begin
                                     pc <= pc + 32'd1;
                                     state <= S_FETCH;
                                 end else begin
-                                    fb_pixel_work = ({8'd0, rt_value[7:0]} * {8'd0, fb_width}) + {8'd0, rs_value[7:0]};
+                                    fb_pixel_work = ({8'd0, rt_value[7:0]} * {7'd0, fb_width}) + {7'd0, rs_value[8:0]};
                                     fb_word_offset_work = fb_pixel_work[15:5];
                                     fb_addr12_work = {1'b0, rd_value[10:0]} + {1'b0, fb_word_offset_work};
                                     if (fb_addr12_work > 12'd2047) begin
@@ -803,6 +825,8 @@ module agni_core (
                                         fb_bit_mask <= 32'h0000_0001 << fb_pixel_work[4:0];
                                         fb_set_bit <= 1'b0;
                                         data_rd_addr <= fb_addr12_work[10:0];
+                                        fb_ext_word_index <= fb_word_offset_work;
+                                        fb_ext_addr <= fb_word_offset_work;
                                         state <= S_FB_RMW_WAIT;
                                     end
                                 end
@@ -893,6 +917,9 @@ module agni_core (
                     data_wr_addr <= fb_base + fb_word_index;
                     data_wr_data <= 32'd0;
                     data_we <= 1'b1;
+                    fb_ext_addr <= fb_word_index;
+                    fb_ext_wdata <= 32'd0;
+                    fb_ext_we <= 1'b1;
                     if (fb_word_index == fb_last_word_index) begin
                         pc <= pc + 32'd1;
                         state <= S_FETCH;
@@ -907,12 +934,16 @@ module agni_core (
 
                 S_FB_RMW_WRITE: begin
                     data_wr_addr <= fb_addr;
+                    fb_ext_addr <= fb_ext_word_index;
                     if (fb_set_bit) begin
                         data_wr_data <= data_rd_q | fb_bit_mask;
+                        fb_ext_wdata <= fb_ext_rdata | fb_bit_mask;
                     end else begin
                         data_wr_data <= data_rd_q & ~fb_bit_mask;
+                        fb_ext_wdata <= fb_ext_rdata & ~fb_bit_mask;
                     end
                     data_we <= 1'b1;
+                    fb_ext_we <= 1'b1;
                     pc <= pc + 32'd1;
                     state <= S_FETCH;
                 end
