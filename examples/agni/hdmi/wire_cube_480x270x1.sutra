@@ -1,59 +1,64 @@
 ; 480x270 HDMI double-buffer demo: rotating wire cube.
 ;
-; Important memory layout:
-; - @125..@127 are HDMI double-buffer control cells
-; - @160..@415 contain sin_lut
-; - @416..@431 contain projected cube vertices
-; - framebuffer base is r20 = 512, safely after .data
+; Step 01 memory map cleanup:
+; - HDMI control uses symbolic MMIO names instead of raw @125/@126/@127.
+; - sine LUT has 512 samples for smoother rotation.
+; - projected vertices are stored after the 512-sample LUT.
+; - framebuffer base is moved after .data.
 ;
-; @125 = active/front bank confirmed by HDMI
-; @126 = draw bank used by fbclear/fbplot
-; @127 = requested front bank
+; Important current limitation:
+; framebuffer memory is still shared with data memory in this step.
+; A later RTL step should move framebuffer storage to dedicated VRAM.
+;
+; HDMI MMIO symbols:
+; - @hdmi_active_bank  = bank currently visible on HDMI
+; - @hdmi_draw_bank    = bank used by fbclear/fbplot
+; - @hdmi_request_bank = bank requested as next visible bank
 
 .code
 
 main:
-    ; Framebuffer base. Must not overlap .data.
-    move r20, 512
+    ; Framebuffer base. This must be after .data while framebuffer still lives in data_mem.
+    move r20, 704
 
-    ; r18 = animation angle, 0..255.
+    ; r18 = animation angle, 0..511.
     move r18, 0
 
     ; r21 = sin_lut base address.
-    move r21, 160
+    move r21, 128
 
     ; r22 = angle period.
-    move r22, 256
+    move r22, 512
 
     fbsize 480, 270
 
     ; Clear both banks once at startup.
-    move @126, false
+    move @hdmi_draw_bank, false
     fbclear r20
 
-    move @126, true
+    move @hdmi_draw_bank, true
     fbclear r20
 
     ; Start with bank 0 as visible/front.
-    move @126, false
-    move @127, false
+    move @hdmi_draw_bank, false
+    move @hdmi_request_bank, false
     call wait_front_false
 
 loop_bank_1:
-    move @126, true
+    move @hdmi_draw_bank, true
     call draw_frame
 
-    move @127, true
+    move @hdmi_request_bank, true
     call wait_front_true
 
     call advance_angle
     jump loop_bank_0
 
 loop_bank_0:
-    move @126, false
+    move @hdmi_draw_bank, false
     call draw_frame
 
-    move @127, false
+    move @hdmi_request_bank, false
     call wait_front_false
 
     call advance_angle
@@ -67,8 +72,9 @@ draw_frame:
     return
 
 advance_angle:
+    ; Move by one 512-sample LUT step per frame.
     inc r18
-    cmp.gt b0, r18, 255
+    cmp.ge b0, r18, r22
     jump_if b0, reset_angle
     return
 
@@ -77,13 +83,19 @@ reset_angle:
     return
 
 load_angle:
-    ; r10 = sin(angle)
-    ; r11 = cos(angle)
+    ; Input:
+    ;   r18 = angle, 0..511
+    ;
+    ; Output:
+    ;   r10 = sin(angle)
+    ;   r11 = cos(angle)
+    ;
+    ; With a 512-sample LUT, cos(angle) = sin(angle + 128).
 
     iadd r23, r21, r18
     move r10, @r23
 
-    iadd r23, r18, 64
+    iadd r23, r18, 128
     cmp.lt b0, r23, r22
     jump_if b0, cos_index_ready
 
@@ -95,78 +107,88 @@ cos_index_ready:
     return
 
 project_cube:
-    ; v0 = (-1, -1, -1)
+    ; Projected vertices are stored as:
+    ; v0: @640 = x, @641 = y
+    ; v1: @642 = x, @643 = y
+    ; v2: @644 = x, @645 = y
+    ; v3: @646 = x, @647 = y
+    ; v4: @648 = x, @649 = y
+    ; v5: @650 = x, @651 = y
+    ; v6: @652 = x, @653 = y
+    ; v7: @654 = x, @655 = y
+
     move r0, -1.0
     move r1, -1.0
     move r2, -1.0
     call project_vertex
-    move @416, r25
-    move @417, r26
+    move @640, r25
+    move @641, r26
 
-    ; v1 = (1, -1, -1)
     move r0, 1.0
     move r1, -1.0
     move r2, -1.0
     call project_vertex
-    move @418, r25
-    move @419, r26
+    move @642, r25
+    move @643, r26
 
-    ; v2 = (1, 1, -1)
     move r0, 1.0
     move r1, 1.0
     move r2, -1.0
     call project_vertex
-    move @420, r25
-    move @421, r26
+    move @644, r25
+    move @645, r26
 
-    ; v3 = (-1, 1, -1)
     move r0, -1.0
     move r1, 1.0
     move r2, -1.0
     call project_vertex
-    move @422, r25
-    move @423, r26
+    move @646, r25
+    move @647, r26
 
-    ; v4 = (-1, -1, 1)
     move r0, -1.0
     move r1, -1.0
     move r2, 1.0
     call project_vertex
-    move @424, r25
-    move @425, r26
+    move @648, r25
+    move @649, r26
 
-    ; v5 = (1, -1, 1)
     move r0, 1.0
     move r1, -1.0
     move r2, 1.0
     call project_vertex
-    move @426, r25
-    move @427, r26
+    move @650, r25
+    move @651, r26
 
-    ; v6 = (1, 1, 1)
     move r0, 1.0
     move r1, 1.0
     move r2, 1.0
     call project_vertex
-    move @428, r25
-    move @429, r26
+    move @652, r25
+    move @653, r26
 
-    ; v7 = (-1, 1, 1)
     move r0, -1.0
     move r1, 1.0
     move r2, 1.0
     call project_vertex
-    move @430, r25
-    move @431, r26
+    move @654, r25
+    move @655, r26
 
     return
 
 project_vertex:
-    ; Diagonal axis rotation around normalized axis (1,1,1).
+    ; Input:
+    ;   r0  = x
+    ;   r1  = y
+    ;   r2  = z
+    ;   r10 = sin(angle)
+    ;   r11 = cos(angle)
     ;
     ; Output:
     ;   r25 = screen x
     ;   r26 = screen y
+    ;
+    ; Rotation around diagonal axis (1,1,1).
+    ; Projection first maps to virtual 64x64, then scales to 480x270.
 
     ; k = (x + y + z) * (1 - cos) / 3
     fsub r3, 1.0, r11
@@ -200,7 +222,7 @@ project_vertex:
     fadd r8, r6, r8
     fadd r8, r8, r4
 
-    ; Project to virtual 64x64 first.
+    ; Perspective into virtual 64x64 space.
     fadd r9, r8, 4.0
     fdiv r14, 52.0, r9
 
@@ -226,80 +248,80 @@ project_vertex:
 draw_cube_edges:
     ; Back face: v0-v1-v2-v3-v0
 
-    move r1, @416
-    move r2, @417
-    move r3, @418
-    move r4, @419
+    move r1, @640
+    move r2, @641
+    move r3, @642
+    move r4, @643
     call line
 
-    move r1, @418
-    move r2, @419
-    move r3, @420
-    move r4, @421
+    move r1, @642
+    move r2, @643
+    move r3, @644
+    move r4, @645
     call line
 
-    move r1, @420
-    move r2, @421
-    move r3, @422
-    move r4, @423
+    move r1, @644
+    move r2, @645
+    move r3, @646
+    move r4, @647
     call line
 
-    move r1, @422
-    move r2, @423
-    move r3, @416
-    move r4, @417
+    move r1, @646
+    move r2, @647
+    move r3, @640
+    move r4, @641
     call line
 
     ; Front face: v4-v5-v6-v7-v4
 
-    move r1, @424
-    move r2, @425
-    move r3, @426
-    move r4, @427
+    move r1, @648
+    move r2, @649
+    move r3, @650
+    move r4, @651
     call line
 
-    move r1, @426
-    move r2, @427
-    move r3, @428
-    move r4, @429
+    move r1, @650
+    move r2, @651
+    move r3, @652
+    move r4, @653
     call line
 
-    move r1, @428
-    move r2, @429
-    move r3, @430
-    move r4, @431
+    move r1, @652
+    move r2, @653
+    move r3, @654
+    move r4, @655
     call line
 
-    move r1, @430
-    move r2, @431
-    move r3, @424
-    move r4, @425
+    move r1, @654
+    move r2, @655
+    move r3, @648
+    move r4, @649
     call line
 
-    ; Connecting edges.
+    ; Connections between back and front faces.
 
-    move r1, @416
-    move r2, @417
-    move r3, @424
-    move r4, @425
+    move r1, @640
+    move r2, @641
+    move r3, @648
+    move r4, @649
     call line
 
-    move r1, @418
-    move r2, @419
-    move r3, @426
-    move r4, @427
+    move r1, @642
+    move r2, @643
+    move r3, @650
+    move r4, @651
     call line
 
-    move r1, @420
-    move r2, @421
-    move r3, @428
-    move r4, @429
+    move r1, @644
+    move r2, @645
+    move r3, @652
+    move r4, @653
     call line
 
-    move r1, @422
-    move r2, @423
-    move r3, @430
-    move r4, @431
+    move r1, @646
+    move r2, @647
+    move r3, @654
+    move r4, @655
     call line
 
     return
@@ -307,11 +329,13 @@ draw_cube_edges:
 line:
     ; Bresenham line drawing.
     ;
-    ; r1 = x0
-    ; r2 = y0
-    ; r3 = x1
-    ; r4 = y1
+    ; Input:
+    ;   r1 = x0
+    ;   r2 = y0
+    ;   r3 = x1
+    ;   r4 = y1
 
+    ; dx = abs(x1 - x0)
     isub r5, r3, r1
     cmp.lt b0, r5, 0
     jump_if b0, line_dx_negative
@@ -321,6 +345,7 @@ line_dx_negative:
     isub r5, 0, r5
 
 line_dx_ready:
+    ; sx = x0 < x1 ? 1 : -1
     move r6, 1
     cmp.lt b0, r3, r1
     jump_if b0, line_sx_negative
@@ -330,6 +355,7 @@ line_sx_negative:
     move r6, -1
 
 line_sx_ready:
+    ; dy = -abs(y1 - y0)
     isub r7, r4, r2
     cmp.lt b0, r7, 0
     jump_if b0, line_dy_negative
@@ -341,6 +367,7 @@ line_dy_negative:
 line_dy_ready:
     isub r7, 0, r7
 
+    ; sy = y0 < y1 ? 1 : -1
     move r8, 1
     cmp.lt b0, r4, r2
     jump_if b0, line_sy_negative
@@ -350,6 +377,7 @@ line_sy_negative:
     move r8, -1
 
 line_sy_ready:
+    ; err = dx + dy
     iadd r9, r5, r7
 
 line_loop:
@@ -369,13 +397,16 @@ line_loop:
     fbplot r20, r1, r2
 
 line_skip_plot:
+    ; Stop when current point reaches target point.
     cmp.eq b0, r1, r3
     cmp.eq b1, r2, r4
     band b2, b0, b1
     jump_if b2, line_done
 
+    ; e2 = 2 * err
     shl r14, r9, 1
 
+    ; if e2 >= dy: err += dy; x += sx
     cmp.ge b0, r14, r7
     jump_if_not b0, line_skip_x_step
 
@@ -383,6 +414,7 @@ line_skip_plot:
     iadd r1, r1, r6
 
 line_skip_x_step:
+    ; if e2 <= dx: err += dx; y += sy
     cmp.le b1, r14, r5
     jump_if_not b1, line_skip_y_step
 
@@ -396,26 +428,25 @@ line_done:
     return
 
 wait_front_true:
-    move b7, @125
+    move b7, @hdmi_active_bank
     jump_if_not b7, wait_front_true
     return
 
 wait_front_false:
-    move b7, @125
+    move b7, @hdmi_active_bank
     jump_if b7, wait_front_false
     return
 
 .data
 
-; @0..@159 reserved.
-; This keeps sin_lut away from HDMI control cells @125..@127.
+; @0..@127 reserved for low memory and current HDMI control cells.
 reserved:
-    .zero 160
+    .zero 128
 
-; @160..@415 sine lookup table.
+; @128..@639: 512-sample sine lookup table.
 sin_lut:
-    .sin_lut 256
+    .sin_lut 512
 
-; @416..@431 projected cube vertices.
+; @640..@655: projected cube vertices.
 projected_vertices:
     .zero 16

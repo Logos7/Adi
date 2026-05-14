@@ -1,19 +1,4 @@
-"""
-Sutra — assembler for the Agni processor.
-
-Agni v1.6:
-- official style is lowercase; the parser is case-insensitive,
-- immediates have no prefix: 123, 1.0, π, √500, true, high,
-- memory / MMIO / GPIO always use @: @10, @uart_tx, @led0, @r1,
-- addresses as regular numbers use &: &uart_tx, &led0, &pin15,
-- r0..r31 are real GPRs; t0..t7 are aliases for r24..r31 (scratch/volatile),
-- move dst, src is shared by word and bool values,
-- call/return use the hardware return stack in RTL,
-- fbsize/fbclear/fbplot/fberase/fbpresent operate on a configurable packed 1-bit framebuffer in data_mem,
-- cadd/csub/cmul/cabs2 and branch/wait/min/max are assembler macros,
-- .data/.code/.org/.word/.q7_25/.sin_lut build a separate data_mem image,
-- .word/.u32/.q7_25 accept comma-separated value lists, e.g. .word 1, 2, 3.
-"""
+"""Sutra constants for the Agni assembler."""
 
 import math
 
@@ -136,7 +121,8 @@ SHIFT_J_OFFSET = 4
 PRED_ALWAYS = 0b1111
 MASK32 = 0xFFFFFFFF
 Q = 1 << 25
-DATA_MEM_WORDS = 2048
+
+DATA_MEM_WORDS = 16384
 
 T_REGS = {f"T{i}": 24 + i for i in range(8)}
 COMPLEX_SCRATCH = (24, 25, 26, 27)
@@ -231,6 +217,23 @@ MMIO_SYMBOLS = {
     "UART_READY": 0x80,
     "UART_TX_READY": 0x80,
     "UART_RX_READY": 0x81,
+
+    "HDMI_ACTIVE_BANK": 0x7D,
+    "HDMI_FRONT_BANK": 0x7D,
+    "HDMI_DRAW_BANK": 0x7E,
+    "HDMI_REQUEST_BANK": 0x7F,
+    "HDMI_REQUEST_FRONT_BANK": 0x7F,
+}
+
+BOOL_MMIO_SYMBOLS = {
+    "UART_READY",
+    "UART_TX_READY",
+    "UART_RX_READY",
+    "HDMI_ACTIVE_BANK",
+    "HDMI_FRONT_BANK",
+    "HDMI_DRAW_BANK",
+    "HDMI_REQUEST_BANK",
+    "HDMI_REQUEST_FRONT_BANK",
 }
 
 GPIO_ALIASES = {
@@ -245,10 +248,6 @@ GPIO_ALIASES = {
 GPIO_PIN_MAX = 127
 GPIO_INPIN_BASE = 64
 
-# Data labels are populated only during assemble_image().
-# They are accepted as immediates and direct memory addresses, e.g.
-# move r21, sin_lut
-# move r0, @sin_lut
 DATA_SYMBOLS: dict[str, int] = {}
 
 INSTRUCTION_SUMMARY = [
@@ -270,7 +269,7 @@ INSTRUCTION_SUMMARY = [
     "inot/itof/ftoi/fabs rd, rs|value",
     "shl/shr/sar rd, rs|value, amount",
     "band/bor/bxor bd, bs|bool, bt|bool",
-    "bnot bd, bs|bool",
+    "bnot bd, bs",
     "cmp.eq/cmp.ne/cmp.lt/cmp.le/cmp.gt/cmp.ge bd, rs|value, rt|value",
     "cmp.feq bd, rs|value, rt|value, eps|value ; macro: abs(rs-rt) <= eps",
     "cadd/csub/cmul zd, zs, zt ; macro complex fixed-point",
@@ -292,8 +291,8 @@ CONSTANT_SUMMARY = [
     "ASCII aliases are still accepted, but examples prefer mathematical symbols",
     "Logs/ratios: ln2, ln10, log2e, log10e, 1/π, 1/τ, 1/√2, silver",
     "Bool values: false/low and true/high. Raw 0/1 are word numbers, not bool values.",
-    "Memory/IO: @uart_tx, @uart_rx, @uart_ready, @uart_rx_ready, @led0, @pin15, @100, @r1, @r1+4",
-    "Address-as-value: &uart_tx, &led0, &pin15, &100",
+    "Memory/IO: @uart_tx, @uart_rx, @uart_ready, @hdmi_active_bank, @hdmi_draw_bank, @hdmi_request_bank, @led0, @pin15, @100, @r1, @r1+4",
+    "Address-as-value: &uart_tx, &hdmi_draw_bank, &led0, &pin15, &100",
     "Registers: r0..r31; aliases t0..t7 = r24..r31",
     "Complex pairs: z0=r0:r1 ... z11=r22:r23; z12..z15 overlap t0..t7 and are not macro-safe",
 ]

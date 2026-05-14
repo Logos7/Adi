@@ -43,6 +43,7 @@ def parse_address_value(token: str) -> int:
         if not 0 <= n <= GPIO_PIN_MAX:
             raise AssemblerError(f"pin{n} is out of range 0..{GPIO_PIN_MAX}")
         return n
+
     if l.startswith("inpin"):
         n = int(l[5:])
         if not 0 <= n <= 63:
@@ -91,8 +92,10 @@ def parse_immediate_raw(token: str) -> int:
 
     if raw.startswith("#"):
         raise AssemblerError("Sutra v1.4 does not use # for immediates; write e.g. move r0, π or move r0, 123")
+
     if raw.startswith("@"):
         raise AssemblerError("@ means memory/IO; use & for an address value, e.g. move r0, &uart_tx")
+
     if raw.startswith("&"):
         return to_u32(parse_address_value(raw))
 
@@ -154,7 +157,6 @@ def parse_register(token: str) -> int:
 
 def parse_complex_register(token: str) -> int:
     raw = token.strip().upper()
-
     if not raw.startswith("Z"):
         raise AssemblerError(f"Expected complex register z0..z15, got: {token}")
 
@@ -192,7 +194,6 @@ def parse_bool_register(token: str) -> int:
 
 def parse_predicate_register(token: str) -> int:
     raw = token.strip().upper()
-
     if not raw.startswith("B"):
         raise AssemblerError(f"Predicate uses only b0..b7, got: {token}")
 
@@ -231,7 +232,7 @@ def parse_memory_operand(token: str):
 
     u = body.upper()
     if u in MMIO_SYMBOLS:
-        domain = "bool" if u in ("UART_READY", "UART_TX_READY", "UART_RX_READY") else "word"
+        domain = "bool" if u in BOOL_MMIO_SYMBOLS else "word"
         return "imm", MMIO_SYMBOLS[u], domain, 0
 
     if u in GPIO_ALIASES:
@@ -271,6 +272,7 @@ def parse_predicate_prefix(line: str):
     negated = bool(match.group(1))
     bool_idx = parse_predicate_register(match.group(2))
     rest = match.group(3).strip()
+
     if not rest:
         raise AssemblerError("Predicate without an instruction")
 
