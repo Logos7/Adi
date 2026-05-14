@@ -67,6 +67,7 @@ module agni_top (
     wire fb_ext_we_unused;
     wire [10:0] fb_ext_addr_unused;
     wire [31:0] fb_ext_wdata_unused;
+    wire fb_ext_present_req_unused;
     wire [8:0] fb_ext_width_unused;
     wire [7:0] fb_ext_height_unused;
 
@@ -119,6 +120,8 @@ module agni_top (
         .fb_ext_addr (fb_ext_addr_unused),
         .fb_ext_wdata (fb_ext_wdata_unused),
         .fb_ext_rdata (32'd0),
+        .fb_ext_present_req (fb_ext_present_req_unused),
+        .fb_ext_present_ack (1'b1),
         .fb_ext_width (fb_ext_width_unused),
         .fb_ext_height (fb_ext_height_unused)
     );

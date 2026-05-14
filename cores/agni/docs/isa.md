@@ -272,6 +272,21 @@ loop:
 
 `read_rx` waits for `@uart_rx_ready`, then reads `@uart_rx`. `write_tx` waits for `@uart_ready`, then writes `@uart_tx`.
 
+### Framebuffer
+
+```asm
+fbsize 320, 200
+fbclear r20
+fbplot r20, r1, r2
+fberase r20, r1, r2
+fbpresent1 r20
+fbswap
+```
+
+`fbpresent` and `fbpresent1` stream the framebuffer over UART. HDMI systems use
+`fbswap` to present the external back buffer without UART traffic; on the
+double-buffered HDMI top it waits until the swap has happened on frame start.
+
 ### Complex macros
 
 Complex support is currently implemented as assembler macros on top of the scalar ALU:

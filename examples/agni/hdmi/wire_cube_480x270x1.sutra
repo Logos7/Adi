@@ -1,0 +1,421 @@
+; 480x270 HDMI double-buffer demo: rotating wire cube.
+;
+; Important memory layout:
+; - @125..@127 are HDMI double-buffer control cells
+; - @160..@415 contain sin_lut
+; - @416..@431 contain projected cube vertices
+; - framebuffer base is r20 = 512, safely after .data
+;
+; @125 = active/front bank confirmed by HDMI
+; @126 = draw bank used by fbclear/fbplot
+; @127 = requested front bank
+
+.code
+
+main:
+    ; Framebuffer base. Must not overlap .data.
+    move r20, 512
+
+    ; r18 = animation angle, 0..255.
+    move r18, 0
+
+    ; r21 = sin_lut base address.
+    move r21, 160
+
+    ; r22 = angle period.
+    move r22, 256
+
+    fbsize 480, 270
+
+    ; Clear both banks once at startup.
+    move @126, false
+    fbclear r20
+
+    move @126, true
+    fbclear r20
+
+    ; Start with bank 0 as visible/front.
+    move @126, false
+    move @127, false
+    call wait_front_false
+
+loop_bank_1:
+    move @126, true
+    call draw_frame
+
+    move @127, true
+    call wait_front_true
+
+    call advance_angle
+    jump loop_bank_0
+
+loop_bank_0:
+    move @126, false
+    call draw_frame
+
+    move @127, false
+    call wait_front_false
+
+    call advance_angle
+    jump loop_bank_1
+
+draw_frame:
+    fbclear r20
+    call load_angle
+    call project_cube
+    call draw_cube_edges
+    return
+
+advance_angle:
+    inc r18
+    cmp.gt b0, r18, 255
+    jump_if b0, reset_angle
+    return
+
+reset_angle:
+    move r18, 0
+    return
+
+load_angle:
+    ; r10 = sin(angle)
+    ; r11 = cos(angle)
+
+    iadd r23, r21, r18
+    move r10, @r23
+
+    iadd r23, r18, 64
+    cmp.lt b0, r23, r22
+    jump_if b0, cos_index_ready
+
+    isub r23, r23, r22
+
+cos_index_ready:
+    iadd r23, r21, r23
+    move r11, @r23
+    return
+
+project_cube:
+    ; v0 = (-1, -1, -1)
+    move r0, -1.0
+    move r1, -1.0
+    move r2, -1.0
+    call project_vertex
+    move @416, r25
+    move @417, r26
+
+    ; v1 = (1, -1, -1)
+    move r0, 1.0
+    move r1, -1.0
+    move r2, -1.0
+    call project_vertex
+    move @418, r25
+    move @419, r26
+
+    ; v2 = (1, 1, -1)
+    move r0, 1.0
+    move r1, 1.0
+    move r2, -1.0
+    call project_vertex
+    move @420, r25
+    move @421, r26
+
+    ; v3 = (-1, 1, -1)
+    move r0, -1.0
+    move r1, 1.0
+    move r2, -1.0
+    call project_vertex
+    move @422, r25
+    move @423, r26
+
+    ; v4 = (-1, -1, 1)
+    move r0, -1.0
+    move r1, -1.0
+    move r2, 1.0
+    call project_vertex
+    move @424, r25
+    move @425, r26
+
+    ; v5 = (1, -1, 1)
+    move r0, 1.0
+    move r1, -1.0
+    move r2, 1.0
+    call project_vertex
+    move @426, r25
+    move @427, r26
+
+    ; v6 = (1, 1, 1)
+    move r0, 1.0
+    move r1, 1.0
+    move r2, 1.0
+    call project_vertex
+    move @428, r25
+    move @429, r26
+
+    ; v7 = (-1, 1, 1)
+    move r0, -1.0
+    move r1, 1.0
+    move r2, 1.0
+    call project_vertex
+    move @430, r25
+    move @431, r26
+
+    return
+
+project_vertex:
+    ; Diagonal axis rotation around normalized axis (1,1,1).
+    ;
+    ; Output:
+    ;   r25 = screen x
+    ;   r26 = screen y
+
+    ; k = (x + y + z) * (1 - cos) / 3
+    fsub r3, 1.0, r11
+
+    fadd r4, r0, r1
+    fadd r4, r4, r2
+    fmul r4, r4, 0.333333
+    fmul r4, r4, r3
+
+    ; t = sin / sqrt(3)
+    fmul r14, r10, 0.577350
+
+    ; rotated x -> r7
+    fmul r5, r0, r11
+    fsub r6, r2, r1
+    fmul r6, r6, r14
+    fadd r7, r5, r6
+    fadd r7, r7, r4
+
+    ; rotated y -> r5
+    fmul r5, r1, r11
+    fsub r6, r0, r2
+    fmul r6, r6, r14
+    fadd r5, r5, r6
+    fadd r5, r5, r4
+
+    ; rotated z -> r8
+    fmul r6, r2, r11
+    fsub r8, r1, r0
+    fmul r8, r8, r14
+    fadd r8, r6, r8
+    fadd r8, r8, r4
+
+    ; Project to virtual 64x64 first.
+    fadd r9, r8, 4.0
+    fdiv r14, 52.0, r9
+
+    fmul r15, r7, r14
+    fadd r15, r15, 32.5
+    ftoi r15, r15
+
+    fmul r16, r5, r14
+    fsub r16, 32.5, r16
+    ftoi r16, r16
+
+    ; Scale virtual 64x64 to centered HDMI region.
+    ; x = x64 * 4 + 112
+    ; y = y64 * 4 + 7
+    shl r25, r15, 2
+    iadd r25, r25, 112
+
+    shl r26, r16, 2
+    iadd r26, r26, 7
+
+    return
+
+draw_cube_edges:
+    ; Back face: v0-v1-v2-v3-v0
+
+    move r1, @416
+    move r2, @417
+    move r3, @418
+    move r4, @419
+    call line
+
+    move r1, @418
+    move r2, @419
+    move r3, @420
+    move r4, @421
+    call line
+
+    move r1, @420
+    move r2, @421
+    move r3, @422
+    move r4, @423
+    call line
+
+    move r1, @422
+    move r2, @423
+    move r3, @416
+    move r4, @417
+    call line
+
+    ; Front face: v4-v5-v6-v7-v4
+
+    move r1, @424
+    move r2, @425
+    move r3, @426
+    move r4, @427
+    call line
+
+    move r1, @426
+    move r2, @427
+    move r3, @428
+    move r4, @429
+    call line
+
+    move r1, @428
+    move r2, @429
+    move r3, @430
+    move r4, @431
+    call line
+
+    move r1, @430
+    move r2, @431
+    move r3, @424
+    move r4, @425
+    call line
+
+    ; Connecting edges.
+
+    move r1, @416
+    move r2, @417
+    move r3, @424
+    move r4, @425
+    call line
+
+    move r1, @418
+    move r2, @419
+    move r3, @426
+    move r4, @427
+    call line
+
+    move r1, @420
+    move r2, @421
+    move r3, @428
+    move r4, @429
+    call line
+
+    move r1, @422
+    move r2, @423
+    move r3, @430
+    move r4, @431
+    call line
+
+    return
+
+line:
+    ; Bresenham line drawing.
+    ;
+    ; r1 = x0
+    ; r2 = y0
+    ; r3 = x1
+    ; r4 = y1
+
+    isub r5, r3, r1
+    cmp.lt b0, r5, 0
+    jump_if b0, line_dx_negative
+    jump line_dx_ready
+
+line_dx_negative:
+    isub r5, 0, r5
+
+line_dx_ready:
+    move r6, 1
+    cmp.lt b0, r3, r1
+    jump_if b0, line_sx_negative
+    jump line_sx_ready
+
+line_sx_negative:
+    move r6, -1
+
+line_sx_ready:
+    isub r7, r4, r2
+    cmp.lt b0, r7, 0
+    jump_if b0, line_dy_negative
+    jump line_dy_ready
+
+line_dy_negative:
+    isub r7, 0, r7
+
+line_dy_ready:
+    isub r7, 0, r7
+
+    move r8, 1
+    cmp.lt b0, r4, r2
+    jump_if b0, line_sy_negative
+    jump line_sy_ready
+
+line_sy_negative:
+    move r8, -1
+
+line_sy_ready:
+    iadd r9, r5, r7
+
+line_loop:
+    ; Clip before fbplot.
+    cmp.lt b0, r1, 0
+    jump_if b0, line_skip_plot
+
+    cmp.ge b0, r1, 480
+    jump_if b0, line_skip_plot
+
+    cmp.lt b0, r2, 0
+    jump_if b0, line_skip_plot
+
+    cmp.ge b0, r2, 270
+    jump_if b0, line_skip_plot
+
+    fbplot r20, r1, r2
+
+line_skip_plot:
+    cmp.eq b0, r1, r3
+    cmp.eq b1, r2, r4
+    band b2, b0, b1
+    jump_if b2, line_done
+
+    shl r14, r9, 1
+
+    cmp.ge b0, r14, r7
+    jump_if_not b0, line_skip_x_step
+
+    iadd r9, r9, r7
+    iadd r1, r1, r6
+
+line_skip_x_step:
+    cmp.le b1, r14, r5
+    jump_if_not b1, line_skip_y_step
+
+    iadd r9, r9, r5
+    iadd r2, r2, r8
+
+line_skip_y_step:
+    jump line_loop
+
+line_done:
+    return
+
+wait_front_true:
+    move b7, @125
+    jump_if_not b7, wait_front_true
+    return
+
+wait_front_false:
+    move b7, @125
+    jump_if b7, wait_front_false
+    return
+
+.data
+
+; @0..@159 reserved.
+; This keeps sin_lut away from HDMI control cells @125..@127.
+reserved:
+    .zero 160
+
+; @160..@415 sine lookup table.
+sin_lut:
+    .sin_lut 256
+
+; @416..@431 projected cube vertices.
+projected_vertices:
+    .zero 16

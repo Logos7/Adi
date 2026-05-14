@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE gowin-fpga-project>
 <Project>
-  <Template>FPGA</Template>
-  <Version>5</Version>
-  <Device name="GW2AR-18C" pn="GW2AR-LV18QN88C8/I7">gw2ar18c-000</Device>
-  <FileList>
-    <File path="../../../../cores/agni/rtl/src/agni_core.v" type="file.verilog" enable="1"/>
-    <File path="../../../../cores/agni/rtl/src/agni_bootloader.v" type="file.verilog" enable="1"/>
-    <File path="../../../../cores/agni/rtl/src/uart_rx.v" type="file.verilog" enable="1"/>
-    <File path="../../../../cores/agni/rtl/src/uart_tx.v" type="file.verilog" enable="1"/>
-    <File path="../../../../rtl/video/framebuffer/framebuffer_1bpp_dual_clock.v" type="file.verilog" enable="1"/>
-    <File path="../../../../rtl/video/hdmi/hdmi_scanout_1bpp_patterns.v" type="file.verilog" enable="1"/>
-    <File path="../../../../experimental/hdmi_320x200_1bpp_v2/src/dvi_tx/dvi_tx.v" type="file.verilog" enable="1"/>
-    <File path="../../../../experimental/hdmi_320x200_1bpp_v2/src/gowin_rpll/TMDS_rPLL.v" type="file.verilog" enable="1"/>
-    <File path="rtl/agni_hdmi_top.v" type="file.verilog" enable="1"/>
-    <File path="rtl/agni_hdmi.cst" type="file.cst" enable="1"/>
-    <File path="rtl/agni_hdmi.sdc" type="file.sdc" enable="1"/>
-  </FileList>
+ <Template>FPGA</Template>
+ <Version>5</Version>
+ <Device name="GW2AR-18C" pn="GW2AR-LV18QN88C8/I7">gw2ar18c-000</Device>
+ <FileList>
+ <File path="../../../../cores/agni/rtl/src/agni_core.v" type="file.verilog" enable="1"/>
+ <File path="../../../../cores/agni/rtl/src/agni_bootloader.v" type="file.verilog" enable="1"/>
+ <File path="../../../../cores/agni/rtl/src/uart_rx.v" type="file.verilog" enable="1"/>
+ <File path="../../../../cores/agni/rtl/src/uart_tx.v" type="file.verilog" enable="1"/>
+ <File path="../../../../rtl/video/framebuffer/framebuffer_1bpp_dual_clock.v" type="file.verilog" enable="1"/>
+ <File path="../../../../rtl/video/hdmi/hdmi_scanout_1bpp_patterns.v" type="file.verilog" enable="1"/>
+ <File path="../../../../rtl/video/hdmi/adi_dvi_tx_gowin.v" type="file.verilog" enable="1"/>
+ <File path="rtl/TMDS_rPLL.v" type="file.verilog" enable="1"/>
+ <File path="rtl/agni_hdmi_top.v" type="file.verilog" enable="1"/>
+ <File path="rtl/agni_hdmi.cst" type="file.cst" enable="1"/>
+ <File path="rtl/agni_hdmi.sdc" type="file.sdc" enable="1"/>
+ </FileList>
 </Project>

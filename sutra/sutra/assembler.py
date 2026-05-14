@@ -57,6 +57,11 @@ def assemble_instruction(mnemonic: str, operands: list[str], pred: int = PRED_AL
         opcode = OPCODE_FBPRESENT if m == "FBPRESENT" else OPCODE_FBPRESENT1
         return [encode_r_format(opcode, base, 0, 0, 0, pred)]
 
+    if m == "FBSWAP":
+        if len(operands) != 0:
+            raise AssemblerError("fbswap does not take operands")
+        return [encode_r_format(OPCODE_FBSWAP, 0, 0, 0, 0, pred)]
+
     if m in ("FBPLOT", "FBERASE"):
         if len(operands) != 3:
             raise AssemblerError(f"{m.lower()} requires 3 operands: {m.lower()} rBase, rX, rY")

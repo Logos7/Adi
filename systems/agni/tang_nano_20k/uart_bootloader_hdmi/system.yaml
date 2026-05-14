@@ -4,7 +4,7 @@ system:
   board: tang_nano_20k
   variant: uart_bootloader_hdmi
   status: experimental
-  description: Agni UART bootloader system with HDMI scanout from an external dual-clock 1bpp framebuffer.
+  description: Agni UART bootloader system with HDMI scanout from an external double-buffered dual-clock 1bpp framebuffer.
 
 toolchain:
   vendor: gowin
@@ -29,5 +29,5 @@ constraints:
 
 notes:
   - Existing UART framebuffer presentation is intentionally preserved.
-  - HDMI mode 0 reads the external framebuffer; modes 1..7 keep the standalone HDMI patterns.
+  - HDMI mode 0 reads the external front framebuffer; fbswap presents the current back framebuffer at frame start.
   - The external framebuffer address is normalized to word 0, so Sutra programs may keep their existing data_mem framebuffer base.

@@ -24,6 +24,9 @@ OPCODE_FBCLEAR = 0x31
 OPCODE_FBPLOT = 0x32
 OPCODE_FBERASE = 0x33
 OPCODE_FBPRESENT = 0x34
+OPCODE_FBPRESENT1 = 0x35
+OPCODE_FBSIZE = 0x36
+OPCODE_FBSWAP = 0x37
 OPCODE_JUMP = 0x38
 OPCODE_CALL = 0x39
 OPCODE_RETURN = 0x3A
@@ -422,6 +425,22 @@ class CPU:
                 for bit in range(32):
                     self.uart_tx_bytes.append(48 if (w >> bit) & 1 else 0)
             self.pc += 1
+        elif opcode == OPCODE_FBPRESENT1:
+            base = self.read_register(field_rd(word)) & 0x1FF
+            self.uart_tx_bytes.extend([65, 68, 73, 49, 64, 64])
+            for word_index in range(128):
+                w = self.data_mem[(base + word_index) & 0x1FF]
+                for byte_index in range(4):
+                    b = 0
+                    for bit in range(8):
+                        if (w >> ((byte_index << 3) + bit)) & 1:
+                            b |= 1 << (7 - bit)
+                    self.uart_tx_bytes.append(b)
+            self.pc += 1
+        elif opcode == OPCODE_FBSIZE:
+            self.pc += 1
+        elif opcode == OPCODE_FBSWAP:
+            self.pc += 1
         elif opcode == OPCODE_JUMP:
             self.pc += 1 + field_j_offset(word)
         elif opcode == OPCODE_CALL:
@@ -620,6 +639,15 @@ def disassemble(word: int, second_word: int = None) -> str:
 
     if opcode == OPCODE_FBPRESENT:
         return f"{pred}fbpresent {reg_name(field_rd(word))}"
+
+    if opcode == OPCODE_FBPRESENT1:
+        return f"{pred}fbpresent1 {reg_name(field_rd(word))}"
+
+    if opcode == OPCODE_FBSIZE:
+        return f"{pred}fbsize {reg_name(field_rs(word))}, {reg_name(field_rt(word))}"
+
+    if opcode == OPCODE_FBSWAP:
+        return f"{pred}fbswap"
 
     if opcode == OPCODE_JUMP:
         return f"{pred}jump {field_j_offset(word):+d}"

@@ -1,0 +1,355 @@
+; 480x270 HDMI double-buffer demo: 16 moving boxes.
+; Refactor: horizontal line + vertical line + parameterized box.
+; @126 draw bank, @127 requested front bank, @125 active/front bank.
+
+main:
+    move r20, 0
+    move r28, 0
+    move r27, 0
+    move r26, 0
+    move r25, 0
+    move r24, 0
+    move r23, 0
+    move r22, 0
+    fbsize 480, 270
+
+    move @126, false
+    fbclear r20
+    move @127, false
+    call wait_front_false
+
+loop_bank_1:
+    move @126, true
+    call draw_frame
+    move @127, true
+    call wait_front_true
+    call tick_frame
+    jump loop_bank_0
+
+loop_bank_0:
+    move @126, false
+    call draw_frame
+    move @127, false
+    call wait_front_false
+    call tick_frame
+    jump loop_bank_1
+
+tick_frame:
+    inc r28
+    cmp.gt b0, r28, 359
+    jump_if b0, tick_reset_fast
+
+tick_after_fast:
+    inc r24
+    cmp.gt b0, r24, 1
+    jump_if b0, tick_inc_half
+
+tick_after_half:
+    inc r23
+    cmp.gt b0, r23, 2
+    jump_if b0, tick_inc_third
+
+tick_after_third:
+    inc r22
+    cmp.gt b0, r22, 3
+    jump_if b0, tick_inc_quarter
+
+tick_after_quarter:
+    return
+
+tick_reset_fast:
+    move r28, 0
+    jump tick_after_fast
+
+tick_inc_half:
+    move r24, 0
+    inc r27
+    cmp.gt b0, r27, 359
+    jump_if b0, tick_reset_half
+    jump tick_after_half
+
+tick_reset_half:
+    move r27, 0
+    jump tick_after_half
+
+tick_inc_third:
+    move r23, 0
+    inc r26
+    cmp.gt b0, r26, 359
+    jump_if b0, tick_reset_third
+    jump tick_after_third
+
+tick_reset_third:
+    move r26, 0
+    jump tick_after_third
+
+tick_inc_quarter:
+    move r22, 0
+    inc r25
+    cmp.gt b0, r25, 359
+    jump_if b0, tick_reset_quarter
+    jump tick_after_quarter
+
+tick_reset_quarter:
+    move r25, 0
+    jump tick_after_quarter
+
+draw_frame:
+    move r16, r28
+    move r17, r27
+    move r18, r26
+    move r19, r25
+
+    fbclear r20
+
+    move r10, r19
+    move r11, 17
+    move r12, 41
+    move r13, 451
+    move r14, 251
+    move r3, 28
+    move r4, 18
+    call draw_box_param
+
+    move r10, r17
+    move r11, 123
+    move r12, 12
+    move r13, 437
+    move r14, 247
+    move r3, 42
+    move r4, 22
+    call draw_box_param
+
+    move r10, r16
+    move r11, 251
+    move r12, 94
+    move r13, 461
+    move r14, 235
+    move r3, 18
+    move r4, 34
+    call draw_box_param
+
+    move r10, r18
+    move r11, 71
+    move r12, 149
+    move r13, 443
+    move r14, 233
+    move r3, 36
+    move r4, 36
+    call draw_box_param
+
+    move r10, r17
+    move r11, 309
+    move r12, 37
+    move r13, 425
+    move r14, 253
+    move r3, 54
+    move r4, 16
+    call draw_box_param
+
+    move r10, r16
+    move r11, 401
+    move r12, 185
+    move r13, 457
+    move r14, 221
+    move r3, 22
+    move r4, 48
+    call draw_box_param
+
+    move r10, r19
+    move r11, 11
+    move r12, 207
+    move r13, 415
+    move r14, 241
+    move r3, 64
+    move r4, 28
+    call draw_box_param
+
+    move r10, r18
+    move r11, 222
+    move r12, 67
+    move r13, 449
+    move r14, 209
+    move r3, 30
+    move r4, 60
+    call draw_box_param
+
+    move r10, r17
+    move r11, 155
+    move r12, 23
+    move r13, 459
+    move r14, 249
+    move r3, 20
+    move r4, 20
+    call draw_box_param
+
+    move r10, r19
+    move r11, 337
+    move r12, 121
+    move r13, 433
+    move r14, 229
+    move r3, 46
+    move r4, 40
+    call draw_box_param
+
+    move r10, r16
+    move r11, 89
+    move r12, 92
+    move r13, 407
+    move r14, 245
+    move r3, 72
+    move r4, 24
+    call draw_box_param
+
+    move r10, r18
+    move r11, 267
+    move r12, 16
+    move r13, 453
+    move r14, 217
+    move r3, 26
+    move r4, 52
+    call draw_box_param
+
+    move r10, r17
+    move r11, 417
+    move r12, 151
+    move r13, 421
+    move r14, 211
+    move r3, 58
+    move r4, 58
+    call draw_box_param
+
+    move r10, r16
+    move r11, 194
+    move r12, 211
+    move r13, 445
+    move r14, 243
+    move r3, 34
+    move r4, 26
+    call draw_box_param
+
+    move r10, r19
+    move r11, 31
+    move r12, 173
+    move r13, 399
+    move r14, 237
+    move r3, 80
+    move r4, 32
+    call draw_box_param
+
+    move r10, r18
+    move r11, 371
+    move r12, 54
+    move r13, 455
+    move r14, 197
+    move r3, 24
+    move r4, 72
+    call draw_box_param
+
+    return
+
+draw_box_param:
+    move r30, 0
+    iadd r30, r30, r10
+    iadd r30, r30, r11
+    move r29, r13
+    iadd r31, r13, r13
+    call tri_coord
+    move r1, r30
+
+    move r30, 0
+    iadd r30, r30, r10
+    iadd r30, r30, r12
+    move r29, r14
+    iadd r31, r14, r14
+    call tri_coord
+    move r2, r30
+
+    call draw_box_outline
+    return
+
+draw_box_outline:
+    iadd r8, r1, r3
+    iadd r9, r2, r4
+
+    move r11, r1
+    move r12, r2
+    move r13, r8
+    move r14, r9
+
+    move r1, r11
+    move r2, r12
+    move r3, r13
+    call draw_hline
+
+    move r1, r11
+    move r2, r14
+    move r3, r13
+    call draw_hline
+
+    move r1, r11
+    move r2, r12
+    move r3, r14
+    call draw_vline
+
+    move r1, r13
+    move r2, r12
+    move r3, r14
+    call draw_vline
+
+    return
+
+draw_hline:
+    move r5, r1
+
+hline_loop:
+    fbplot r20, r5, r2
+    inc r5
+    cmp.lt b0, r5, r3
+    jump_if b0, hline_loop
+
+    fbplot r20, r3, r2
+    return
+
+draw_vline:
+    move r5, r2
+
+vline_loop:
+    fbplot r20, r1, r5
+    inc r5
+    cmp.lt b0, r5, r3
+    jump_if b0, vline_loop
+
+    fbplot r20, r1, r3
+    return
+
+tri_coord:
+tri_wrap:
+    cmp.gt b0, r30, r31
+    jump_if b0, tri_sub
+    jump tri_fold
+
+tri_sub:
+    isub r30, r30, r31
+    jump tri_wrap
+
+tri_fold:
+    cmp.gt b0, r30, r29
+    jump_if b0, tri_mirror
+    inc r30
+    return
+
+tri_mirror:
+    isub r30, r31, r30
+    inc r30
+    return
+
+wait_front_true:
+    move b7, @125
+    jump_if_not b7, wait_front_true
+    return
+
+wait_front_false:
+    move b7, @125
+    jump_if b7, wait_front_false
+    return

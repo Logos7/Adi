@@ -7,8 +7,8 @@ import os
 import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-sys.path.insert(0, os.path.join(ROOT, "sutra"))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
+sys.path.insert(0, os.path.join(ROOT, "sutra"))
 
 from sutra import CONSTANT_SUMMARY, INSTRUCTION_SUMMARY, assemble_image
 

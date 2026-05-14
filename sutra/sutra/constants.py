@@ -38,6 +38,7 @@ OPCODE_FBERASE = 0x33
 OPCODE_FBPRESENT = 0x34
 OPCODE_FBPRESENT1 = 0x35
 OPCODE_FBSIZE = 0x36
+OPCODE_FBSWAP = 0x37
 OPCODE_JUMP = 0x38
 OPCODE_CALL = 0x39
 OPCODE_RETURN = 0x3A
@@ -274,8 +275,8 @@ INSTRUCTION_SUMMARY = [
     "cmp.feq bd, rs|value, rt|value, eps|value ; macro: abs(rs-rt) <= eps",
     "cadd/csub/cmul zd, zs, zt ; macro complex fixed-point",
     "cabs2 rd, zs ; macro, |z|²",
-    "fbsize width, height ; configure framebuffer width/height for fbclear/fbplot/fbpresent",
-    "fbclear rBase / fbplot rBase, rX, rY / fberase rBase, rX, rY / fbpresent1 rBase",
+    "fbsize width, height ; configure framebuffer width/height for fbclear/fbplot/fbpresent/fbswap",
+    "fbclear rBase / fbplot rBase, rX, rY / fberase rBase, rX, rY / fbpresent1 rBase / fbswap",
     "jump_if b0, label / jump_if_not b0, label",
     "beq/bne/blt/ble/bgt/bge rs, rt, label ; macro uses b7",
     "inc/dec/neg/fneg and imin/imax/fmin/fmax",
