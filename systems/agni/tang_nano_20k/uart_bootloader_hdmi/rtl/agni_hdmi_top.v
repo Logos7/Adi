@@ -1,7 +1,7 @@
 // =============================================================================
 // agni_hdmi_top.v
 // Agni UART bootloader + 480x270 1bpp double-buffered HDMI framebuffer system.
-// V19: hidden-bank read gating plus a registered input pipeline and custom Adi DVI/TMDS TX.
+// V20: synchronized HDMI/TMDS resets plus guarded VRAM writes.
 // The CPU requests a front bank with @127; HDMI applies it only at a frame boundary.
 // Demos poll @125 instead of using a long fixed delay. Only the displayed bank is read by scanout.
 //
@@ -9,11 +9,11 @@
 // kept, so the generated timing is a 1080p30-style mode. The board clock is
 // explicitly routed through a BUFG before feeding CPU logic and the TMDS PLL.
 //
-// GPIO protocol:
-//   @124 = HDMI frame toggle status, read-only
-//   @125 = active/front bank status, read-only
-//   @126 = draw bank
-//   @127 = requested front bank
+// HDMI bool MMIO protocol:
+//   @hdmi.frame_toggle  = HDMI frame toggle status, read-only
+//   @hdmi.active_bank   = active/front bank status, read-only
+//   @hdmi.draw_bank     = draw bank selected by CPU
+//   @hdmi.request_bank  = requested front bank selected by CPU
 //
 // The scanout module intentionally keeps the legacy hdmi_scanout_1bpp_patterns
 // module name so old Gowin project files still compile, but it no longer
@@ -62,6 +62,8 @@ module agni_hdmi_top (
     wire [127:0] gpio_out;
     wire hdmi_frame_toggle_cpu;
     wire hdmi_front_bank_cpu;
+    wire hdmi_draw_bank_cpu;
+    wire hdmi_request_bank_cpu;
 
     wire uart_tx_ready;
     wire cpu_uart_tx_ready;
@@ -114,6 +116,8 @@ module agni_hdmi_top (
         .gpio_out(gpio_out),
         .fb_ext_frame_toggle(hdmi_frame_toggle_cpu),
         .fb_ext_front_bank(hdmi_front_bank_cpu),
+        .fb_ext_draw_bank(hdmi_draw_bank_cpu),
+        .fb_ext_request_bank(hdmi_request_bank_cpu),
         .uart_tx_ready(cpu_uart_tx_ready),
         .uart_tx_valid(cpu_uart_tx_valid),
         .uart_tx_data(cpu_uart_tx_data),
@@ -160,12 +164,30 @@ module agni_hdmi_top (
     wire serial_clk;
     wire pll_lock;
     wire pix_clk;
-    wire hdmi_rst_n = (~rst) & pll_lock;
+    wire hdmi_raw_rst_n = (~rst) & pll_lock;
 
     TMDS_rPLL u_tmds_rpll (.clkin(clk), .clkout(serial_clk), .lock(pll_lock));
-    CLKDIV u_clkdiv (.RESETN(hdmi_rst_n), .HCLKIN(serial_clk), .CLKOUT(pix_clk), .CALIB(1'b1));
+    CLKDIV u_clkdiv (.RESETN(hdmi_raw_rst_n), .HCLKIN(serial_clk), .CLKOUT(pix_clk), .CALIB(1'b1));
     defparam u_clkdiv.DIV_MODE = "5";
     defparam u_clkdiv.GSREN = "false";
+
+    // The PLL lock/reset signal is produced in the board clock domain, but the
+    // HDMI scanout logic runs on pix_clk. Assert reset asynchronously, then
+    // release it synchronously in the pixel-clock domain. This avoids CDC timing
+    // paths from rst_counter/pll_lock directly into pixel-domain registers.
+    reg [2:0] hdmi_pix_rst_n_sync;
+    initial begin
+        hdmi_pix_rst_n_sync = 3'b000;
+    end
+
+    always @(posedge pix_clk or negedge hdmi_raw_rst_n) begin
+        if (!hdmi_raw_rst_n)
+            hdmi_pix_rst_n_sync <= 3'b000;
+        else
+            hdmi_pix_rst_n_sync <= {hdmi_pix_rst_n_sync[1:0], 1'b1};
+    end
+
+    wire hdmi_pix_rst_n = hdmi_pix_rst_n_sync[2];
 
     reg [31:0] run_cnt;
     always @(posedge clk or posedge rst) begin
@@ -178,15 +200,36 @@ module agni_hdmi_top (
     end
     assign running = (run_cnt < 32'd14_000_000);
 
-    wire draw_bank = gpio_out[126];
-    wire front_bank_cpu = gpio_out[127];
+    wire draw_bank = hdmi_draw_bank_cpu;
+    wire front_bank_cpu = hdmi_request_bank_cpu;
     wire video_frame_start;
+
+    // Register CPU -> VRAM writes at the HDMI top boundary.
+    // This gives P&R one clean synchronous cut between the CPU core and the
+    // physical framebuffer banks, and keeps bank-select/address/data aligned.
+    reg fb_cpu_we_q;
+    reg [16:0] fb_cpu_addr_q;
+    reg fb_cpu_wdata_q;
+    reg fb_cpu_draw_bank_q;
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            fb_cpu_we_q <= 1'b0;
+            fb_cpu_addr_q <= 17'd0;
+            fb_cpu_wdata_q <= 1'b0;
+            fb_cpu_draw_bank_q <= 1'b0;
+        end else begin
+            fb_cpu_we_q <= fb_cpu_we;
+            fb_cpu_addr_q <= fb_cpu_addr;
+            fb_cpu_wdata_q <= fb_cpu_wdata[0];
+            fb_cpu_draw_bank_q <= draw_bank;
+        end
+    end
 
     reg [1:0] front_bank_req_sync;
     reg front_bank_active;
     reg hdmi_frame_toggle_px;
-    always @(posedge pix_clk or negedge hdmi_rst_n) begin
-        if (!hdmi_rst_n) begin
+    always @(posedge pix_clk or negedge hdmi_pix_rst_n) begin
+        if (!hdmi_pix_rst_n) begin
             front_bank_req_sync <= 2'b00;
             front_bank_active <= 1'b0;
             hdmi_frame_toggle_px <= 1'b0;
@@ -214,6 +257,15 @@ module agni_hdmi_top (
     assign hdmi_frame_toggle_cpu = hdmi_frame_toggle_sync[2];
     assign hdmi_front_bank_cpu = hdmi_front_bank_sync[2];
 
+    // Safety guard: the CPU is allowed to write only to the bank that is not
+    // currently visible, as observed in the CPU clock domain. Correct demos
+    // already do this by waiting on @hdmi.active_bank before drawing the next
+    // frame; this guard prevents accidental visible-bank writes during future
+    // experiments and during bank-transition edge cases.
+    wire fb_cpu_write_hidden_q = (fb_cpu_draw_bank_q != hdmi_front_bank_cpu);
+    wire fb0_cpu_we_safe = fb_cpu_we_q & ~fb_cpu_draw_bank_q & fb_cpu_write_hidden_q;
+    wire fb1_cpu_we_safe = fb_cpu_we_q &  fb_cpu_draw_bank_q & fb_cpu_write_hidden_q;
+
     wire [16:0] fb_video_addr;
     wire fb_video_data;
     wire fb0_video_data;
@@ -230,12 +282,12 @@ module agni_hdmi_top (
     assign fb_video_data = front_bank ? fb1_video_data : fb0_video_data;
 
     framebuffer_1bpp_dual_clock #(.ADDR_BITS(17), .PIXELS(131072)) u_framebuffer0 (
-        .cpu_clk(clk), .cpu_we(fb_cpu_we & ~draw_bank), .cpu_addr(fb_cpu_addr), .cpu_wdata(fb_cpu_wdata[0]),
+        .cpu_clk(clk), .cpu_we(fb0_cpu_we_safe), .cpu_addr(fb_cpu_addr_q), .cpu_wdata(fb_cpu_wdata_q),
         .video_clk(pix_clk), .video_addr(fb0_video_addr), .video_rdata(fb0_video_data)
     );
 
     framebuffer_1bpp_dual_clock #(.ADDR_BITS(17), .PIXELS(131072)) u_framebuffer1 (
-        .cpu_clk(clk), .cpu_we(fb_cpu_we & draw_bank), .cpu_addr(fb_cpu_addr), .cpu_wdata(fb_cpu_wdata[0]),
+        .cpu_clk(clk), .cpu_we(fb1_cpu_we_safe), .cpu_addr(fb_cpu_addr_q), .cpu_wdata(fb_cpu_wdata_q),
         .video_clk(pix_clk), .video_addr(fb1_video_addr), .video_rdata(fb1_video_data)
     );
 
@@ -249,7 +301,7 @@ module agni_hdmi_top (
     hdmi_scanout_1bpp_patterns #(
         .FB_WIDTH(480), .FB_HEIGHT(270), .FB_SCALE(4), .FB_SCALE_SHIFT(2), .FB_ADDR_BITS(17)
     ) u_scanout (
-        .I_pxl_clk(pix_clk), .I_rst_n(hdmi_rst_n), .I_mode(3'd0),
+        .I_pxl_clk(pix_clk), .I_rst_n(hdmi_pix_rst_n), .I_mode(3'd0),
         .I_h_total(12'd2200), .I_h_sync(12'd44), .I_h_bporch(12'd148), .I_h_res(12'd1920),
         .I_v_total(12'd1125), .I_v_sync(12'd5), .I_v_bporch(12'd36), .I_v_res(12'd1080),
         .I_hs_pol(1'b1), .I_vs_pol(1'b1),
@@ -270,8 +322,8 @@ module agni_hdmi_top (
     reg [7:0] dvi_g;
     reg [7:0] dvi_b;
 
-    always @(posedge pix_clk or negedge hdmi_rst_n) begin
-        if (!hdmi_rst_n) begin
+    always @(posedge pix_clk or negedge hdmi_pix_rst_n) begin
+        if (!hdmi_pix_rst_n) begin
             dvi_vs <= 1'b0;
             dvi_hs <= 1'b0;
             dvi_de <= 1'b0;
@@ -289,7 +341,7 @@ module agni_hdmi_top (
     end
 
     DVI_TX_Top u_dvi_tx (
-        .I_rst_n(hdmi_rst_n), .I_serial_clk(serial_clk), .I_rgb_clk(pix_clk),
+        .I_rst_n(hdmi_raw_rst_n), .I_serial_clk(serial_clk), .I_rgb_clk(pix_clk),
         .I_rgb_vs(dvi_vs), .I_rgb_hs(dvi_hs), .I_rgb_de(dvi_de),
         .I_rgb_r(dvi_r), .I_rgb_g(dvi_g), .I_rgb_b(dvi_b),
         .O_tmds_clk_p(O_tmds_clk_p), .O_tmds_clk_n(O_tmds_clk_n),

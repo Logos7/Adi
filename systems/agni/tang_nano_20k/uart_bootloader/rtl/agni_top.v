@@ -64,12 +64,19 @@ module agni_top (
     wire boot_cpu_reset;
     wire boot_busy;
     wire boot_waiting;
+    wire fb_ext_frame_toggle_unused;
+    wire fb_ext_front_bank_unused;
+    wire fb_ext_draw_bank_unused;
+    wire fb_ext_request_bank_unused;
     wire fb_ext_we_unused;
     wire [10:0] fb_ext_addr_unused;
     wire [31:0] fb_ext_wdata_unused;
     wire fb_ext_present_req_unused;
     wire [8:0] fb_ext_width_unused;
-    wire [7:0] fb_ext_height_unused;
+    wire [8:0] fb_ext_height_unused;
+
+    assign fb_ext_frame_toggle_unused = 1'b0;
+    assign fb_ext_front_bank_unused = 1'b0;
 
     reg [31:0] boot_blink_counter;
     reg boot_blink_led_on;
@@ -101,6 +108,11 @@ module agni_top (
         .rst (core_rst),
         .gpio_out (gpio_out),
 
+        .fb_ext_frame_toggle (fb_ext_frame_toggle_unused),
+        .fb_ext_front_bank (fb_ext_front_bank_unused),
+        .fb_ext_draw_bank (fb_ext_draw_bank_unused),
+        .fb_ext_request_bank (fb_ext_request_bank_unused),
+
         .uart_tx_ready (cpu_uart_tx_ready),
         .uart_tx_valid (cpu_uart_tx_valid),
         .uart_tx_data (cpu_uart_tx_data),
@@ -120,8 +132,6 @@ module agni_top (
         .fb_ext_addr (fb_ext_addr_unused),
         .fb_ext_wdata (fb_ext_wdata_unused),
         .fb_ext_rdata (32'd0),
-        .fb_ext_present_req (fb_ext_present_req_unused),
-        .fb_ext_present_ack (1'b1),
         .fb_ext_width (fb_ext_width_unused),
         .fb_ext_height (fb_ext_height_unused)
     );

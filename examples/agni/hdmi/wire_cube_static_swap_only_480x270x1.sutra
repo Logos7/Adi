@@ -1,51 +1,41 @@
-; 480x270 HDMI double-buffer demo: rotating wire cube.
+; 480x270 HDMI double-buffer diagnostic demo: static cube + swap only.
 ;
-; This version uses:
-; - explicit HDMI bool MMIO names: @hdmi.draw_bank, @hdmi.request_bank, @hdmi.active_bank
-; - external HDMI VRAM banks, so r20 can stay at 0
-; - 512-sample sin_lut for smoother rotation
-; - projected vertices in data_mem at @512..@527
+; Draws the same static cube into both VRAM banks once, then alternates the
+; visible front bank forever. It does NOT redraw after startup.
 ;
-; HDMI bool MMIO:
-; @hdmi.active_bank  = currently visible bank, read-only
-; @hdmi.draw_bank    = bank used by fbclear/fbplot
-; @hdmi.request_bank = bank requested for display at frame boundary
+; Purpose:
+; - speckles here mean bank switching / CDC / front-bank mux is the culprit
+; - no speckles here means dynamic VRAM writes are the culprit
 
 .code
 
 main:
     move r20, 0
-    move r18, 0
+    move r18, 64
     move r21, sin_lut
     move r22, 512
 
     fbsize 480, 270
 
+    ; Draw identical content into both banks once.
     move @hdmi.draw_bank, false
-    fbclear r20
+    call draw_frame
 
     move @hdmi.draw_bank, true
-    fbclear r20
+    call draw_frame
 
-    move @hdmi.draw_bank, false
     move @hdmi.request_bank, false
     call wait_front_false
 
-loop_bank_1:
-    move @hdmi.draw_bank, true
-    call draw_frame
+swap_to_1:
     move @hdmi.request_bank, true
     call wait_front_true
-    call advance_angle
-    jump loop_bank_0
+    jump swap_to_0
 
-loop_bank_0:
-    move @hdmi.draw_bank, false
-    call draw_frame
+swap_to_0:
     move @hdmi.request_bank, false
     call wait_front_false
-    call advance_angle
-    jump loop_bank_1
+    jump swap_to_1
 
 draw_frame:
     fbclear r20

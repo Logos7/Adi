@@ -1,81 +1,57 @@
 ; 480x270 HDMI double-buffer demo: single moving pixel.
-; This is the simplest graphics hello-world demo.
+; This is the simplest graphics "Hello World".
 ;
 ; What it shows:
-; - how to configure the framebuffer size
-; - how to clear the back buffer
-; - how to draw one pixel with fbplot
-; - how to swap front/back buffers safely
-; - how to animate by changing X every frame
+; - configure the framebuffer size
+; - clear the selected hidden draw bank
+; - draw one pixel with fbplot
+; - request a bank swap through HDMI MMIO
+; - wait until HDMI confirms the active/front bank
 ;
-; HDMI MMIO symbols:
-; - @hdmi_active_bank  = bank currently visible on HDMI
-; - @hdmi_draw_bank    = bank used by fbclear/fbplot
-; - @hdmi_request_bank = bank requested as next visible bank
+; HDMI bool MMIO:
+; @hdmi.active_bank  = currently visible bank, read-only
+; @hdmi.draw_bank    = bank used by fbclear/fbplot
+; @hdmi.request_bank = bank requested for display at frame boundary
+
+.code
 
 main:
-    ; r20 is the framebuffer base argument used by fbclear/fbplot.
     move r20, 0
-
-    ; r21 = current X position of the pixel.
     move r21, 0
 
-    ; Configure HDMI framebuffer size.
     fbsize 480, 270
 
-    ; Start with bank 0 as front buffer.
-    move @hdmi_draw_bank, false
+    move @hdmi.draw_bank, false
     fbclear r20
-    move @hdmi_request_bank, false
+    move @hdmi.request_bank, false
     call wait_front_false
 
 loop_bank_1:
-    ; Draw next frame into hidden bank 1.
-    move @hdmi_draw_bank, true
+    move @hdmi.draw_bank, true
     call draw_frame
-
-    ; Request bank 1 to become visible.
-    move @hdmi_request_bank, true
+    move @hdmi.request_bank, true
     call wait_front_true
-
-    ; Advance animation after the frame is visible.
     call tick_pixel
-
     jump loop_bank_0
 
 loop_bank_0:
-    ; Draw next frame into hidden bank 0.
-    move @hdmi_draw_bank, false
+    move @hdmi.draw_bank, false
     call draw_frame
-
-    ; Request bank 0 to become visible.
-    move @hdmi_request_bank, false
+    move @hdmi.request_bank, false
     call wait_front_false
-
-    ; Advance animation after the frame is visible.
     call tick_pixel
-
     jump loop_bank_1
 
 draw_frame:
-    ; Clear the selected draw bank.
     fbclear r20
-
-    ; Draw one pixel at (r21, 135).
-    ; Screen height is 270, so Y=135 is the vertical center.
     move r22, 135
     fbplot r20, r21, r22
-
     return
 
 tick_pixel:
-    ; Move the pixel one pixel to the right.
     inc r21
-
-    ; If X > 479, wrap back to the left edge.
     cmp.gt b0, r21, 479
     jump_if b0, reset_pixel_x
-
     return
 
 reset_pixel_x:
@@ -83,13 +59,11 @@ reset_pixel_x:
     return
 
 wait_front_true:
-    ; Wait until HDMI confirms that bank 1 is now the active front buffer.
-    move b7, @hdmi_active_bank
+    move b7, @hdmi.active_bank
     jump_if_not b7, wait_front_true
     return
 
 wait_front_false:
-    ; Wait until HDMI confirms that bank 0 is now the active front buffer.
-    move b7, @hdmi_active_bank
+    move b7, @hdmi.active_bank
     jump_if b7, wait_front_false
     return

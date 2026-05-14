@@ -2,13 +2,14 @@
 // hdmi_scanout_1bpp_patterns.v
 // HDMI RGB timing + external 1bpp framebuffer scanout.
 //
-// V12:
-// - Legacy module name is kept for the existing Gowin project file.
-// - Built-in patterns are removed; I_mode is ignored.
-// - 480x270 is scaled exactly x4 into 1920x1080.
-// - Framebuffer address generation is sequential to keep the pixel path light.
-// - O_frame_start pulses during vertical blank, so the top can swap buffers
-//   outside visible scanout.
+// This module keeps the legacy name used by the Gowin project file, but it is
+// framebuffer-only: I_mode is ignored.
+//
+// V13:
+// - Add one explicit framebuffer-data pipeline stage.
+// - Delay DE/HS/VS by the same extra stage, keeping RGB/control aligned.
+// - This cuts the path from dual-clock framebuffer output to RGB generation and
+//   gives the HDMI/TMDS side a cleaner pixel-clock boundary.
 // =============================================================================
 
 module hdmi_scanout_1bpp_patterns #(
@@ -16,7 +17,8 @@ module hdmi_scanout_1bpp_patterns #(
     parameter FB_HEIGHT = 270,
     parameter FB_SCALE = 4,
     parameter FB_SCALE_SHIFT = 2,
-    parameter FB_ADDR_BITS = 17
+    parameter FB_ADDR_BITS = 17,
+    parameter ON_LEVEL = 8'hFF
 ) (
     input wire I_pxl_clk,
     input wire I_rst_n,
@@ -42,7 +44,8 @@ module hdmi_scanout_1bpp_patterns #(
     input wire I_fb_data
 );
     wire unused_mode = |I_mode;
-    wire unused_params = (FB_HEIGHT != 270) | (FB_SCALE != 4) | (FB_SCALE_SHIFT != 2);
+    wire unused_params = (FB_HEIGHT != 270) | (FB_SCALE != 4) | (FB_SCALE_SHIFT != 2) | unused_mode;
+
     localparam [FB_ADDR_BITS-1:0] FB_WIDTH_ADDR = FB_WIDTH;
 
     reg [11:0] h_cnt;
@@ -68,8 +71,10 @@ module hdmi_scanout_1bpp_patterns #(
 
     wire hs_raw = (h_cnt < I_h_sync);
     wire vs_raw = (v_cnt < I_v_sync);
+
     wire [11:0] active_x0 = I_h_sync + I_h_bporch;
     wire [11:0] active_y0 = I_v_sync + I_v_bporch;
+
     wire active_x = (h_cnt >= active_x0) && (h_cnt < active_x0 + I_h_res);
     wire active_y = (v_cnt >= active_y0) && (v_cnt < active_y0 + I_v_res);
     wire de_raw = active_x && active_y;
@@ -83,10 +88,14 @@ module hdmi_scanout_1bpp_patterns #(
 
     reg de_q1;
     reg de_q2;
+    reg de_q3;
     reg hs_q1;
     reg hs_q2;
+    reg hs_q3;
     reg vs_q1;
     reg vs_q2;
+    reg vs_q3;
+    reg fb_data_q;
 
     always @(posedge I_pxl_clk or negedge I_rst_n) begin
         if (!I_rst_n) begin
@@ -98,15 +107,20 @@ module hdmi_scanout_1bpp_patterns #(
             line_base <= {FB_ADDR_BITS{1'b0}};
             de_q1 <= 1'b0;
             de_q2 <= 1'b0;
+            de_q3 <= 1'b0;
             hs_q1 <= 1'b0;
             hs_q2 <= 1'b0;
+            hs_q3 <= 1'b0;
             vs_q1 <= 1'b0;
             vs_q2 <= 1'b0;
+            vs_q3 <= 1'b0;
+            fb_data_q <= 1'b0;
         end else begin
             O_frame_start <= h_last && v_last;
 
             if (de_raw) begin
                 O_fb_addr <= fb_addr_now;
+
                 if (x_phase == 2'd3) begin
                     x_phase <= 2'd0;
                     if (fb_x != (FB_WIDTH - 1))
@@ -137,16 +151,23 @@ module hdmi_scanout_1bpp_patterns #(
                 end
             end
 
+            fb_data_q <= I_fb_data;
+
             de_q1 <= de_raw;
             de_q2 <= de_q1;
+            de_q3 <= de_q2;
+
             hs_q1 <= I_hs_pol ? hs_raw : ~hs_raw;
             hs_q2 <= hs_q1;
+            hs_q3 <= hs_q2;
+
             vs_q1 <= I_vs_pol ? vs_raw : ~vs_raw;
             vs_q2 <= vs_q1;
+            vs_q3 <= vs_q2;
         end
     end
 
-    wire pixel_on = de_q2 && I_fb_data;
+    wire pixel_on = de_q3 && fb_data_q;
 
     always @(posedge I_pxl_clk or negedge I_rst_n) begin
         if (!I_rst_n) begin
@@ -157,13 +178,14 @@ module hdmi_scanout_1bpp_patterns #(
             O_data_g <= 8'd0;
             O_data_b <= 8'd0;
         end else begin
-            O_de <= de_q2;
-            O_hs <= hs_q2;
-            O_vs <= vs_q2;
+            O_de <= de_q3;
+            O_hs <= hs_q3;
+            O_vs <= vs_q3;
+
             if (pixel_on) begin
-                O_data_r <= 8'hFF;
-                O_data_g <= 8'hFF;
-                O_data_b <= 8'hFF;
+                O_data_r <= ON_LEVEL;
+                O_data_g <= ON_LEVEL;
+                O_data_b <= ON_LEVEL;
             end else begin
                 O_data_r <= 8'h00;
                 O_data_g <= 8'h00;

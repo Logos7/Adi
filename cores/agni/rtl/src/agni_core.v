@@ -6,8 +6,8 @@
 // - no SystemVerilog-only constructs,
 // - data_mem is inferred as synchronous block RAM,
 // - call/return use a small 16-entry hardware return stack,
-// - 1-bit framebuffer helpers use caller-selected data_mem base address,
-// - framebuffer size is configurable with fbsize width, height.
+// - 1-bit framebuffer helpers can drive an external VRAM-style framebuffer,
+// - HDMI double-buffer control is exposed as explicit bool MMIO.
 // =============================================================================
 
 module agni_core (
@@ -18,6 +18,8 @@ module agni_core (
 
     input wire fb_ext_frame_toggle,
     input wire fb_ext_front_bank,
+    output wire fb_ext_draw_bank,
+    output wire fb_ext_request_bank,
 
     input wire uart_tx_ready,
     output reg uart_tx_valid,
@@ -74,6 +76,10 @@ module agni_core (
 
     localparam [10:0] UART_TX_ADDR = 11'h0F0;
     localparam [10:0] UART_RX_ADDR = 11'h0F1;
+    localparam [13:0] HDMI_FRAME_TOGGLE_BOOL_ADDR = 14'd124;
+    localparam [13:0] HDMI_ACTIVE_BANK_BOOL_ADDR = 14'd125;
+    localparam [13:0] HDMI_DRAW_BANK_BOOL_ADDR = 14'd126;
+    localparam [13:0] HDMI_REQUEST_BANK_BOOL_ADDR = 14'd127;
     localparam [13:0] UART_READY_BOOL_ADDR = 14'd128;
     localparam [13:0] UART_RX_READY_BOOL_ADDR = 14'd129;
 
@@ -152,6 +158,9 @@ module agni_core (
 
     reg [7:0] uart_rx_buf;
     reg uart_rx_pending;
+
+    reg hdmi_draw_bank_reg;
+    reg hdmi_request_bank_reg;
 
     reg data_we;
     reg [10:0] data_rd_addr;
@@ -238,6 +247,8 @@ module agni_core (
 
     assign fb_ext_width = fb_width;
     assign fb_ext_height = fb_height;
+    assign fb_ext_draw_bank = hdmi_draw_bank_reg;
+    assign fb_ext_request_bank = hdmi_request_bank_reg;
 
     // -------------------------------------------------------------------------
     // Instruction fields
@@ -353,10 +364,14 @@ module agni_core (
     function read_bool_mem;
         input [13:0] addr;
         begin
-            if (addr == 14'd124) begin
+            if (addr == HDMI_FRAME_TOGGLE_BOOL_ADDR) begin
                 read_bool_mem = fb_ext_frame_toggle;
-            end else if (addr == 14'd125) begin
+            end else if (addr == HDMI_ACTIVE_BANK_BOOL_ADDR) begin
                 read_bool_mem = fb_ext_front_bank;
+            end else if (addr == HDMI_DRAW_BANK_BOOL_ADDR) begin
+                read_bool_mem = hdmi_draw_bank_reg;
+            end else if (addr == HDMI_REQUEST_BANK_BOOL_ADDR) begin
+                read_bool_mem = hdmi_request_bank_reg;
             end else if (addr == UART_READY_BOOL_ADDR) begin
                 read_bool_mem = uart_tx_ready;
             end else if (addr == UART_RX_READY_BOOL_ADDR) begin
@@ -445,6 +460,8 @@ module agni_core (
             uart_tx_data <= 8'd0;
             uart_rx_buf <= 8'd0;
             uart_rx_pending <= 1'b0;
+            hdmi_draw_bank_reg <= 1'b0;
+            hdmi_request_bank_reg <= 1'b0;
             return_sp <= 5'd0;
             data_we <= 1'b0;
             data_rd_addr <= 11'd0;
@@ -703,7 +720,13 @@ module agni_core (
                             end
 
                             OP_SAVE_BI: begin
-                                if (ib_imm < 14'd128) begin
+                                if (ib_imm == HDMI_DRAW_BANK_BOOL_ADDR) begin
+                                    hdmi_draw_bank_reg <= read_bool(ib_bs);
+                                end else if (ib_imm == HDMI_REQUEST_BANK_BOOL_ADDR) begin
+                                    hdmi_request_bank_reg <= read_bool(ib_bs);
+                                end else if ((ib_imm != HDMI_FRAME_TOGGLE_BOOL_ADDR) &&
+                                             (ib_imm != HDMI_ACTIVE_BANK_BOOL_ADDR) &&
+                                             (ib_imm < 14'd128)) begin
                                     bool_mem[ib_imm[6:0]] <= read_bool(ib_bs);
                                 end
                                 pc <= pc + 32'd1;
@@ -731,7 +754,13 @@ module agni_core (
                             OP_SAVE_BR: begin
                                 addr32_work = rs_value;
                                 addr14_work = addr32_work[13:0];
-                                if (addr14_work < 14'd128) begin
+                                if (addr14_work == HDMI_DRAW_BANK_BOOL_ADDR) begin
+                                    hdmi_draw_bank_reg <= read_bool(rd_field[3:0]);
+                                end else if (addr14_work == HDMI_REQUEST_BANK_BOOL_ADDR) begin
+                                    hdmi_request_bank_reg <= read_bool(rd_field[3:0]);
+                                end else if ((addr14_work != HDMI_FRAME_TOGGLE_BOOL_ADDR) &&
+                                             (addr14_work != HDMI_ACTIVE_BANK_BOOL_ADDR) &&
+                                             (addr14_work < 14'd128)) begin
                                     bool_mem[addr14_work[6:0]] <= read_bool(rd_field[3:0]);
                                 end
                                 pc <= pc + 32'd1;

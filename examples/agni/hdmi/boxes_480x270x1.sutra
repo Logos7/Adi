@@ -1,10 +1,8 @@
 ; 480x270 HDMI double-buffer demo: 16 moving boxes.
 ; Refactor: horizontal line + vertical line + parameterized box.
-;
-; HDMI MMIO symbols:
-; - @hdmi_active_bank  = bank currently visible on HDMI
-; - @hdmi_draw_bank    = bank used by fbclear/fbplot
-; - @hdmi_request_bank = bank requested as next visible bank
+; Uses named HDMI bool MMIO instead of magic @125/@126/@127.
+
+.code
 
 main:
     move r20, 0
@@ -17,23 +15,23 @@ main:
     move r22, 0
     fbsize 480, 270
 
-    move @hdmi_draw_bank, false
+    move @hdmi.draw_bank, false
     fbclear r20
-    move @hdmi_request_bank, false
+    move @hdmi.request_bank, false
     call wait_front_false
 
 loop_bank_1:
-    move @hdmi_draw_bank, true
+    move @hdmi.draw_bank, true
     call draw_frame
-    move @hdmi_request_bank, true
+    move @hdmi.request_bank, true
     call wait_front_true
     call tick_frame
     jump loop_bank_0
 
 loop_bank_0:
-    move @hdmi_draw_bank, false
+    move @hdmi.draw_bank, false
     call draw_frame
-    move @hdmi_request_bank, false
+    move @hdmi.request_bank, false
     call wait_front_false
     call tick_frame
     jump loop_bank_1
@@ -311,7 +309,6 @@ hline_loop:
     inc r5
     cmp.lt b0, r5, r3
     jump_if b0, hline_loop
-
     fbplot r20, r3, r2
     return
 
@@ -323,7 +320,6 @@ vline_loop:
     inc r5
     cmp.lt b0, r5, r3
     jump_if b0, vline_loop
-
     fbplot r20, r1, r3
     return
 
@@ -349,11 +345,11 @@ tri_mirror:
     return
 
 wait_front_true:
-    move b7, @hdmi_active_bank
+    move b7, @hdmi.active_bank
     jump_if_not b7, wait_front_true
     return
 
 wait_front_false:
-    move b7, @hdmi_active_bank
+    move b7, @hdmi.active_bank
     jump_if b7, wait_front_false
     return

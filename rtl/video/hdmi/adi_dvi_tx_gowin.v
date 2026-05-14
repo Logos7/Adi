@@ -1,7 +1,14 @@
 // =============================================================================
 // adi_dvi_tx_gowin.v
-// Minimal DVI-compatible TMDS transmitter for Gowin.
-// Verilog-2001.
+// Minimal DVI-compatible TMDS transmitter for Gowin. Verilog-2001.
+//
+// Reset policy:
+// - I_rst_n may come from the board/PLL domain.
+// - Reset assertion is asynchronous.
+// - Reset release is synchronized independently into I_rgb_clk and I_serial_clk.
+//
+// This prevents timing paths from a slow-domain reset register directly into
+// OSER10 RESET pins in the fast TMDS clock domain.
 // =============================================================================
 
 module DVI_TX_Top (
@@ -19,13 +26,38 @@ module DVI_TX_Top (
     output wire [2:0] O_tmds_data_p,
     output wire [2:0] O_tmds_data_n
 );
+    reg [2:0] rgb_rst_n_sync;
+    reg [2:0] serial_rst_n_sync;
+
+    initial begin
+        rgb_rst_n_sync = 3'b000;
+        serial_rst_n_sync = 3'b000;
+    end
+
+    always @(posedge I_rgb_clk or negedge I_rst_n) begin
+        if (!I_rst_n)
+            rgb_rst_n_sync <= 3'b000;
+        else
+            rgb_rst_n_sync <= {rgb_rst_n_sync[1:0], 1'b1};
+    end
+
+    always @(posedge I_serial_clk or negedge I_rst_n) begin
+        if (!I_rst_n)
+            serial_rst_n_sync <= 3'b000;
+        else
+            serial_rst_n_sync <= {serial_rst_n_sync[1:0], 1'b1};
+    end
+
+    wire rgb_rst_n = rgb_rst_n_sync[2];
+    wire serial_rst = ~serial_rst_n_sync[2];
+
     wire [9:0] tmds_r;
     wire [9:0] tmds_g;
     wire [9:0] tmds_b;
 
     adi_tmds_encoder enc_b (
         .clk(I_rgb_clk),
-        .rst_n(I_rst_n),
+        .rst_n(rgb_rst_n),
         .de(I_rgb_de),
         .c0(I_rgb_hs),
         .c1(I_rgb_vs),
@@ -35,7 +67,7 @@ module DVI_TX_Top (
 
     adi_tmds_encoder enc_g (
         .clk(I_rgb_clk),
-        .rst_n(I_rst_n),
+        .rst_n(rgb_rst_n),
         .de(I_rgb_de),
         .c0(1'b0),
         .c1(1'b0),
@@ -45,7 +77,7 @@ module DVI_TX_Top (
 
     adi_tmds_encoder enc_r (
         .clk(I_rgb_clk),
-        .rst_n(I_rst_n),
+        .rst_n(rgb_rst_n),
         .de(I_rgb_de),
         .c0(1'b0),
         .c1(1'b0),
@@ -56,7 +88,7 @@ module DVI_TX_Top (
     adi_tmds_output out_b (
         .pclk(I_rgb_clk),
         .fclk(I_serial_clk),
-        .rst(~I_rst_n),
+        .rst(serial_rst),
         .data(tmds_b),
         .out_p(O_tmds_data_p[0]),
         .out_n(O_tmds_data_n[0])
@@ -65,7 +97,7 @@ module DVI_TX_Top (
     adi_tmds_output out_g (
         .pclk(I_rgb_clk),
         .fclk(I_serial_clk),
-        .rst(~I_rst_n),
+        .rst(serial_rst),
         .data(tmds_g),
         .out_p(O_tmds_data_p[1]),
         .out_n(O_tmds_data_n[1])
@@ -74,7 +106,7 @@ module DVI_TX_Top (
     adi_tmds_output out_r (
         .pclk(I_rgb_clk),
         .fclk(I_serial_clk),
-        .rst(~I_rst_n),
+        .rst(serial_rst),
         .data(tmds_r),
         .out_p(O_tmds_data_p[2]),
         .out_n(O_tmds_data_n[2])
@@ -83,7 +115,7 @@ module DVI_TX_Top (
     adi_tmds_output out_clk (
         .pclk(I_rgb_clk),
         .fclk(I_serial_clk),
-        .rst(~I_rst_n),
+        .rst(serial_rst),
         .data(10'b0000011111),
         .out_p(O_tmds_clk_p),
         .out_n(O_tmds_clk_n)
@@ -108,7 +140,8 @@ module adi_tmds_encoder (
     integer i;
 
     always @* begin
-        ones_data = data[0] + data[1] + data[2] + data[3] + data[4] + data[5] + data[6] + data[7];
+        ones_data = data[0] + data[1] + data[2] + data[3]
+            + data[4] + data[5] + data[6] + data[7];
 
         q_m[0] = data[0];
         if ((ones_data > 4'd4) || ((ones_data == 4'd4) && (data[0] == 1'b0))) begin
@@ -121,7 +154,8 @@ module adi_tmds_encoder (
             q_m[8] = 1'b1;
         end
 
-        ones_qm = q_m[0] + q_m[1] + q_m[2] + q_m[3] + q_m[4] + q_m[5] + q_m[6] + q_m[7];
+        ones_qm = q_m[0] + q_m[1] + q_m[2] + q_m[3]
+            + q_m[4] + q_m[5] + q_m[6] + q_m[7];
         zeros_qm = 4'd8 - ones_qm;
         diff_qm = $signed({2'b00, ones_qm}) - $signed({2'b00, zeros_qm});
     end
@@ -147,7 +181,8 @@ module adi_tmds_encoder (
                     encoded <= {2'b10, ~q_m[7:0]};
                     balance <= balance - diff_qm;
                 end
-            end else if (((balance > 6'sd0) && (ones_qm > zeros_qm)) || ((balance < 6'sd0) && (zeros_qm > ones_qm))) begin
+            end else if (((balance > 6'sd0) && (ones_qm > zeros_qm)) ||
+                         ((balance < 6'sd0) && (zeros_qm > ones_qm))) begin
                 encoded <= {1'b1, q_m[8], ~q_m[7:0]};
                 if (q_m[8])
                     balance <= balance - diff_qm + 6'sd2;

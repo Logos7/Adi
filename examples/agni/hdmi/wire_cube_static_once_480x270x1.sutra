@@ -1,4 +1,4 @@
-; 480x270 HDMI double-buffer demo: rotating wire cube.
+; 480x270 HDMI double-buffer diagnostic demo: static wire cube drawn once.
 ;
 ; This version uses:
 ; - explicit HDMI bool MMIO names: @hdmi.draw_bank, @hdmi.request_bank, @hdmi.active_bank
@@ -15,37 +15,26 @@
 
 main:
     move r20, 0
-    move r18, 0
+    move r18, 64
     move r21, sin_lut
     move r22, 512
 
     fbsize 480, 270
 
+    ; Draw the same static cube into both VRAM banks once.
+    ; After that the CPU stops touching the framebuffer, while HDMI keeps scanning out.
+    ; If colored speckles remain, the problem is HDMI/TMDS/signal integrity, not CPU drawing.
     move @hdmi.draw_bank, false
-    fbclear r20
+    call draw_frame
 
     move @hdmi.draw_bank, true
-    fbclear r20
+    call draw_frame
 
-    move @hdmi.draw_bank, false
     move @hdmi.request_bank, false
     call wait_front_false
 
-loop_bank_1:
-    move @hdmi.draw_bank, true
-    call draw_frame
-    move @hdmi.request_bank, true
-    call wait_front_true
-    call advance_angle
-    jump loop_bank_0
-
-loop_bank_0:
-    move @hdmi.draw_bank, false
-    call draw_frame
-    move @hdmi.request_bank, false
-    call wait_front_false
-    call advance_angle
-    jump loop_bank_1
+idle:
+    jump idle
 
 draw_frame:
     fbclear r20

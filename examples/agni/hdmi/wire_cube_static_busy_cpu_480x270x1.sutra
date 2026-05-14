@@ -1,51 +1,39 @@
-; 480x270 HDMI double-buffer demo: rotating wire cube.
+; 480x270 HDMI double-buffer diagnostic demo: static visible cube + busy CPU.
 ;
-; This version uses:
-; - explicit HDMI bool MMIO names: @hdmi.draw_bank, @hdmi.request_bank, @hdmi.active_bank
-; - external HDMI VRAM banks, so r20 can stay at 0
-; - 512-sample sin_lut for smoother rotation
-; - projected vertices in data_mem at @512..@527
+; Draws a clean static cube into both VRAM banks once, then keeps the CPU busy
+; with sin_lut + projection math only. It does NOT touch VRAM after startup.
 ;
-; HDMI bool MMIO:
-; @hdmi.active_bank  = currently visible bank, read-only
-; @hdmi.draw_bank    = bank used by fbclear/fbplot
-; @hdmi.request_bank = bank requested for display at frame boundary
+; Purpose:
+; - speckles here mean CPU/FPU/data_mem activity alone disturbs HDMI
+; - no speckles here means the remaining issue is VRAM writes or bank swapping
 
 .code
 
 main:
     move r20, 0
-    move r18, 0
+    move r18, 64
     move r21, sin_lut
     move r22, 512
 
     fbsize 480, 270
 
+    ; Draw the same static cube into both banks once.
     move @hdmi.draw_bank, false
-    fbclear r20
+    call draw_frame
 
     move @hdmi.draw_bank, true
-    fbclear r20
+    call draw_frame
 
-    move @hdmi.draw_bank, false
+    ; Display bank 0 and keep it displayed forever.
     move @hdmi.request_bank, false
     call wait_front_false
 
-loop_bank_1:
-    move @hdmi.draw_bank, true
-    call draw_frame
-    move @hdmi.request_bank, true
-    call wait_front_true
+busy_cpu_loop:
+    ; Heavy CPU/data path activity, but no fbclear/fbplot and no bank swap.
+    call load_angle
+    call project_cube
     call advance_angle
-    jump loop_bank_0
-
-loop_bank_0:
-    move @hdmi.draw_bank, false
-    call draw_frame
-    move @hdmi.request_bank, false
-    call wait_front_false
-    call advance_angle
-    jump loop_bank_1
+    jump busy_cpu_loop
 
 draw_frame:
     fbclear r20
