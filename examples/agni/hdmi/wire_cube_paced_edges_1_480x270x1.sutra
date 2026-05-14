@@ -1,9 +1,10 @@
-; 480x270 HDMI double-buffer demo: rotating wire cube.
+; 480x270 HDMI double-buffer demo: paced rotating wire cube (1 edge batch).
 ;
 ; This version uses:
 ; - explicit HDMI bool MMIO names: @hdmi.draw_bank, @hdmi.request_bank, @hdmi.active_bank
 ; - external HDMI VRAM banks, so r20 can stay at 0
 ; - 512-sample sin_lut for smoother rotation
+; - edge-batched rendering to reduce HDMI noise during line drawing
 ; - projected vertices in data_mem at @512..@527
 ;
 ; HDMI bool MMIO:
@@ -194,11 +195,16 @@ project_vertex:
     return
 
 draw_cube_edges:
+    ; Draw cube edges in batches of 1 edge(s).
+    ; The hidden draw bank is not presented until all edges are complete.
+
     move r1, @512
     move r2, @513
     move r3, @514
     move r4, @515
     call line
+
+    call wait_frame_tick
 
     move r1, @514
     move r2, @515
@@ -206,11 +212,15 @@ draw_cube_edges:
     move r4, @517
     call line
 
+    call wait_frame_tick
+
     move r1, @516
     move r2, @517
     move r3, @518
     move r4, @519
     call line
+
+    call wait_frame_tick
 
     move r1, @518
     move r2, @519
@@ -218,11 +228,15 @@ draw_cube_edges:
     move r4, @513
     call line
 
+    call wait_frame_tick
+
     move r1, @520
     move r2, @521
     move r3, @522
     move r4, @523
     call line
+
+    call wait_frame_tick
 
     move r1, @522
     move r2, @523
@@ -230,11 +244,15 @@ draw_cube_edges:
     move r4, @525
     call line
 
+    call wait_frame_tick
+
     move r1, @524
     move r2, @525
     move r3, @526
     move r4, @527
     call line
+
+    call wait_frame_tick
 
     move r1, @526
     move r2, @527
@@ -242,11 +260,15 @@ draw_cube_edges:
     move r4, @521
     call line
 
+    call wait_frame_tick
+
     move r1, @512
     move r2, @513
     move r3, @520
     move r4, @521
     call line
+
+    call wait_frame_tick
 
     move r1, @514
     move r2, @515
@@ -254,11 +276,15 @@ draw_cube_edges:
     move r4, @523
     call line
 
+    call wait_frame_tick
+
     move r1, @516
     move r2, @517
     move r3, @524
     move r4, @525
     call line
+
+    call wait_frame_tick
 
     move r1, @518
     move r2, @519
@@ -267,6 +293,7 @@ draw_cube_edges:
     call line
 
     return
+
 
 line:
     ; Positive-only Bresenham line drawing.
@@ -377,6 +404,19 @@ line_y_loop:
     jump line_y_loop
 
 line_done:
+    return
+
+
+wait_frame_tick:
+    ; Wait for one HDMI frame toggle cycle.
+    ; This gives the scanout path time between heavier line batches.
+wait_frame_tick_true:
+    move b7, @hdmi.frame_toggle
+    jump_if_not b7, wait_frame_tick_true
+
+wait_frame_tick_false:
+    move b7, @hdmi.frame_toggle
+    jump_if b7, wait_frame_tick_false
     return
 
 wait_front_true:

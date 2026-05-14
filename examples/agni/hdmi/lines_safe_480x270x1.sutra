@@ -1,0 +1,258 @@
+; 480x270 HDMI double-buffer demo: positive-only Bresenham line test.
+;
+; Purpose:
+; - stress line drawing without sin_lut and without 3D projection
+; - verify that the guarded line routine does not create native-color noise
+; - demonstrate horizontal, vertical, diagonal, and animated fan lines
+;
+; HDMI bool MMIO:
+; @hdmi.active_bank  = currently visible bank, read-only
+; @hdmi.draw_bank    = bank used by fbclear/fbplot
+; @hdmi.request_bank = bank requested for display at frame boundary
+
+.code
+
+main:
+    move r20, 0
+    move r18, 0
+
+    fbsize 480, 270
+
+    move @hdmi.draw_bank, false
+    fbclear r20
+
+    move @hdmi.draw_bank, true
+    fbclear r20
+
+    move @hdmi.draw_bank, false
+    move @hdmi.request_bank, false
+    call wait_front_false
+
+loop_bank_1:
+    move @hdmi.draw_bank, true
+    call draw_frame
+    move @hdmi.request_bank, true
+    call wait_front_true
+    call advance_phase
+    jump loop_bank_0
+
+loop_bank_0:
+    move @hdmi.draw_bank, false
+    call draw_frame
+    move @hdmi.request_bank, false
+    call wait_front_false
+    call advance_phase
+    jump loop_bank_1
+
+advance_phase:
+    inc r18
+    cmp.gt b0, r18, 479
+    jump_if b0, reset_phase
+    return
+
+reset_phase:
+    move r18, 0
+    return
+
+draw_frame:
+    fbclear r20
+
+    ; Static border diagonals.
+    move r1, 0
+    move r2, 0
+    move r3, 479
+    move r4, 269
+    call line
+
+    move r1, 479
+    move r2, 0
+    move r3, 0
+    move r4, 269
+    call line
+
+    ; Static center cross.
+    move r1, 0
+    move r2, 135
+    move r3, 479
+    move r4, 135
+    call line
+
+    move r1, 240
+    move r2, 0
+    move r3, 240
+    move r4, 269
+    call line
+
+    ; Animated fan from center to top/bottom edges.
+    move r1, 240
+    move r2, 135
+    move r3, r18
+    move r4, 0
+    call line
+
+    move r1, 240
+    move r2, 135
+    move r3, r18
+    move r4, 269
+    call line
+
+    ; Mirrored animated fan.
+    isub r15, 479, r18
+
+    move r1, 240
+    move r2, 135
+    move r3, r15
+    move r4, 0
+    call line
+
+    move r1, 240
+    move r2, 135
+    move r3, r15
+    move r4, 269
+    call line
+
+    ; Animated horizontal and vertical sweep lines.
+    ; r16 = y phase wrapped into 0..269.
+    move r16, r18
+    cmp.gt b0, r16, 269
+    jump_if b0, draw_frame_wrap_y
+    jump draw_frame_sweep_ready
+
+draw_frame_wrap_y:
+    isub r16, r16, 270
+
+draw_frame_sweep_ready:
+    move r1, 0
+    move r2, r16
+    move r3, 479
+    move r4, r16
+    call line
+
+    move r1, r18
+    move r2, 0
+    move r3, r18
+    move r4, 269
+    call line
+
+    return
+
+line:
+    ; Positive-only Bresenham line drawing.
+    ;
+    ; This version avoids negative error terms and shifting negative values.
+    ; It also rejects out-of-screen endpoints and has an emergency step guard.
+    ;
+    ; Input:
+    ;   r1 = x0
+    ;   r2 = y0
+    ;   r3 = x1
+    ;   r4 = y1
+
+    ; Reject lines with invalid start point.
+    blt r1, 0, line_done
+    bge r1, 480, line_done
+    blt r2, 0, line_done
+    bge r2, 270, line_done
+
+    ; Reject lines with invalid end point.
+    blt r3, 0, line_done
+    bge r3, 480, line_done
+    blt r4, 0, line_done
+    bge r4, 270, line_done
+
+    ; r12 = emergency step guard.
+    move r12, 0
+
+    ; dx = abs(x1 - x0)
+    isub r5, r3, r1
+    bge r5, 0, line_dx_ready
+    isub r5, 0, r5
+
+line_dx_ready:
+    ; sx = x0 <= x1 ? 1 : -1
+    move r6, 1
+    bge r3, r1, line_sx_ready
+    move r6, -1
+
+line_sx_ready:
+    ; dy = abs(y1 - y0)
+    isub r7, r4, r2
+    bge r7, 0, line_dy_ready
+    isub r7, 0, r7
+
+line_dy_ready:
+    ; sy = y0 <= y1 ? 1 : -1
+    move r8, 1
+    bge r4, r2, line_sy_ready
+    move r8, -1
+
+line_sy_ready:
+    ; Choose dominant axis.
+    cmp.ge b0, r5, r7
+    jump_if b0, line_x_major
+    jump line_y_major
+
+line_x_major:
+    ; acc = 0. Each x step adds dy; when acc >= dx, y steps once.
+    move r9, 0
+
+line_x_loop:
+    fbplot r20, r1, r2
+
+    cmp.eq b0, r1, r3
+    cmp.eq b1, r2, r4
+    band b2, b0, b1
+    jump_if b2, line_done
+
+    inc r12
+    cmp.gt b0, r12, 1024
+    jump_if b0, line_done
+
+    iadd r1, r1, r6
+    iadd r9, r9, r7
+
+    cmp.lt b0, r9, r5
+    jump_if b0, line_x_loop
+
+    iadd r2, r2, r8
+    isub r9, r9, r5
+    jump line_x_loop
+
+line_y_major:
+    ; acc = 0. Each y step adds dx; when acc >= dy, x steps once.
+    move r9, 0
+
+line_y_loop:
+    fbplot r20, r1, r2
+
+    cmp.eq b0, r1, r3
+    cmp.eq b1, r2, r4
+    band b2, b0, b1
+    jump_if b2, line_done
+
+    inc r12
+    cmp.gt b0, r12, 1024
+    jump_if b0, line_done
+
+    iadd r2, r2, r8
+    iadd r9, r9, r5
+
+    cmp.lt b0, r9, r7
+    jump_if b0, line_y_loop
+
+    iadd r1, r1, r6
+    isub r9, r9, r7
+    jump line_y_loop
+
+line_done:
+    return
+
+wait_front_true:
+    move b7, @hdmi.active_bank
+    jump_if_not b7, wait_front_true
+    return
+
+wait_front_false:
+    move b7, @hdmi.active_bank
+    jump_if b7, wait_front_false
+    return
