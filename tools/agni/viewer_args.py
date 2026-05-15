@@ -7,6 +7,7 @@ import app_paths
 from viewer_palette import DEFAULT_PALETTE, PALETTE_KEYS, normalize_palette
 
 DEFAULT_SOURCE = os.path.join("examples", "agni", "fractals", "julia.sutra")
+MAX_FRAME_DIM = 1024
 
 
 @dataclass(frozen=True)
@@ -38,19 +39,18 @@ def optional_byte(value: str, name: str) -> int | None:
     text = value.strip()
     if not text:
         return None
-    return parse_int(text, name, 1, 255)
+    return parse_int(text, name, 1, MAX_FRAME_DIM)
 
 
 def build_defaults(args) -> ViewerDefaults:
-    if not 1 <= args.width <= 255:
-        raise SystemExit("width must be in range 1..255.")
-    if not 1 <= args.height <= 255:
-        raise SystemExit("height must be in range 1..255.")
+    if not 1 <= args.width <= MAX_FRAME_DIM:
+        raise SystemExit(f"width must be in range 1..{MAX_FRAME_DIM}.")
+    if not 1 <= args.height <= MAX_FRAME_DIM:
+        raise SystemExit(f"height must be in range 1..{MAX_FRAME_DIM}.")
     if not 1 <= args.max_iter <= 255:
         raise SystemExit("max-iter must be in range 1..255.")
     if not 1 <= args.scale <= 32:
         raise SystemExit("scale must be in range 1..32.")
-
     upload = app_paths.as_repo_path(app_paths.resolve_repo_path(args.upload, DEFAULT_SOURCE)) if args.upload else None
     return ViewerDefaults(
         port=args.port,
@@ -70,9 +70,9 @@ def build_defaults(args) -> ViewerDefaults:
 def add_viewer_args(parser) -> None:
     parser.add_argument("port", nargs="?", help="COM port, for example COM9. Without a port, the GUI opens disconnected.")
     parser.add_argument("--baud", type=int, default=115200)
-    parser.add_argument("--upload", help="Sutra program to upload before receiving ADI0 / ADI1 frames.")
-    parser.add_argument("--width", type=int, default=64, help="Frame width, 1..255.")
-    parser.add_argument("--height", type=int, default=64, help="Frame height, 1..255.")
+    parser.add_argument("--upload", help="Sutra program to upload before receiving ADI frames.")
+    parser.add_argument("--width", type=int, default=64, help=f"Frame width, 1..{MAX_FRAME_DIM}.")
+    parser.add_argument("--height", type=int, default=64, help=f"Frame height, 1..{MAX_FRAME_DIM}.")
     parser.add_argument("--max-iter", type=int, default=64, help="Iteration value treated as interior color, 1..255.")
     parser.add_argument("--scale", type=int, default=4)
     parser.add_argument("--palette", choices=PALETTE_KEYS, default=DEFAULT_PALETTE)

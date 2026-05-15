@@ -1,19 +1,4 @@
 #!/usr/bin/env python3
-"""
-Sutra UART uploader for Agni bootloader v1.6.
-
-v1.6 payload is compatible with v1.5 protocol:
-
-    ADI! handshake -> ADI_BOOT_READY\n
-    version: u8 = 2
-    code_count: u16 little-endian
-    data_count: u16 little-endian, flat data_mem blob starting at address 0
-    checksum: u32 little-endian, sum of all code/data payload bytes modulo 2^32
-    code_words: code_count * u32 little-endian
-    data_words: data_count * u32 little-endian
-
-v1.6 raises the supported image limits to 2048 code words and 2048 data words.
-"""
 from __future__ import annotations
 
 import argparse
@@ -32,7 +17,8 @@ TOOLS_ROOT = os.path.join(ROOT, "tools")
 
 def _remove_sys_path(path: str) -> None:
     path = os.path.abspath(path)
-    sys.path[:] = [p for p in sys.path if os.path.abspath(p or os.getcwd()) != path]
+    cwd = os.path.abspath(os.getcwd())
+    sys.path[:] = [p for p in sys.path if os.path.abspath(p or cwd) != path]
 
 
 def _prepend_sys_path(path: str) -> None:
@@ -65,9 +51,10 @@ VERSION_V15 = 2
 ACK_READY = b"ADI_BOOT_READY\n"
 ACK_OK = b"ADI_BOOT_OK\n"
 ACK_ERR = b"ADI_BOOT_ERR\n"
-
 MAX_CODE_WORDS = 2048
 MAX_DATA_WORDS = 2048
+MAX_FRAME_DIM = 1024
+MAX_BYTE_VALUE = 255
 
 
 @dataclass
@@ -80,12 +67,13 @@ class UploadImage:
         return self.code_words
 
 
-def _check_byte_param(name: str, value: int | None) -> int | None:
+def _check_range(name: str, value: int | None, lo: int, hi: int) -> int | None:
     if value is None:
         return None
-    if value < 1 or value > 255:
-        raise SystemExit(f"{name} must be in range 1..255 because ADI0 frame stores it in one byte")
-    return int(value)
+    x = int(value)
+    if x < lo or x > hi:
+        raise SystemExit(f"{name} must be in range {lo}..{hi}.")
+    return x
 
 
 def _fmt_float(x: float) -> str:
@@ -111,58 +99,104 @@ def _is_write_reg(line: str, reg: str) -> bool:
 def looks_like_adi0_graphics_source(source: str) -> bool:
     lines = source.splitlines()
     for i in range(len(lines)):
-        if i + 7 < len(lines):
-            r0 = _is_move_reg_imm(lines[i], 65)
-            if (
-                r0
-                and _is_write_reg(lines[i + 1], r0)
-                and (r1 := _is_move_reg_imm(lines[i + 2], 68))
-                and _is_write_reg(lines[i + 3], r1)
-                and (r2 := _is_move_reg_imm(lines[i + 4], 73))
-                and _is_write_reg(lines[i + 5], r2)
-                and (r3 := _is_move_reg_imm(lines[i + 6], 48))
-                and _is_write_reg(lines[i + 7], r3)
-            ):
-                return True
-    return "fbpresent" in source.lower() or "fbpresent1" in source.lower()
+        if i + 7 >= len(lines):
+            continue
+        r0 = _is_move_reg_imm(lines[i], 65)
+        r1 = _is_move_reg_imm(lines[i + 2], 68) if r0 and _is_write_reg(lines[i + 1], r0) else None
+        r2 = _is_move_reg_imm(lines[i + 4], 73) if r1 and _is_write_reg(lines[i + 3], r1) else None
+        r3 = _is_move_reg_imm(lines[i + 6], 48) if r2 and _is_write_reg(lines[i + 5], r2) else None
+        if r3 and _is_write_reg(lines[i + 7], r3):
+            return True
+    text = source.lower()
+    return "fbpresent" in text or "fbpresent1" in text or "uart.present" in text
 
 
-def _patch_adi0_header(source: str, width: int | None, height: int | None) -> tuple[str, bool]:
+def _patch_adi_header(source: str, width: int | None, height: int | None) -> tuple[str, bool]:
     lines = source.splitlines()
     endings_newline = source.endswith("\n")
+
     for i in range(len(lines)):
-        if i + 11 < len(lines):
-            r0 = _is_move_reg_imm(lines[i], 65)
-            r1 = _is_move_reg_imm(lines[i + 2], 68) if r0 and _is_write_reg(lines[i + 1], r0) else None
-            r2 = _is_move_reg_imm(lines[i + 4], 73) if r1 and _is_write_reg(lines[i + 3], r1) else None
-            r3 = _is_move_reg_imm(lines[i + 6], 48) if r2 and _is_write_reg(lines[i + 5], r2) else None
-            if r3 and _is_write_reg(lines[i + 7], r3):
-                mw = re.match(r"^move\s+(r\d+)\s*,\s*([-+]?\d+)\s*$", _strip_comment(lines[i + 8]), re.IGNORECASE)
-                mh = re.match(r"^move\s+(r\d+)\s*,\s*([-+]?\d+)\s*$", _strip_comment(lines[i + 10]), re.IGNORECASE)
-                if mw and mh and _is_write_reg(lines[i + 9], mw.group(1)) and _is_write_reg(lines[i + 11], mh.group(1)):
-                    indent = re.match(r"^([ \t]*)", lines[i]).group(1)
-                    reg = mw.group(1)
-                    w = width if width is not None else int(mw.group(2))
-                    h = height if height is not None else int(mh.group(2))
-                    lines[i:i + 12] = [
-                        f"{indent}move {reg}, 65",
-                        f"{indent}write_tx {reg}",
-                        f"{indent}move {reg}, 68",
-                        f"{indent}write_tx {reg}",
-                        f"{indent}move {reg}, 73",
-                        f"{indent}write_tx {reg}",
-                        f"{indent}move {reg}, 48",
-                        f"{indent}write_tx {reg}",
-                        f"{indent}move {reg}, {w}",
-                        f"{indent}write_tx {reg}",
-                        f"{indent}move {reg}, {h}",
-                        f"{indent}write_tx {reg}",
-                    ]
-                    out = "\n".join(lines)
-                    if endings_newline:
-                        out += "\n"
-                    return out, True
+        if i + 11 >= len(lines):
+            continue
+
+        r0 = _is_move_reg_imm(lines[i], 65)
+        r1 = _is_move_reg_imm(lines[i + 2], 68) if r0 and _is_write_reg(lines[i + 1], r0) else None
+        r2 = _is_move_reg_imm(lines[i + 4], 73) if r1 and _is_write_reg(lines[i + 3], r1) else None
+        r3 = _is_move_reg_imm(lines[i + 6], 48) if r2 and _is_write_reg(lines[i + 5], r2) else None
+        if not (r3 and _is_write_reg(lines[i + 7], r3)):
+            continue
+
+        mw = re.match(r"^move\s+(r\d+)\s*,\s*([-+]?\d+)\s*$", _strip_comment(lines[i + 8]), re.IGNORECASE)
+        mh = re.match(r"^move\s+(r\d+)\s*,\s*([-+]?\d+)\s*$", _strip_comment(lines[i + 10]), re.IGNORECASE)
+        if not (mw and mh and _is_write_reg(lines[i + 9], mw.group(1)) and _is_write_reg(lines[i + 11], mh.group(1))):
+            continue
+
+        indent = re.match(r"^([ \t]*)", lines[i]).group(1)
+        reg = mw.group(1)
+        w = width if width is not None else int(mw.group(2))
+        h = height if height is not None else int(mh.group(2))
+        if w <= 255 and h <= 255:
+            replacement = [
+                f"{indent}move {reg}, 65",
+                f"{indent}write_tx {reg}",
+                f"{indent}move {reg}, 68",
+                f"{indent}write_tx {reg}",
+                f"{indent}move {reg}, 73",
+                f"{indent}write_tx {reg}",
+                f"{indent}move {reg}, 48",
+                f"{indent}write_tx {reg}",
+                f"{indent}move {reg}, {w}",
+                f"{indent}write_tx {reg}",
+                f"{indent}move {reg}, {h}",
+                f"{indent}write_tx {reg}",
+            ]
+        else:
+            replacement = [
+                f"{indent}move {reg}, 65",
+                f"{indent}write_tx {reg}",
+                f"{indent}move {reg}, 68",
+                f"{indent}write_tx {reg}",
+                f"{indent}move {reg}, 73",
+                f"{indent}write_tx {reg}",
+                f"{indent}move {reg}, 50",
+                f"{indent}write_tx {reg}",
+                f"{indent}move {reg}, {(w >> 8) & 255}",
+                f"{indent}write_tx {reg}",
+                f"{indent}move {reg}, {w & 255}",
+                f"{indent}write_tx {reg}",
+                f"{indent}move {reg}, {(h >> 8) & 255}",
+                f"{indent}write_tx {reg}",
+                f"{indent}move {reg}, {h & 255}",
+                f"{indent}write_tx {reg}",
+            ]
+
+        lines[i:i + 12] = replacement
+        out = "\n".join(lines)
+        if endings_newline:
+            out += "\n"
+        return out, True
+
     return source, False
+
+
+def _replace_re(out: str, pattern: str, repl) -> tuple[str, int]:
+    return re.subn(pattern, repl, out, flags=re.IGNORECASE | re.MULTILINE)
+
+
+def _patch_fractal_bounds(out: str, width: int | None, height: int | None) -> str:
+    if width is not None:
+        out, _ = _replace_re(
+            out,
+            r"^(?P<i>[ \t]*)blt[ \t]+r4,[ \t]*[-+]?\d+,[ \t]*(?P<label>col_loop)(?:[ \t]*;[^\n]*)?$",
+            lambda m: f"{m.group('i')}blt r4, {width}, {m.group('label')}",
+        )
+    if height is not None:
+        out, _ = _replace_re(
+            out,
+            r"^(?P<i>[ \t]*)blt[ \t]+r5,[ \t]*[-+]?\d+,[ \t]*(?P<label>row_loop)(?:[ \t]*;[^\n]*)?$",
+            lambda m: f"{m.group('i')}blt r5, {height}, {m.group('label')}",
+        )
+    return out
 
 
 def patch_sutra_params(
@@ -172,9 +206,10 @@ def patch_sutra_params(
     max_iter: int | None = None,
     graphics: str = "auto",
 ) -> str:
-    width = _check_byte_param("width", width)
-    height = _check_byte_param("height", height)
-    max_iter = _check_byte_param("max_iter", max_iter)
+    width = _check_range("width", width, 1, MAX_FRAME_DIM)
+    height = _check_range("height", height, 1, MAX_FRAME_DIM)
+    max_iter = _check_range("max_iter", max_iter, 1, MAX_BYTE_VALUE)
+
     if width is None and height is None and max_iter is None:
         return source
     if graphics not in ("auto", "on", "off"):
@@ -186,20 +221,21 @@ def patch_sutra_params(
 
     out = source
     if width is not None or height is not None:
-        patched, ok = _patch_adi0_header(out, width, height)
+        patched, ok = _patch_adi_header(out, width, height)
         if ok:
             out = patched
+        out = _patch_fractal_bounds(out, width, height)
 
     if max_iter is not None:
-        out, n1 = re.subn(
-            r"(?m)^(?P<i>[ \t]*)cmp\.ge[ \t]+b0,[ \t]*r11,[ \t]*[-+]?\d+(?:[ \t]*;[^\n]*)?$",
+        out, n1 = _replace_re(
+            out,
+            r"^(?P<i>[ \t]*)cmp\.ge[ \t]+b0,[ \t]*r11,[ \t]*[-+]?\d+(?:[ \t]*;[^\n]*)?$",
             lambda m: f"{m.group('i')}cmp.ge b0, r11, {max_iter}",
-            out,
         )
-        out, n2 = re.subn(
-            r"(?m)^(?P<i>[ \t]*)bge[ \t]+r11,[ \t]*[-+]?\d+,[ \t]*(?P<label>[A-Za-z_.$][A-Za-z0-9_.$]*)(?:[ \t]*;[^\n]*)?$",
-            lambda m: f"{m.group('i')}bge r11, {max_iter}, {m.group('label')}",
+        out, n2 = _replace_re(
             out,
+            r"^(?P<i>[ \t]*)bge[ \t]+r11,[ \t]*[-+]?\d+,[ \t]*(?P<label>[A-Za-z_.$][A-Za-z0-9_.$]*)(?:[ \t]*;[^\n]*)?$",
+            lambda m: f"{m.group('i')}bge r11, {max_iter}, {m.group('label')}",
         )
         if n1 + n2 == 0 and graphics == "on":
             raise SystemExit("Could not find r11 max-iter limit to patch")
@@ -210,11 +246,13 @@ def patch_sutra_params(
             r"(?m)^(?P<i>[ \t]*)fadd[ \t]+r2,[ \t]*r2,[ \t]*[-+]?\d+(?:\.\d+)?(?:[ \t]*;[^\n]*)?$",
             lambda m: f"{m.group('i')}fadd r2, r2, {x_step}",
             out,
+            flags=re.IGNORECASE,
         )
         out = re.sub(
             r"(?m)^(?P<i>[ \t]*)fadd[ \t]+r6,[ \t]*r6,[ \t]*[-+]?\d+(?:\.\d+)?(?:[ \t]*;[^\n]*)?$",
             lambda m: f"{m.group('i')}fadd r6, r6, {x_step}",
             out,
+            flags=re.IGNORECASE,
         )
 
     if height is not None:
@@ -223,11 +261,13 @@ def patch_sutra_params(
             r"(?m)^(?P<i>[ \t]*)fadd[ \t]+r3,[ \t]*r3,[ \t]*[-+]?\d+(?:\.\d+)?(?:[ \t]*;[^\n]*)?$",
             lambda m: f"{m.group('i')}fadd r3, r3, {y_step}",
             out,
+            flags=re.IGNORECASE,
         )
         out = re.sub(
             r"(?m)^(?P<i>[ \t]*)fadd[ \t]+r7,[ \t]*r7,[ \t]*[-+]?\d+(?:\.\d+)?(?:[ \t]*;[^\n]*)?$",
             lambda m: f"{m.group('i')}fadd r7, r7, {y_step}",
             out,
+            flags=re.IGNORECASE,
         )
 
     return out
@@ -276,19 +316,18 @@ def assemble_file(
     graphics: str = "auto",
 ) -> UploadImage:
     source = read_sutra_source(path)
-    return assemble_source(patch_sutra_params(source, width=width, height=height, max_iter=max_iter, graphics=graphics))
+    patched = patch_sutra_params(source, width=width, height=height, max_iter=max_iter, graphics=graphics)
+    return assemble_source(patched)
 
 
 def make_body(image_or_words) -> bytes:
     image = _normalize_upload_image(image_or_words)
     _check_image_size(image)
-
     payload = bytearray()
     for w in image.code_words:
         payload += struct.pack("<I", int(w) & 0xFFFFFFFF)
     for w in image.data_words:
         payload += struct.pack("<I", int(w) & 0xFFFFFFFF)
-
     checksum = sum(payload) & 0xFFFFFFFF
     header = bytearray()
     header += struct.pack("<B", VERSION_V15)
@@ -370,10 +409,7 @@ def upload_words_to_serial(
     body = make_body(image)
     port = getattr(ser, "port", "open port")
     baud = getattr(ser, "baudrate", "?")
-    print(
-        f"Upload v1.6: code={len(image.code_words)} words, "
-        f"data={len(image.data_words)} words, bytes={len(body) + len(MAGIC)} -> {port} @ {baud}"
-    )
+    print(f"Upload v1.6: code={len(image.code_words)} words, data={len(image.data_words)} words, bytes={len(body) + len(MAGIC)} -> {port} @ {baud}")
     enter_bootloader(ser, boot_timeout, spam_interval)
     if settle_delay > 0:
         drain_input(ser, settle_delay)
@@ -412,8 +448,8 @@ def main() -> None:
     parser.add_argument("port", help="e.g. COM9 or /dev/ttyUSB0")
     parser.add_argument("source", help=".sutra source to upload")
     parser.add_argument("--baud", type=int, default=115200)
-    parser.add_argument("--width", type=int, help="override ADI0 width, 1..255")
-    parser.add_argument("--height", type=int, help="override ADI0 height, 1..255")
+    parser.add_argument("--width", type=int, help="override ADI frame width, 1..1024")
+    parser.add_argument("--height", type=int, help="override ADI frame height, 1..1024")
     parser.add_argument("--max-iter", type=int, help="override common r11 fractal iteration limit, 1..255")
     parser.add_argument("--graphics", choices=["auto", "on", "off"], default="auto")
     parser.add_argument("--boot-timeout", type=float, default=30.0)
@@ -421,17 +457,9 @@ def main() -> None:
     parser.add_argument("--spam-interval", type=float, default=0.03)
     parser.add_argument("--settle-delay", type=float, default=0.06)
     args = parser.parse_args()
-
-    image = assemble_file(
-        args.source,
-        width=args.width,
-        height=args.height,
-        max_iter=args.max_iter,
-        graphics=args.graphics,
-    )
+    image = assemble_file(args.source, width=args.width, height=args.height, max_iter=args.max_iter, graphics=args.graphics)
     upload_words(args.port, args.baud, image, args.boot_timeout, args.ack_timeout, args.spam_interval, args.settle_delay)
 
 
 if __name__ == "__main__":
     main()
-    
