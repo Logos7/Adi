@@ -1,7 +1,8 @@
 $ErrorActionPreference = "Stop"
 
 $toolsDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$source = Join-Path $toolsDir "sutra-vscode"
+$repoToolsDir = Split-Path -Parent $toolsDir
+$source = Join-Path $repoToolsDir "sutra-vscode"
 $packageJson = Join-Path $source "package.json"
 
 if (-not (Test-Path $packageJson)) {
@@ -13,7 +14,7 @@ $folderName = "$($pkg.publisher).$($pkg.name)-$($pkg.version)"
 $vsix = Join-Path $source "sutra-$($pkg.version).vsix"
 
 Write-Host "Sutra VS Code extension: $($pkg.displayName) $($pkg.version)"
-Write-Host "Źródło: $source"
+Write-Host "Zrodlo: $source"
 
 function Install-ByCopy($root) {
     if ([string]::IsNullOrWhiteSpace($root)) { return }
@@ -31,7 +32,7 @@ function Try-Install-WithCli($commandName) {
     $cmd = Get-Command $commandName -ErrorAction SilentlyContinue
     if ($null -eq $cmd) { return $false }
     if (-not (Test-Path $vsix)) { return $false }
-    Write-Host "Instaluję przez CLI: $commandName --install-extension $vsix --force"
+    Write-Host "Instaluje przez CLI: $commandName --install-extension $vsix --force"
     & $commandName --install-extension $vsix --force
     return $true
 }
@@ -46,6 +47,6 @@ Install-ByCopy (Join-Path $env:USERPROFILE ".vscode-insiders")
 Install-ByCopy (Join-Path $env:USERPROFILE ".cursor")
 
 Write-Host ""
-Write-Host "Gotowe. Teraz zamknij WSZYSTKIE okna VS Code/Cursor i otwórz ponownie."
-Write-Host "Test: Ctrl+Shift+P -> 'Change Language Mode' -> powinno być 'Sutra'."
-Write-Host "Jeśli dalej nie ma, uruchom: code --list-extensions | findstr /i sutra"
+Write-Host "Gotowe. Teraz zamknij WSZYSTKIE okna VS Code/Cursor i otworz ponownie."
+Write-Host "Test: Ctrl+Shift+P -> 'Change Language Mode' -> powinno byc 'Sutra'."
+Write-Host "Jesli dalej nie ma, uruchom: code --list-extensions | findstr /i sutra"

@@ -127,7 +127,7 @@
           "match": "(?i)\\b(jump|jmp|call)\\s+([A-Za-z_.$][A-Za-z0-9_.$]*)\\b",
           "captures": {
             "1": {
-              "name": "keyword.control.flow.sutra"
+              "name": "meta.instruction.integer.sutra"
             },
             "2": {
               "name": "variable.other.label.reference.sutra"
@@ -138,7 +138,7 @@
           "match": "(?i)\\b(jump_if|jump_if_not)\\s+([bB][0-7])\\s*,\\s*([A-Za-z_.$][A-Za-z0-9_.$]*)\\b",
           "captures": {
             "1": {
-              "name": "keyword.control.flow.sutra"
+              "name": "meta.instruction.integer.sutra"
             },
             "2": {
               "name": "variable.other.register.bool.sutra"
@@ -152,7 +152,7 @@
           "match": "(?i)\\b(beq|bne|blt|ble|bgt|bge)\\s+([^,;\\n]+)\\s*,\\s*([^,;\\n]+)\\s*,\\s*([A-Za-z_.$][A-Za-z0-9_.$]*)\\b",
           "captures": {
             "1": {
-              "name": "keyword.control.flow.sutra"
+              "name": "meta.instruction.integer.sutra"
             },
             "4": {
               "name": "variable.other.label.reference.sutra"
@@ -167,52 +167,52 @@
     },
     "compare-instructions": {
       "match": "(?i)\\b(cmp\\.(?:eq|ne|lt|le|gt|ge|feq))\\b",
-      "name": "keyword.operator.comparison.sutra"
+      "name": "meta.instruction.integer.sutra"
     },
     "flow-instructions": {
       "match": "(?i)\\b(jump_if_not|jump_if|jump|jmp|call|return|beq|bne|blt|ble|bgt|bge|wait|nop|halt)\\b",
-      "name": "keyword.control.flow.sutra"
+      "name": "meta.instruction.integer.sutra"
     },
     "framebuffer-instructions": {
       "match": "(?i)\\b(fbsize|fbclear|fbplot|fberase|fbpresent1|fbpresent)\\b",
-      "name": "support.function.framebuffer.sutra"
+      "name": "meta.instruction.integer.sutra"
     },
     "transfer-instructions": {
       "match": "(?i)\\b(move)\\b",
-      "name": "keyword.other.transfer.sutra"
+      "name": "meta.instruction.integer.sutra"
     },
     "integer-instructions": {
       "match": "(?i)\\b(iadd|isub|imul|iand|ior|ixor|inot|shl|shr|sar)\\b",
-      "name": "keyword.operator.integer.sutra"
+      "name": "meta.instruction.integer.sutra"
     },
     "fixed-instructions": {
       "match": "(?i)\\b(fadd|fsub|fmul|fdiv|itof|ftoi|fabs)\\b",
-      "name": "keyword.operator.fixed.sutra"
+      "name": "meta.instruction.integer.sutra"
     },
     "bool-instructions": {
       "match": "(?i)\\b(band|bor|bxor|bnot)\\b",
-      "name": "keyword.operator.bool.sutra"
+      "name": "meta.instruction.integer.sutra"
     },
     "complex-macro-instructions": {
       "match": "(?i)\\b(cadd|csub|cmul|cabs2)\\b",
-      "name": "support.function.macro.complex.sutra"
+      "name": "meta.instruction.integer.sutra"
     },
     "uart-macro-instructions": {
       "match": "(?i)\\b(wait_rx|read_rx|wait_uart|write_tx)\\b",
-      "name": "support.function.macro.uart.sutra"
+      "name": "meta.instruction.integer.sutra"
     },
     "math-macro-instructions": {
       "match": "(?i)\\b(inc|dec|neg|fneg|imin|imax|fmin|fmax)\\b",
-      "name": "support.function.macro.math.sutra"
+      "name": "meta.instruction.integer.sutra"
     },
     "deprecated-instructions": {
       "match": "(?i)\\b(load|save|bload|bsave)\\b",
-      "name": "invalid.deprecated.instruction.sutra"
+      "name": "meta.instruction.integer.sutra"
     },
     "address-values": {
       "patterns": [
         {
-          "match": "(?i)&(?:uart_tx|uart_rx|uart_ready|uart_tx_ready|uart_rx_ready)\\b",
+          "match": "(?i)&(?:uart_tx|uart_rx|uart_ready|uart_tx_ready|uart_rx_ready|hdmi\\.(?:active_bank|draw_bank|request_bank))\\b",
           "name": "constant.other.address.mmio.sutra"
         },
         {
@@ -228,7 +228,7 @@
     "memory": {
       "patterns": [
         {
-          "match": "(?i)@(?:uart_tx|uart_rx|uart_ready|uart_tx_ready|uart_rx_ready)\\b",
+          "match": "(?i)@(?:uart_tx|uart_rx|uart_ready|uart_tx_ready|uart_rx_ready|hdmi\\.(?:active_bank|draw_bank|request_bank))\\b",
           "name": "storage.modifier.memory.mmio.sutra"
         },
         {
