@@ -33,13 +33,15 @@ def test_load_l_does_not_wrap_program_memory():
     assert "instr2 <= imem[pc[10:0] + 11'd1];" in text
 
 
-def test_hdmi_clear_path_is_named_but_uart_present_stays_legacy_compatible():
+def test_hdmi_clear_path_is_named_separately_from_uart_present():
     text = read_core()
 
     assert "S_HDMI_CLEAR" in text
     assert "S_FB_CLEAR" not in text
-    assert "S_FB_PRESENT_HEADER" in text
-    assert "fb_header_byte" in text
+    assert "S_UART_PRESENT_HEADER" in text
+    assert "S_FB_PRESENT_HEADER" not in text
+    assert "uart_header_byte" in text
+    assert "uart_pack_byte" in text
     assert "packed_format ? 8'd49 : 8'd48" in text
     assert "width[7:0]" in text
     assert "height[7:0]" in text

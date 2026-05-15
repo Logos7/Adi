@@ -6,7 +6,8 @@
 // - no SystemVerilog-only constructs,
 // - data_mem is inferred as synchronous block RAM,
 // - call/return use a small 16-entry hardware return stack,
-// - 1-bit framebuffer helpers can drive an external VRAM-style framebuffer,
+// - hdmi.* drawing helpers drive an external VRAM-style framebuffer,
+// - uart.present* streams legacy ADI0/ADI1 frames from data_mem,
 // - HDMI double-buffer control is exposed as explicit bool MMIO.
 // =============================================================================
 
@@ -78,11 +79,10 @@ localparam [5:0] OP_HALT       = 6'h3F;
 localparam [10:0] UART_TX_ADDR = 11'h0F0;
 localparam [10:0] UART_RX_ADDR = 11'h0F1;
 
-// Source-level Sutra aliases are intentionally kept binary-compatible:
-// - hdmi.size / hdmi.clear / hdmi.plot / hdmi.erase map to the legacy FB opcodes
-//   that drive the external HDMI framebuffer.
-// - uart.present0 / uart.present1 map to FBPRESENT / FBPRESENT1 and keep the
-//   legacy ADI0 / ADI1 UART frame protocol for existing demos/viewers.
+// Sutra keeps the old binary opcodes, but the source-level names are split:
+// - hdmi.size / hdmi.clear / hdmi.plot / hdmi.erase drive external HDMI framebuffer memory,
+// - uart.present0 / uart.present1 stream legacy ADI0 / ADI1 frames from data_mem,
+// - fbsize / fbclear / fbplot / fberase / fbpresent / fbpresent1 remain legacy aliases.
 
 localparam [13:0] HDMI_FRAME_TOGGLE_BOOL_ADDR = 14'd124;
 localparam [13:0] HDMI_ACTIVE_BANK_BOOL_ADDR  = 14'd125;
@@ -134,11 +134,11 @@ localparam [4:0] S_HALT                  = 5'd4;
 localparam [4:0] S_LOAD_WAIT             = 5'd5;
 localparam [4:0] S_LOAD_DONE             = 5'd6;
 localparam [4:0] S_HDMI_CLEAR            = 5'd7;
-localparam [4:0] S_FB_PRESENT_HEADER     = 5'd8;
-localparam [4:0] S_FB_PRESENT_WAIT1      = 5'd9;
-localparam [4:0] S_FB_PRESENT_WAIT2      = 5'd10;
-localparam [4:0] S_FB_PRESENT_PIXELS     = 5'd11;
-localparam [4:0] S_FB_PRESENT_TX_DRAIN   = 5'd12;
+localparam [4:0] S_UART_PRESENT_HEADER     = 5'd8;
+localparam [4:0] S_UART_PRESENT_WAIT1      = 5'd9;
+localparam [4:0] S_UART_PRESENT_WAIT2      = 5'd10;
+localparam [4:0] S_UART_PRESENT_PIXELS     = 5'd11;
+localparam [4:0] S_UART_PRESENT_TX_DRAIN   = 5'd12;
 localparam [4:0] S_FDIV_STEP             = 5'd13;
 
 reg [4:0] state;
@@ -180,16 +180,16 @@ reg [12:0] fb_word_index;
 reg [17:0] fb_clear_index;
 reg [4:0] fb_bit_index;
 reg [31:0] fb_word;
-reg [2:0] fb_header_index;
-reg fb_tx_kind;
-reg fb_present_packed;
+reg [2:0] uart_header_index;
+reg uart_tx_kind;
+reg uart_present_packed;
 reg [8:0] fb_width;
 reg [8:0] fb_height;
 reg [17:0] fb_pixels;
 reg [17:0] fb_last_pixel_index;
 reg [12:0] fb_last_word_index;
-reg [17:0] fb_tx_index;
-reg [17:0] fb_tx_limit;
+reg [17:0] uart_tx_index;
+reg [17:0] uart_tx_limit;
 reg [17:0] fb_pixel_work;
 reg [17:0] fb_pixels_work;
 
@@ -403,34 +403,34 @@ function [31:0] fmul_q7_25;
     end
 endfunction
 
-function [7:0] fb_header_byte;
+function [7:0] uart_header_byte;
     input [2:0] index;
     input packed_format;
     input [8:0] width;
     input [8:0] height;
     begin
         case (index)
-            3'd0: fb_header_byte = 8'd65;
-            3'd1: fb_header_byte = 8'd68;
-            3'd2: fb_header_byte = 8'd73;
-            3'd3: fb_header_byte = packed_format ? 8'd49 : 8'd48;
-            3'd4: fb_header_byte = width[7:0];
-            3'd5: fb_header_byte = height[7:0];
-            default: fb_header_byte = 8'd0;
+            3'd0: uart_header_byte = 8'd65;
+            3'd1: uart_header_byte = 8'd68;
+            3'd2: uart_header_byte = 8'd73;
+            3'd3: uart_header_byte = packed_format ? 8'd49 : 8'd48;
+            3'd4: uart_header_byte = width[7:0];
+            3'd5: uart_header_byte = height[7:0];
+            default: uart_header_byte = 8'd0;
         endcase
     end
 endfunction
 
-function [7:0] fb_pack_byte;
+function [7:0] uart_pack_byte;
     input [31:0] word;
     input [1:0] byte_index;
     begin
         case (byte_index)
-            2'd0: fb_pack_byte = {word[0], word[1], word[2], word[3], word[4], word[5], word[6], word[7]};
-            2'd1: fb_pack_byte = {word[8], word[9], word[10], word[11], word[12], word[13], word[14], word[15]};
-            2'd2: fb_pack_byte = {word[16], word[17], word[18], word[19], word[20], word[21], word[22], word[23]};
-            2'd3: fb_pack_byte = {word[24], word[25], word[26], word[27], word[28], word[29], word[30], word[31]};
-            default: fb_pack_byte = 8'd0;
+            2'd0: uart_pack_byte = {word[0], word[1], word[2], word[3], word[4], word[5], word[6], word[7]};
+            2'd1: uart_pack_byte = {word[8], word[9], word[10], word[11], word[12], word[13], word[14], word[15]};
+            2'd2: uart_pack_byte = {word[16], word[17], word[18], word[19], word[20], word[21], word[22], word[23]};
+            2'd3: uart_pack_byte = {word[24], word[25], word[26], word[27], word[28], word[29], word[30], word[31]};
+            default: uart_pack_byte = 8'd0;
         endcase
     end
 endfunction
@@ -465,16 +465,16 @@ always @(posedge clk) begin
         fb_clear_index <= 18'd0;
         fb_bit_index <= 5'd0;
         fb_word <= 32'd0;
-        fb_header_index <= 3'd0;
-        fb_tx_kind <= 1'b0;
-        fb_present_packed <= 1'b0;
+        uart_header_index <= 3'd0;
+        uart_tx_kind <= 1'b0;
+        uart_present_packed <= 1'b0;
         fb_width <= 9'd64;
         fb_height <= 9'd64;
         fb_pixels <= 18'd4096;
         fb_last_pixel_index <= 18'd4095;
         fb_last_word_index <= 13'd127;
-        fb_tx_index <= 18'd0;
-        fb_tx_limit <= 18'd0;
+        uart_tx_index <= 18'd0;
+        uart_tx_limit <= 18'd0;
         fb_pixel_work <= 18'd0;
         fb_pixels_work <= 18'd0;
         addr11_work <= 11'd0;
@@ -867,14 +867,14 @@ always @(posedge clk) begin
                                 state <= S_HALT;
                             end else begin
                                 fb_base <= rd_value[10:0];
-                                fb_header_index <= 3'd0;
-                                fb_present_packed <= (opcode == OP_FBPRESENT1);
+                                uart_header_index <= 3'd0;
+                                uart_present_packed <= (opcode == OP_FBPRESENT1);
                                 if (opcode == OP_FBPRESENT1) begin
-                                    fb_tx_limit <= ((fb_pixels + 18'd7) >> 3) - 18'd1;
+                                    uart_tx_limit <= ((fb_pixels + 18'd7) >> 3) - 18'd1;
                                 end else begin
-                                    fb_tx_limit <= fb_pixels - 18'd1;
+                                    uart_tx_limit <= fb_pixels - 18'd1;
                                 end
-                                state <= S_FB_PRESENT_HEADER;
+                                state <= S_UART_PRESENT_HEADER;
                             end
                         end
 
@@ -954,29 +954,29 @@ always @(posedge clk) begin
                 end
             end
 
-            S_FB_PRESENT_HEADER: begin
+            S_UART_PRESENT_HEADER: begin
                 if (uart_tx_ready) begin
-                    uart_tx_data <= fb_header_byte(fb_header_index, fb_present_packed, fb_width, fb_height);
+                    uart_tx_data <= uart_header_byte(uart_header_index, uart_present_packed, fb_width, fb_height);
                     uart_tx_valid <= 1'b1;
-                    fb_tx_kind <= 1'b0;
-                    state <= S_FB_PRESENT_TX_DRAIN;
+                    uart_tx_kind <= 1'b0;
+                    state <= S_UART_PRESENT_TX_DRAIN;
                 end
             end
 
-            S_FB_PRESENT_WAIT1: begin
-                state <= S_FB_PRESENT_WAIT2;
+            S_UART_PRESENT_WAIT1: begin
+                state <= S_UART_PRESENT_WAIT2;
             end
 
-            S_FB_PRESENT_WAIT2: begin
+            S_UART_PRESENT_WAIT2: begin
                 fb_word <= data_rd_q;
                 fb_bit_index <= 5'd0;
-                state <= S_FB_PRESENT_PIXELS;
+                state <= S_UART_PRESENT_PIXELS;
             end
 
-            S_FB_PRESENT_PIXELS: begin
+            S_UART_PRESENT_PIXELS: begin
                 if (uart_tx_ready) begin
-                    if (fb_present_packed) begin
-                        uart_tx_data <= fb_pack_byte(fb_word, fb_bit_index[4:3]);
+                    if (uart_present_packed) begin
+                        uart_tx_data <= uart_pack_byte(fb_word, fb_bit_index[4:3]);
                     end else begin
                         if (fb_word[fb_bit_index]) begin
                             uart_tx_data <= 8'd48;
@@ -985,47 +985,47 @@ always @(posedge clk) begin
                         end
                     end
                     uart_tx_valid <= 1'b1;
-                    fb_tx_kind <= 1'b1;
-                    state <= S_FB_PRESENT_TX_DRAIN;
+                    uart_tx_kind <= 1'b1;
+                    state <= S_UART_PRESENT_TX_DRAIN;
                 end
             end
 
-            S_FB_PRESENT_TX_DRAIN: begin
+            S_UART_PRESENT_TX_DRAIN: begin
                 if (!uart_tx_ready) begin
-                    if (!fb_tx_kind) begin
-                        if (fb_header_index == 3'd5) begin
+                    if (!uart_tx_kind) begin
+                        if (uart_header_index == 3'd5) begin
                             fb_word_index <= 13'd0;
                             fb_bit_index <= 5'd0;
-                            fb_tx_index <= 18'd0;
+                            uart_tx_index <= 18'd0;
                             data_rd_addr <= fb_base;
-                            state <= S_FB_PRESENT_WAIT1;
+                            state <= S_UART_PRESENT_WAIT1;
                         end else begin
-                            fb_header_index <= fb_header_index + 3'd1;
-                            state <= S_FB_PRESENT_HEADER;
+                            uart_header_index <= uart_header_index + 3'd1;
+                            state <= S_UART_PRESENT_HEADER;
                         end
                     end else begin
-                        if (fb_tx_index == fb_tx_limit) begin
+                        if (uart_tx_index == uart_tx_limit) begin
                             pc <= pc + 32'd1;
                             state <= S_FETCH;
                         end else begin
-                            fb_tx_index <= fb_tx_index + 18'd1;
-                            if (fb_present_packed) begin
+                            uart_tx_index <= uart_tx_index + 18'd1;
+                            if (uart_present_packed) begin
                                 if (fb_bit_index == 5'd24) begin
                                     fb_word_index <= fb_word_index + 13'd1;
                                     data_rd_addr <= fb_base + (fb_word_index[10:0] + 11'd1);
-                                    state <= S_FB_PRESENT_WAIT1;
+                                    state <= S_UART_PRESENT_WAIT1;
                                 end else begin
                                     fb_bit_index <= fb_bit_index + 5'd8;
-                                    state <= S_FB_PRESENT_PIXELS;
+                                    state <= S_UART_PRESENT_PIXELS;
                                 end
                             end else begin
                                 if (fb_bit_index == 5'd31) begin
                                     fb_word_index <= fb_word_index + 13'd1;
                                     data_rd_addr <= fb_base + (fb_word_index[10:0] + 11'd1);
-                                    state <= S_FB_PRESENT_WAIT1;
+                                    state <= S_UART_PRESENT_WAIT1;
                                 end else begin
                                     fb_bit_index <= fb_bit_index + 5'd1;
-                                    state <= S_FB_PRESENT_PIXELS;
+                                    state <= S_UART_PRESENT_PIXELS;
                                 end
                             end
                         end

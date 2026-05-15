@@ -15,14 +15,19 @@ BRANCH_MACROS = {
     "BGE": "CMP.GE",
 }
 
-GRAPHICS_ALIASES = {
+HDMI_ALIASES = {
     "HDMI.SIZE": "fbsize",
     "HDMI.CLEAR": "fbclear",
     "HDMI.PLOT": "fbplot",
     "HDMI.ERASE": "fberase",
+}
+
+UART_ALIASES = {
     "UART.PRESENT0": "fbpresent",
     "UART.PRESENT1": "fbpresent1",
 }
+
+GRAPHICS_ALIASES = HDMI_ALIASES | UART_ALIASES
 
 
 def _split_predicate_text(line: str):

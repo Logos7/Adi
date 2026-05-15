@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "sutra"))
 
 from sutra import assemble, flatten_program
+from sutra.macros import GRAPHICS_ALIASES, HDMI_ALIASES, UART_ALIASES
 
 
 def words(source: str) -> list[int]:
@@ -25,3 +26,18 @@ def test_uart_present_aliases_match_legacy_framebuffer_opcodes():
 
 def test_graphics_aliases_keep_predicate_prefix():
     assert words("(b0) hdmi.plot r20, r1, r2") == words("(b0) fbplot r20, r1, r2")
+    assert words("(!b1) uart.present1 r20") == words("(!b1) fbpresent1 r20")
+
+
+def test_graphics_aliases_are_split_by_domain():
+    assert HDMI_ALIASES == {
+        "HDMI.SIZE": "fbsize",
+        "HDMI.CLEAR": "fbclear",
+        "HDMI.PLOT": "fbplot",
+        "HDMI.ERASE": "fberase",
+    }
+    assert UART_ALIASES == {
+        "UART.PRESENT0": "fbpresent",
+        "UART.PRESENT1": "fbpresent1",
+    }
+    assert GRAPHICS_ALIASES == HDMI_ALIASES | UART_ALIASES

@@ -2,299 +2,87 @@
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "name": "Sutra",
   "scopeName": "source.sutra",
-  "fileTypes": [
-    "sutra"
-  ],
   "patterns": [
-    {
-      "include": "#comments"
-    },
-    {
-      "include": "#strings"
-    },
-    {
-      "include": "#directives"
-    },
-    {
-      "include": "#label-definitions"
-    },
-    {
-      "include": "#deprecated-instructions"
-    },
-    {
-      "include": "#label-references"
-    },
-    {
-      "include": "#predicates"
-    },
-    {
-      "include": "#compare-instructions"
-    },
-    {
-      "include": "#flow-instructions"
-    },
-    {
-      "include": "#framebuffer-instructions"
-    },
-    {
-      "include": "#transfer-instructions"
-    },
-    {
-      "include": "#integer-instructions"
-    },
-    {
-      "include": "#fixed-instructions"
-    },
-    {
-      "include": "#bool-instructions"
-    },
-    {
-      "include": "#complex-macro-instructions"
-    },
-    {
-      "include": "#uart-macro-instructions"
-    },
-    {
-      "include": "#math-macro-instructions"
-    },
-    {
-      "include": "#address-values"
-    },
-    {
-      "include": "#memory"
-    },
-    {
-      "include": "#complex-registers"
-    },
-    {
-      "include": "#bool-registers"
-    },
-    {
-      "include": "#scratch-registers"
-    },
-    {
-      "include": "#registers"
-    },
-    {
-      "include": "#bool-constants"
-    },
-    {
-      "include": "#math-constants"
-    },
-    {
-      "include": "#numbers"
-    }
+    { "include": "#comments" },
+    { "include": "#labels" },
+    { "include": "#predicates" },
+    { "include": "#compare-instructions" },
+    { "include": "#domain-instructions" },
+    { "include": "#macro-instructions" },
+    { "include": "#core-instructions" },
+    { "include": "#address-values" },
+    { "include": "#memory" },
+    { "include": "#complex-registers" },
+    { "include": "#bool-registers" },
+    { "include": "#registers" },
+    { "include": "#bool-constants" },
+    { "include": "#math-constants" },
+    { "include": "#numbers" }
   ],
   "repository": {
     "comments": {
       "match": ";.*$",
       "name": "comment.line.semicolon.sutra"
     },
-    "strings": {
-      "begin": "\"",
-      "end": "\"",
-      "name": "string.quoted.double.sutra",
-      "patterns": [
-        {
-          "match": "\\\\.",
-          "name": "constant.character.escape.sutra"
-        }
-      ]
-    },
-    "directives": {
-      "patterns": [
-        {
-          "match": "(?i)^\\s*(\\.(?:data|code|org|word|u32|q7_25|sin_lut|zero|include))\\b",
-          "captures": {
-            "1": {
-              "name": "keyword.control.directive.sutra"
-            }
-          }
-        }
-      ]
-    },
-    "label-definitions": {
-      "match": "^\\s*([A-Za-z_.$][A-Za-z0-9_.$]*)\\s*:",
+    "labels": {
+      "match": "^\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*:",
       "captures": {
-        "1": {
-          "name": "entity.name.label.definition.sutra"
-        }
+        "1": { "name": "entity.name.function.label.sutra" }
       }
     },
-    "label-references": {
-      "patterns": [
-        {
-          "match": "(?i)\\b(jump|jmp|call)\\s+([A-Za-z_.$][A-Za-z0-9_.$]*)\\b",
-          "captures": {
-            "1": {
-              "name": "meta.instruction.integer.sutra"
-            },
-            "2": {
-              "name": "variable.other.label.reference.sutra"
-            }
-          }
-        },
-        {
-          "match": "(?i)\\b(jump_if|jump_if_not)\\s+([bB][0-7])\\s*,\\s*([A-Za-z_.$][A-Za-z0-9_.$]*)\\b",
-          "captures": {
-            "1": {
-              "name": "meta.instruction.integer.sutra"
-            },
-            "2": {
-              "name": "variable.other.register.bool.sutra"
-            },
-            "3": {
-              "name": "variable.other.label.reference.sutra"
-            }
-          }
-        },
-        {
-          "match": "(?i)\\b(beq|bne|blt|ble|bgt|bge)\\s+([^,;\\n]+)\\s*,\\s*([^,;\\n]+)\\s*,\\s*([A-Za-z_.$][A-Za-z0-9_.$]*)\\b",
-          "captures": {
-            "1": {
-              "name": "meta.instruction.integer.sutra"
-            },
-            "4": {
-              "name": "variable.other.label.reference.sutra"
-            }
-          }
-        }
-      ]
+    "domain-instructions": {
+      "match": "(?i)\\b(?:hdmi\\.(?:size|clear|plot|erase)|uart\\.present[01])\\b",
+      "name": "support.function.domain.sutra"
+    },
+    "core-instructions": {
+      "match": "(?i)\\b(move|band|bor|bxor|bnot|iadd|fadd|isub|fsub|iand|ior|ixor|inot|shl|shr|sar|imul|fmul|fdiv|itof|ftoi|fabs|cadd|csub|cmul|cabs2|jump|jmp|call|return|fbsize|fbclear|fbplot|fberase|fbpresent1?|wait|nop|halt)\\b",
+      "name": "keyword.control.sutra"
+    },
+    "compare-instructions": {
+      "match": "(?i)\\b(cmp\\.(?:eq|ne|lt|le|gt|ge|feq))\\b",
+      "name": "keyword.operator.comparison.sutra"
+    },
+    "macro-instructions": {
+      "match": "(?i)\\b(wait_rx|read_rx|wait_uart|write_tx|jump_if|jump_if_not|beq|bne|blt|ble|bgt|bge|inc|dec|neg|fneg|imin|imax|fmin|fmax)\\b",
+      "name": "support.function.macro.sutra"
     },
     "predicates": {
       "match": "\\(\\s*!?\\s*[bB][0-7]\\s*\\)",
       "name": "keyword.operator.predicate.sutra"
     },
-    "compare-instructions": {
-      "match": "(?i)\\b(cmp\\.(?:eq|ne|lt|le|gt|ge|feq))\\b",
-      "name": "meta.instruction.integer.sutra"
-    },
-    "flow-instructions": {
-      "match": "(?i)\\b(jump_if_not|jump_if|jump|jmp|call|return|beq|bne|blt|ble|bgt|bge|wait|nop|stop)\\b",
-      "name": "meta.instruction.integer.sutra"
-    },
-    "framebuffer-instructions": {
-      "match": "(?i)\\b(fbsize|fbclear|fbplot|fberase|fbpresent1|fbpresent)\\b",
-      "name": "meta.instruction.integer.sutra"
-    },
-    "transfer-instructions": {
-      "match": "(?i)\\b(move)\\b",
-      "name": "meta.instruction.integer.sutra"
-    },
-    "integer-instructions": {
-      "match": "(?i)\\b(iadd|isub|imul|iand|ior|ixor|inot|shl|shr|sar)\\b",
-      "name": "meta.instruction.integer.sutra"
-    },
-    "fixed-instructions": {
-      "match": "(?i)\\b(fadd|fsub|fmul|fdiv|itof|ftoi|fabs)\\b",
-      "name": "meta.instruction.integer.sutra"
-    },
-    "bool-instructions": {
-      "match": "(?i)\\b(band|bor|bxor|bnot)\\b",
-      "name": "meta.instruction.integer.sutra"
-    },
-    "complex-macro-instructions": {
-      "match": "(?i)\\b(cadd|csub|cmul|cabs2)\\b",
-      "name": "meta.instruction.integer.sutra"
-    },
-    "uart-macro-instructions": {
-      "match": "(?i)\\b(wait_rx|read_rx|wait_uart|write_tx)\\b",
-      "name": "meta.instruction.integer.sutra"
-    },
-    "math-macro-instructions": {
-      "match": "(?i)\\b(inc|dec|neg|fneg|imin|imax|fmin|fmax)\\b",
-      "name": "meta.instruction.integer.sutra"
-    },
-    "deprecated-instructions": {
-      "match": "(?i)\\b(load|save|bload|bsave)\\b",
-      "name": "meta.instruction.integer.sutra"
-    },
     "address-values": {
-      "patterns": [
-        {
-          "match": "(?i)&(?:uart_tx|uart_rx|uart_ready|uart_tx_ready|uart_rx_ready|hdmi\\.(?:active_bank|draw_bank|request_bank))\\b",
-          "name": "constant.other.address.mmio.sutra"
-        },
-        {
-          "match": "(?i)&(?:led[0-5]|pin(?:[0-9]|[1-9][0-9]|1[01][0-9]|12[0-7])|inpin(?:[0-9]|[1-5][0-9]|6[0-3]))\\b",
-          "name": "constant.other.address.gpio.sutra"
-        },
-        {
-          "match": "&(?:[A-Za-z_.$][A-Za-z0-9_.$]*|[-+]?(?:0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+))",
-          "name": "constant.other.address.sutra"
-        }
-      ]
+      "match": "&(?:[A-Za-z_][A-Za-z0-9_]*|pin[0-9]+|inpin[0-9]+|0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+)",
+      "name": "constant.other.address.sutra"
     },
     "memory": {
-      "patterns": [
-        {
-          "match": "(?i)@(?:uart_tx|uart_rx|uart_ready|uart_tx_ready|uart_rx_ready|hdmi\\.(?:active_bank|draw_bank|request_bank))\\b",
-          "name": "storage.modifier.memory.mmio.sutra"
-        },
-        {
-          "match": "(?i)@(?:led[0-5]|pin(?:[0-9]|[1-9][0-9]|1[01][0-9]|12[0-7])|inpin(?:[0-9]|[1-5][0-9]|6[0-3]))\\b",
-          "name": "storage.modifier.memory.gpio.sutra"
-        },
-        {
-          "match": "(?i)@(?:r(?:[12]?[0-9]|3[01])|t[0-7])(?:\\s*[+-]\\s*[-+]?(?:0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+))?\\b",
-          "name": "storage.modifier.memory.register.sutra"
-        },
-        {
-          "match": "@(?:[A-Za-z_.$][A-Za-z0-9_.$]*|[-+]?(?:0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+))",
-          "name": "storage.modifier.memory.sutra"
-        }
-      ]
+      "match": "@(?:[rR](?:[12]?[0-9]|3[01])(?:[+-][0-9]+)?|[tT][0-7](?:[+-][0-9]+)?|[A-Za-z_][A-Za-z0-9_]*|pin[0-9]+|inpin[0-9]+|0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+)",
+      "name": "storage.modifier.memory.sutra"
+    },
+    "registers": {
+      "match": "(?i)\\b(r(?:[12]?[0-9]|3[01])|t[0-7])\\b",
+      "name": "variable.parameter.register.sutra"
     },
     "complex-registers": {
       "match": "(?i)\\b(z(?:[0-9]|1[0-5]))\\b",
-      "name": "variable.other.register.complex.sutra"
+      "name": "variable.parameter.complex.sutra"
     },
     "bool-registers": {
       "match": "(?i)\\b(b[0-7])\\b",
-      "name": "variable.other.register.bool.sutra"
-    },
-    "scratch-registers": {
-      "match": "(?i)\\b(t[0-7])\\b",
-      "name": "variable.other.register.scratch.sutra"
-    },
-    "registers": {
-      "match": "(?i)\\b(r(?:[12]?[0-9]|3[01]))\\b",
-      "name": "variable.other.register.gpr.sutra"
+      "name": "variable.parameter.bool.sutra"
     },
     "bool-constants": {
       "match": "(?i)\\b(true|false|high|low)\\b",
       "name": "constant.language.bool.sutra"
     },
     "math-constants": {
-      "patterns": [
-        {
-          "match": "(?i)\\b(zero|one|neg_one|minus_one|fzero|f_zero|fone|f_one|fneg_one|f_neg_one|half|two|pi|half_pi|quarter_pi|tau|inv_pi|inv_tau|e|inv_e|ln2|ln_2|ln10|ln_10|log2e|log2_e|log10e|log10_e|sqrt2|sqrt_2|sqrt3|sqrt_3|sqrt5|sqrt_5|inv_sqrt2|phi|golden|golden_ratio|silver|silver_ratio)\\b",
-          "name": "constant.numeric.symbolic.sutra"
-        },
-        {
-          "match": "(?:[πτεφ½]|√[-+]?(?:\\d+(?:\\.\\d+)?|0[xX][0-9a-fA-F]+|0[bB][01]+)|(?i:sqrt\\([-+]?[^)]+\\)|sqrt[-+]?(?:\\d+(?:\\.\\d+)?|0[xX][0-9a-fA-F]+|0[bB][01]+)|2pi|2\\*pi|pi/2|pi/4|1/pi|1/tau|1/e|1/sqrt2)|2π|2\\*π|π/2|π/4|1/π|1/τ|1/e|1/√2)",
-          "name": "constant.numeric.symbolic.sutra"
-        }
-      ]
+      "match": "(?i)(?:\\b(pi|tau|phi|e|half|sqrt[0-9.]*|sqrt\\([^)]*\\)|ln2|ln10|log2e|log10e|inv_pi|inv_tau|inv_sqrt2|silver|golden|one|zero|two)\\b|[πτεφ½]|√[A-Za-z0-9_.]+)",
+      "name": "constant.numeric.symbolic.sutra"
     },
     "numbers": {
       "patterns": [
-        {
-          "match": "(?i)(?<![\\w.])[-+]?0x[0-9a-f]+\\b",
-          "name": "constant.numeric.integer.hexadecimal.sutra"
-        },
-        {
-          "match": "(?i)(?<![\\w.])[-+]?0b[01]+\\b",
-          "name": "constant.numeric.integer.binary.sutra"
-        },
-        {
-          "match": "(?<![\\w.])[-+]?\\d+\\.\\d+\\b",
-          "name": "constant.numeric.fixed.decimal.sutra"
-        },
-        {
-          "match": "(?<![\\w.])[-+]?\\d+\\b",
-          "name": "constant.numeric.integer.decimal.sutra"
-        }
+        { "match": "\\b0[xX][0-9a-fA-F]+\\b", "name": "constant.numeric.hex.sutra" },
+        { "match": "\\b0[bB][01]+\\b", "name": "constant.numeric.binary.sutra" },
+        { "match": "-?\\b[0-9]+(?:\\.[0-9]+)?\\b", "name": "constant.numeric.decimal.sutra" }
       ]
     }
   }
