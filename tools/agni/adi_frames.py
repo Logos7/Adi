@@ -5,8 +5,13 @@ from typing import Iterable
 
 MAGIC_ADI0 = b"ADI0"
 MAGIC_ADI1 = b"ADI1"
-MAGICS = (MAGIC_ADI0, MAGIC_ADI1)
+MAGIC_ADI2 = b"ADI2"
+MAGIC_ADI3 = b"ADI3"
+MAGICS = (MAGIC_ADI0, MAGIC_ADI1, MAGIC_ADI2, MAGIC_ADI3)
 BOOT_PREFIX = b"ADI_BOOT_"
+
+LEGACY_HEADER_SIZE = 6
+EXTENDED_HEADER_SIZE = 8
 
 
 @dataclass(frozen=True)
@@ -18,7 +23,28 @@ class AdiFrame:
     raw_size: int
 
 
-def unpack_adi1_payload(width: int, height: int, payload: bytes) -> bytes:
+def is_packed_kind(kind: bytes) -> bool:
+    return kind in (MAGIC_ADI1, MAGIC_ADI3)
+
+
+def header_size(kind: bytes) -> int:
+    return EXTENDED_HEADER_SIZE if kind in (MAGIC_ADI2, MAGIC_ADI3) else LEGACY_HEADER_SIZE
+
+
+def read_dimensions(kind: bytes, buffer: bytearray) -> tuple[int, int] | None:
+    size = header_size(kind)
+    if len(buffer) < size:
+        return None
+
+    if size == LEGACY_HEADER_SIZE:
+        return buffer[4], buffer[5]
+
+    width = (buffer[4] << 8) | buffer[5]
+    height = (buffer[6] << 8) | buffer[7]
+    return width, height
+
+
+def unpack_packed_payload(width: int, height: int, payload: bytes) -> bytes:
     total = width * height
     out = bytearray(total)
     i = 0
@@ -31,9 +57,13 @@ def unpack_adi1_payload(width: int, height: int, payload: bytes) -> bytes:
     return bytes(out)
 
 
+def unpack_adi1_payload(width: int, height: int, payload: bytes) -> bytes:
+    return unpack_packed_payload(width, height, payload)
+
+
 def frame_payload_size(kind: bytes, width: int, height: int) -> int:
     pixels = width * height
-    if kind == MAGIC_ADI1:
+    if is_packed_kind(kind):
         return (pixels + 7) // 8
     return pixels
 
@@ -69,25 +99,29 @@ def pop_frame(buffer: bytearray) -> AdiFrame | None:
     if pos > 0:
         del buffer[:pos]
 
-    if len(buffer) < 6:
+    size = header_size(kind)
+    if len(buffer) < size:
         return None
 
-    width = buffer[4]
-    height = buffer[5]
+    dims = read_dimensions(kind, buffer)
+    if dims is None:
+        return None
+
+    width, height = dims
     if width == 0 or height == 0:
         del buffer[:4]
         return None
 
     payload_size = frame_payload_size(kind, width, height)
-    total_size = 6 + payload_size
+    total_size = size + payload_size
     if len(buffer) < total_size:
         return None
 
-    payload = bytes(buffer[6:total_size])
+    payload = bytes(buffer[size:total_size])
     del buffer[:total_size]
 
-    if kind == MAGIC_ADI1:
-        pixels = unpack_adi1_payload(width, height, payload)
+    if is_packed_kind(kind):
+        pixels = unpack_packed_payload(width, height, payload)
     else:
         pixels = payload
 
@@ -111,8 +145,10 @@ class TerminalRxFilter:
         while self._buf:
             if self._drop_boot_ack_if_ready():
                 continue
+
             if self._has_partial_boot_ack():
                 break
+
             if self._drop_boot_line_if_ready():
                 continue
 
@@ -124,6 +160,7 @@ class TerminalRxFilter:
                     del self._buf[:pos]
                     out += self._sanitize_text(chunk)
                     continue
+
                 if not self._drop_frame_if_ready(kind):
                     break
                 continue
@@ -143,6 +180,7 @@ class TerminalRxFilter:
                 self.dropped_bytes += 1
             else:
                 out.append(clean)
+
             if len(out) >= 8192:
                 break
 
@@ -161,6 +199,7 @@ class TerminalRxFilter:
     def _drop_boot_line_if_ready(self) -> bool:
         if not self._buf.startswith(BOOT_PREFIX):
             return False
+
         newline = self._buf.find(b"\n")
         if newline < 0:
             if len(self._buf) < 80:
@@ -168,25 +207,33 @@ class TerminalRxFilter:
             self.dropped_bytes += 1
             del self._buf[0]
             return True
+
         self.dropped_bytes += newline + 1
         del self._buf[:newline + 1]
         return True
 
     def _drop_frame_if_ready(self, kind: bytes) -> bool:
-        if len(self._buf) < 6:
+        size = header_size(kind)
+        if len(self._buf) < size:
             return False
-        width = self._buf[4]
-        height = self._buf[5]
+
+        dims = read_dimensions(kind, self._buf)
+        if dims is None:
+            return False
+
+        width, height = dims
         if width == 0 or height == 0:
             self.dropped_bytes += 4
             del self._buf[:4]
             return True
-        size = 6 + frame_payload_size(kind, width, height)
-        if len(self._buf) < size:
+
+        frame_size = size + frame_payload_size(kind, width, height)
+        if len(self._buf) < frame_size:
             return False
+
         self.dropped_frames += 1
-        self.dropped_bytes += size
-        del self._buf[:size]
+        self.dropped_bytes += frame_size
+        del self._buf[:frame_size]
         return True
 
     def _sanitize_text(self, data: bytes) -> bytes:

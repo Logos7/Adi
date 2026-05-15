@@ -15,6 +15,15 @@ BRANCH_MACROS = {
     "BGE": "CMP.GE",
 }
 
+GRAPHICS_ALIASES = {
+    "HDMI.SIZE": "fbsize",
+    "HDMI.CLEAR": "fbclear",
+    "HDMI.PLOT": "fbplot",
+    "HDMI.ERASE": "fberase",
+    "UART.PRESENT0": "fbpresent",
+    "UART.PRESENT1": "fbpresent1",
+}
+
 
 def _split_predicate_text(line: str):
     m = re.match(r"^(\s*\(\s*!?\s*B[0-7]\s*\)\s*)(.*)$", line, flags=re.IGNORECASE)
@@ -41,6 +50,9 @@ def expand_macro_line(line: str, counter: int):
 
     def p(x: str) -> str:
         return pred_text + x if pred_text else x
+
+    if m in GRAPHICS_ALIASES:
+        return [p(" ".join([GRAPHICS_ALIASES[m], *ops]))], counter
 
     if m == "INC":
         if len(ops) != 1:
