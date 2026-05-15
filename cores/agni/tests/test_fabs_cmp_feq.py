@@ -8,7 +8,7 @@ def test_fabs_and_cmp_feq():
         cmp.feq b0, r1, 1.5, 0.0001
         fmul r2, √2, √2
         cmp.feq b1, r2, 2.0, 0.0001
-        halt
+        stop
     ''')
     assert cpu.gpr[1] == int(round(1.5 * Q)) & 0xFFFFFFFF
     assert cpu.bool_regs[0] == 1

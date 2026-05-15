@@ -300,7 +300,7 @@ INSTRUCTION_SUMMARY = [
     "inc/dec/neg/fneg and imin/imax/fmin/fmax",
     "wait_rx / read_rx rd / wait_uart / write_tx rs",
     "wait rs|cycles",
-    "jump label|offset, call label|offset, return, nop, halt",
+    "jump label|offset, call label|offset, return, nop, stop",
 ]
 
 CONSTANT_SUMMARY = [

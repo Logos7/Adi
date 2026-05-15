@@ -6,7 +6,7 @@ def test_itof_ftoi():
         itof r1, 2
         ftoi r2, 2.0
         ftoi r3, -1.0
-        halt
+        stop
     ''')
     assert cpu.gpr[1] == (2 * Q) & 0xFFFFFFFF
     assert cpu.gpr[2] == 2

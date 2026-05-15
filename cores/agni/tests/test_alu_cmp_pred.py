@@ -15,7 +15,7 @@ def test_alu_cmp_pred():
         cmp.eq b1, r3, 8
         (b0)  move r9, 111
         (!b1) move r10, 222
-        halt
+        stop
     ''')
     assert cpu.gpr[2] == 7
     assert cpu.gpr[3] == 8

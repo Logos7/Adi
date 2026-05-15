@@ -116,7 +116,7 @@ The assembler rejects static bool accesses outside the implemented `@pin0..@pin1
 
 ```asm
 nop
-halt
+stop
 wait r0
 wait 27000000
 jump label
@@ -136,7 +136,7 @@ Example:
 main:
     move r0, 10
     call add_three
-    halt
+    stop
 
 add_three:
     iadd r0, r0, 3

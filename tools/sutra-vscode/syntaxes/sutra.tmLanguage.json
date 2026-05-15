@@ -170,7 +170,7 @@
       "name": "meta.instruction.integer.sutra"
     },
     "flow-instructions": {
-      "match": "(?i)\\b(jump_if_not|jump_if|jump|jmp|call|return|beq|bne|blt|ble|bgt|bge|wait|nop|halt)\\b",
+      "match": "(?i)\\b(jump_if_not|jump_if|jump|jmp|call|return|beq|bne|blt|ble|bgt|bge|wait|nop|stop)\\b",
       "name": "meta.instruction.integer.sutra"
     },
     "framebuffer-instructions": {

@@ -6,7 +6,7 @@ def test_uart_tx_bytes():
         move @uart_tx, 68
         move @uart_tx, 73
         move @uart_tx, 10
-        halt
+        stop
     ''')
     assert bytes(cpu.uart_tx_bytes) == b'ADI\n'
 

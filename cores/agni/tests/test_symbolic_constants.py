@@ -12,7 +12,7 @@ def test_symbolic_constants_and_roots():
         move r6, sqrt(0.5)
         move r7, ln2
         move r8, &uart_tx
-        halt
+        stop
     ''')
     assert cpu.gpr[1] == int(round(math.pi * Q)) & 0xFFFFFFFF
     assert cpu.gpr[2] == int(round(2 * math.pi * Q)) & 0xFFFFFFFF

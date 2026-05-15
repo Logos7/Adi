@@ -162,7 +162,7 @@ def assemble_image(source: str) -> SutraImage:
         DATA_SYMBOLS.update(data_symbols)
         lines = assemble(code_source)
         if not lines:
-            lines = assemble("halt\n")
+            lines = assemble("stop\n")
     finally:
         DATA_SYMBOLS.clear()
         DATA_SYMBOLS.update(old_symbols)

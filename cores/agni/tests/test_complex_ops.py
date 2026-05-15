@@ -9,7 +9,7 @@ def test_complex_macros():
         move r3, 4.0
         cmul z2, z0, z1
         cabs2 r8, z0
-        halt
+        stop
     ''')
     assert cpu.gpr[4] == (-5 * Q) & 0xFFFFFFFF
     assert cpu.gpr[5] == (10 * Q) & 0xFFFFFFFF

@@ -7,7 +7,7 @@ def test_mul_fmul_fadd():
         fmul r2, 0.5, 2.0
         fadd r3, 1.0, 1.0
         fsub r4, 2.0, 0.5
-        halt
+        stop
     ''')
     assert cpu.gpr[1] == 0xFFFFFFD6
     assert cpu.gpr[2] == (1 * Q) & 0xFFFFFFFF

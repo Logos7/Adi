@@ -17,7 +17,7 @@ def test_inc_dec_neg_fneg():
         inc r1
         neg r2, r1
         fneg r3, 1.5
-        halt
+        stop
     ''')
 
     assert cpu.gpr[0] == 6
@@ -32,7 +32,7 @@ def test_minmax_integer_and_fixed():
         imax r1, 6, 4
         fmin r2, 1.25, -2.5
         fmax r3, 1.25, -2.5
-        halt
+        stop
     ''')
 
     assert cpu.gpr[0] == 4
@@ -48,7 +48,7 @@ def test_offset_load_save_positive_and_negative():
         move @r0-1, 77
         move r1, @r0+4
         move r2, @r0-1
-        halt
+        stop
     ''')
 
     assert cpu.gpr[1] == 55
@@ -66,7 +66,7 @@ def test_jump_if_and_jump_if_not():
         move r1, 99
     b:
         move r2, 7
-        halt
+        stop
     ''')
 
     assert cpu.gpr[0] == 0
@@ -98,7 +98,7 @@ def test_branch_macros_all_directions():
         move r10, 99
     f:
         inc r10
-        halt
+        stop
     ''')
 
     assert cpu.gpr[10] == 1
@@ -109,7 +109,7 @@ def test_call_return_basic():
         move r0, 10
         call add_three
         move r1, r0
-        halt
+        stop
 
     add_three:
         iadd r0, r0, 3
@@ -126,7 +126,7 @@ def test_call_return_nested():
         move r0, 1
         call a
         move r1, r0
-        halt
+        stop
 
     a:
         iadd r0, r0, 2
@@ -151,7 +151,7 @@ def test_predicated_call_and_return():
         move b0, true
         (b0) call taken
         move r1, r0
-        halt
+        stop
 
     skipped:
         move r0, 99
@@ -173,7 +173,7 @@ def test_wait_uart_and_write_tx():
         write_tx r0
         move r0, 66
         write_tx r0
-        halt
+        stop
     ''')))
     cpu.run(1000)
 
@@ -185,7 +185,7 @@ def test_read_rx_echo_macro():
     cpu.load_program(flatten_program(assemble('''
         read_rx r0
         write_tx r0
-        halt
+        stop
     ''')))
     cpu.push_uart_rx(ord('Z'))
     cpu.run(1000)
@@ -198,7 +198,7 @@ def test_wait_rx_blocks_until_data():
     words = flatten_program(assemble('''
         wait_rx
         move r0, @uart_rx
-        halt
+        stop
     '''))
     cpu = CPU()
     cpu.load_program(words)

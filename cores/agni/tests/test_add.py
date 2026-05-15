@@ -5,7 +5,7 @@ def test_iadd_and_32_registers():
         move r1, 100
         iadd r31, r1, 23
         iadd r16, r31, 1
-        halt
+        stop
     ''')
     assert cpu.gpr[31] == 123
     assert cpu.gpr[16] == 124

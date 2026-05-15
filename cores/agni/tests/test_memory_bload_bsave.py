@@ -10,7 +10,7 @@ def test_memory_and_gpio():
         move r4, @r3
         move @led0, high
         move b0, @led0
-        halt
+        stop
     ''')
     assert cpu.gpr[2] == 123
     assert cpu.gpr[4] == 123

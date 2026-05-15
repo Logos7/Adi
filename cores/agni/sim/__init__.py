@@ -565,7 +565,7 @@ def disassemble(word: int, second_word: int = None) -> str:
     if opcode == OPCODE_NOP:
         return pred + "nop"
     if opcode == OPCODE_HALT:
-        return pred + "halt"
+        return pred + "stop"
 
     if opcode == OPCODE_ALU_R:
         name = ALU_FUNCT_NAMES.get(field_funct(word), f"alu.{field_funct(word):x}")

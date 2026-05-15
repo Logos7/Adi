@@ -5,7 +5,7 @@ def test_uart_backpressure_stalls_save():
     words = flatten_program(assemble('''
         move r0, 65
         move @uart_tx, r0
-        halt
+        stop
     '''))
     cpu = CPU(uart_tx_ready=0)
     cpu.load_program(words)

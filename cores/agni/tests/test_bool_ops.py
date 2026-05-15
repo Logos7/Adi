@@ -8,7 +8,7 @@ def test_bool_ops_and_unified_load_save():
         bnot b3, false
         move @led0, b1
         move b4, @led0
-        halt
+        stop
     ''')
     assert cpu.bool_regs[0] == 0
     assert cpu.bool_regs[1] == 1

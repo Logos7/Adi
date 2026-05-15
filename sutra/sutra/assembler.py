@@ -26,7 +26,7 @@ def assemble_instruction(mnemonic: str, operands: list[str], pred: int = PRED_AL
     if m == "NOP":
         return [encode_r_format(OPCODE_NOP, pred=pred)]
 
-    if m == "HALT":
+    if m == "STOP":
         return [encode_r_format(OPCODE_HALT, pred=pred)]
 
     if m == "RETURN":
