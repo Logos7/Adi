@@ -13,8 +13,8 @@
 *.sv text eol=lf
 *.vh text eol=lf
 *.cst text eol=lf
-*.sutra text eol=lf
-*.mantra text eol=lf
+*.sutra linguist-language=Text
+*.mantra linguist-language=Text
 *.nada text eol=lf
 
 # Project and documentation files
@@ -27,7 +27,7 @@
 *.ini text eol=lf
 *.cfg text eol=lf
 *.sh text eol=lf
-*.hex text eol=lf
+*.hex linguist-vendored
 *.mem text eol=lf
 
 # Binary assets and build artifacts
