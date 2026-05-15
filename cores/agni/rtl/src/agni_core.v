@@ -863,7 +863,9 @@ always @(posedge clk) begin
                         // Keep this path legacy-compatible; extended ADI2 / ADI3 is parser/tooling support.
                         OP_FBPRESENT,
                         OP_FBPRESENT1: begin
-                            if ((fb_width[8] == 1'b1) || (fb_height[8] == 1'b1) || (fb_last_word_index > 13'd2047)) begin
+                            if ((fb_width[8] == 1'b1) ||
+                                (fb_height[8] == 1'b1) ||
+                                (({2'b00, rd_value[10:0]} + fb_last_word_index) > 13'd2047)) begin
                                 state <= S_HALT;
                             end else begin
                                 fb_base <= rd_value[10:0];

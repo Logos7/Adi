@@ -52,3 +52,15 @@ def test_uart_frame_present_rejects_dimensions_not_supported_by_legacy_header():
 
     assert "fb_width[8]" in text
     assert "fb_height[8]" in text
+
+
+def test_uart_present_guards_framebuffer_base_plus_payload_words():
+    text = read_core()
+
+    assert "({2'b00, rd_value[10:0]} + fb_last_word_index) > 13'd2047" in text
+
+
+def test_load_l_fetch2_pc_increment_is_not_duplicated():
+    text = read_core()
+
+    assert "pc <= pc + 32'd2;\n                pc <= pc + 32'd2;" not in text

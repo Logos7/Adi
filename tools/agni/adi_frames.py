@@ -12,6 +12,10 @@ BOOT_PREFIX = b"ADI_BOOT_"
 
 LEGACY_HEADER_SIZE = 6
 EXTENDED_HEADER_SIZE = 8
+MAX_FRAME_DIM = 1024
+MAX_UNPACKED_PAYLOAD_SIZE = MAX_FRAME_DIM * MAX_FRAME_DIM
+MAX_PACKED_PAYLOAD_SIZE = (MAX_FRAME_DIM * MAX_FRAME_DIM + 7) // 8
+MAX_TEXT_BUFFER_SIZE = 8192
 
 
 @dataclass(frozen=True)
@@ -31,7 +35,7 @@ def header_size(kind: bytes) -> int:
     return EXTENDED_HEADER_SIZE if kind in (MAGIC_ADI2, MAGIC_ADI3) else LEGACY_HEADER_SIZE
 
 
-def read_dimensions(kind: bytes, buffer: bytearray) -> tuple[int, int] | None:
+def read_dimensions(kind: bytes, buffer: bytearray | bytes) -> tuple[int, int] | None:
     size = header_size(kind)
     if len(buffer) < size:
         return None
@@ -42,6 +46,10 @@ def read_dimensions(kind: bytes, buffer: bytearray) -> tuple[int, int] | None:
     width = (buffer[4] << 8) | buffer[5]
     height = (buffer[6] << 8) | buffer[7]
     return width, height
+
+
+def dimensions_are_valid(width: int, height: int) -> bool:
+    return 1 <= width <= MAX_FRAME_DIM and 1 <= height <= MAX_FRAME_DIM
 
 
 def unpack_packed_payload(width: int, height: int, payload: bytes) -> bytes:
@@ -68,11 +76,18 @@ def frame_payload_size(kind: bytes, width: int, height: int) -> int:
     return pixels
 
 
-def find_next_magic(buffer: bytearray, magics: Iterable[bytes] = MAGICS) -> tuple[int, bytes] | None:
+def frame_payload_size_is_valid(kind: bytes, payload_size: int) -> bool:
+    if is_packed_kind(kind):
+        return payload_size <= MAX_PACKED_PAYLOAD_SIZE
+    return payload_size <= MAX_UNPACKED_PAYLOAD_SIZE
+
+
+def find_next_magic(buffer: bytearray | bytes, magics: Iterable[bytes] = MAGICS, start: int = 0) -> tuple[int, bytes] | None:
+    text = bytes(buffer)
     best_pos = -1
     best_magic = b""
     for magic in magics:
-        pos = buffer.find(magic)
+        pos = text.find(magic, start)
         if pos >= 0 and (best_pos < 0 or pos < best_pos):
             best_pos = pos
             best_magic = magic
@@ -88,44 +103,66 @@ def buffer_starts_partial_magic(buffer: bytearray, magics: Iterable[bytes] = MAG
     return len(text) < 4 and any(magic.startswith(text) for magic in magics)
 
 
+def _drop_false_magic(buffer: bytearray) -> None:
+    del buffer[0]
+
+
+def _has_next_magic_before(buffer: bytearray, limit: int) -> bool:
+    found = find_next_magic(buffer, start=1)
+    return found is not None and found[0] < limit
+
+
 def pop_frame(buffer: bytearray) -> AdiFrame | None:
-    found = find_next_magic(buffer)
-    if found is None:
-        if len(buffer) > 3:
-            del buffer[:-3]
-        return None
+    while True:
+        found = find_next_magic(buffer)
+        if found is None:
+            if len(buffer) > 3:
+                del buffer[:-3]
+            return None
 
-    pos, kind = found
-    if pos > 0:
-        del buffer[:pos]
+        pos, kind = found
+        if pos > 0:
+            del buffer[:pos]
 
-    size = header_size(kind)
-    if len(buffer) < size:
-        return None
+        size = header_size(kind)
+        if len(buffer) < size:
+            return None
 
-    dims = read_dimensions(kind, buffer)
-    if dims is None:
-        return None
+        dims = read_dimensions(kind, buffer)
+        if dims is None:
+            return None
 
-    width, height = dims
-    if width == 0 or height == 0:
-        del buffer[:4]
-        return None
+        width, height = dims
+        if not dimensions_are_valid(width, height):
+            _drop_false_magic(buffer)
+            continue
 
-    payload_size = frame_payload_size(kind, width, height)
-    total_size = size + payload_size
-    if len(buffer) < total_size:
-        return None
+        payload_size = frame_payload_size(kind, width, height)
+        if not frame_payload_size_is_valid(kind, payload_size):
+            _drop_false_magic(buffer)
+            continue
 
-    payload = bytes(buffer[size:total_size])
-    del buffer[:total_size]
+        total_size = size + payload_size
 
-    if is_packed_kind(kind):
-        pixels = unpack_packed_payload(width, height, payload)
-    else:
-        pixels = payload
+        if len(buffer) < total_size:
+            if _has_next_magic_before(buffer, len(buffer)):
+                _drop_false_magic(buffer)
+                continue
+            return None
 
-    return AdiFrame(kind=kind, width=width, height=height, pixels=pixels, raw_size=payload_size)
+        if _has_next_magic_before(buffer, total_size):
+            _drop_false_magic(buffer)
+            continue
+
+        payload = bytes(buffer[size:total_size])
+        del buffer[:total_size]
+
+        if is_packed_kind(kind):
+            pixels = unpack_packed_payload(width, height, payload)
+        else:
+            pixels = payload
+
+        return AdiFrame(kind=kind, width=width, height=height, pixels=pixels, raw_size=payload_size)
 
 
 class TerminalRxFilter:
@@ -168,7 +205,7 @@ class TerminalRxFilter:
             if buffer_starts_partial_magic(self._buf):
                 break
 
-            if len(self._buf) > 8192:
+            if len(self._buf) > MAX_TEXT_BUFFER_SIZE:
                 chunk = bytes(self._buf[:-3])
                 del self._buf[:-3]
                 out += self._sanitize_text(chunk)
@@ -181,7 +218,7 @@ class TerminalRxFilter:
             else:
                 out.append(clean)
 
-            if len(out) >= 8192:
+            if len(out) >= MAX_TEXT_BUFFER_SIZE:
                 break
 
         return bytes(out)
@@ -222,13 +259,17 @@ class TerminalRxFilter:
             return False
 
         width, height = dims
-        if width == 0 or height == 0:
-            self.dropped_bytes += 4
-            del self._buf[:4]
+        if not dimensions_are_valid(width, height):
+            self.dropped_bytes += 1
+            del self._buf[0]
             return True
 
         frame_size = size + frame_payload_size(kind, width, height)
         if len(self._buf) < frame_size:
+            if _has_next_magic_before(self._buf, len(self._buf)):
+                self.dropped_bytes += 1
+                del self._buf[0]
+                return True
             return False
 
         self.dropped_frames += 1
