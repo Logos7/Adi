@@ -9,6 +9,7 @@ venv/
 [Oo]bj/
 .vs/
 *.rsuser
+*.lscache
 
 # FPGA generated outputs
 systems/**/build/**/generated/
