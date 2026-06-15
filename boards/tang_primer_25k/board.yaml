@@ -1,0 +1,29 @@
+id: tang_primer_25k
+name: Tang Primer 25K
+vendor: Sipeed
+toolchain: gowin
+fpga:
+  family: GW5A
+  device: GW5A-25B
+  part_number: GW5A-LV25MG121NC1/I0
+  device_code: gw5a25b-003
+clocks:
+  - id: clk
+    frequency_hz: 50000000
+    pin: E2
+    io_type: LVCMOS33
+buttons:
+  - id: rst
+    pin: H11
+    active_high: true
+    io_type: LVCMOS33
+pmods:
+  - id: pmod_lcd_096
+    display: PMOD-LCD-0.96
+    interface: spi_write_only
+    pins:
+      lcd_cs: F5
+      lcd_data: G7
+      lcd_dc: H8
+      lcd_clk: H5
+      lcd_resetn: J5

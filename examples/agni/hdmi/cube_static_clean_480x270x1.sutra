@@ -1,0 +1,160 @@
+; 480x270 HDMI demo: static wire cube.
+
+.code
+main:
+    move r20, 0
+
+    fbsize 480, 270
+
+    move @hdmi.draw_bank, false
+    fbclear r20
+    call draw_frame
+    move @hdmi.request_bank, false
+    call wait_front_false
+
+hold:
+    jump hold
+
+draw_frame:
+    move r1, 150
+    move r2, 70
+    move r3, 330
+    move r4, 70
+    call line
+    move r1, 330
+    move r2, 70
+    move r3, 330
+    move r4, 190
+    call line
+    move r1, 330
+    move r2, 190
+    move r3, 150
+    move r4, 190
+    call line
+    move r1, 150
+    move r2, 190
+    move r3, 150
+    move r4, 70
+    call line
+
+    move r1, 198
+    move r2, 38
+    move r3, 378
+    move r4, 38
+    call line
+    move r1, 378
+    move r2, 38
+    move r3, 378
+    move r4, 158
+    call line
+    move r1, 378
+    move r2, 158
+    move r3, 198
+    move r4, 158
+    call line
+    move r1, 198
+    move r2, 158
+    move r3, 198
+    move r4, 38
+    call line
+
+    move r1, 150
+    move r2, 70
+    move r3, 198
+    move r4, 38
+    call line
+    move r1, 330
+    move r2, 70
+    move r3, 378
+    move r4, 38
+    call line
+    move r1, 330
+    move r2, 190
+    move r3, 378
+    move r4, 158
+    call line
+    move r1, 150
+    move r2, 190
+    move r3, 198
+    move r4, 158
+    call line
+
+    return
+
+line:
+    blt r1, 0, line_done
+    bge r1, 480, line_done
+    blt r2, 0, line_done
+    bge r2, 270, line_done
+    blt r3, 0, line_done
+    bge r3, 480, line_done
+    blt r4, 0, line_done
+    bge r4, 270, line_done
+
+    move r12, 0
+
+    isub r5, r3, r1
+    bge r5, 0, line_dx_ready
+    isub r5, 0, r5
+line_dx_ready:
+    move r6, 1
+    bge r3, r1, line_sx_ready
+    move r6, -1
+line_sx_ready:
+    isub r7, r4, r2
+    bge r7, 0, line_dy_ready
+    isub r7, 0, r7
+line_dy_ready:
+    move r8, 1
+    bge r4, r2, line_sy_ready
+    move r8, -1
+line_sy_ready:
+    cmp.ge b0, r5, r7
+    jump_if b0, line_x_major
+    jump line_y_major
+
+line_x_major:
+    move r9, 0
+line_x_loop:
+    fbplot r20, r1, r2
+    cmp.eq b0, r1, r3
+    cmp.eq b1, r2, r4
+    band b2, b0, b1
+    jump_if b2, line_done
+    inc r12
+    cmp.gt b0, r12, 1024
+    jump_if b0, line_done
+    iadd r1, r1, r6
+    iadd r9, r9, r7
+    cmp.lt b0, r9, r5
+    jump_if b0, line_x_loop
+    iadd r2, r2, r8
+    isub r9, r9, r5
+    jump line_x_loop
+
+line_y_major:
+    move r9, 0
+line_y_loop:
+    fbplot r20, r1, r2
+    cmp.eq b0, r1, r3
+    cmp.eq b1, r2, r4
+    band b2, b0, b1
+    jump_if b2, line_done
+    inc r12
+    cmp.gt b0, r12, 1024
+    jump_if b0, line_done
+    iadd r2, r2, r8
+    iadd r9, r9, r5
+    cmp.lt b0, r9, r7
+    jump_if b0, line_y_loop
+    iadd r1, r1, r6
+    isub r9, r9, r7
+    jump line_y_loop
+
+line_done:
+    return
+
+wait_front_false:
+    move b7, @hdmi.active_bank
+    jump_if b7, wait_front_false
+    return

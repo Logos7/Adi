@@ -1,0 +1,19 @@
+id: ip.display.pmod_lcd_096
+name: PMOD-LCD-0.96
+kind: display
+status: extraction_candidate
+interface:
+  type: spi_write_only
+  signals:
+    - lcd_cs
+    - lcd_clk
+    - lcd_dc
+    - lcd_data
+    - lcd_resetn
+video:
+  width: 80
+  height: 160
+  pixel_format: rgb565
+implementation:
+  source_system: systems/display_spi/tang_primer_25k/pmod_lcd_096_bouncing_squares
+  reusable_spi_master: rtl/video/spi_lcd_master.v

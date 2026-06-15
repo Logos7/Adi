@@ -1,17 +1,3 @@
-// =============================================================================
-// hdmi_scanout_1bpp_patterns.v
-// HDMI RGB timing + external 1bpp framebuffer scanout.
-//
-// This module keeps the legacy name used by the Gowin project file, but it is
-// framebuffer-only: I_mode is ignored.
-//
-// V13:
-// - Add one explicit framebuffer-data pipeline stage.
-// - Delay DE/HS/VS by the same extra stage, keeping RGB/control aligned.
-// - This cuts the path from dual-clock framebuffer output to RGB generation and
-//   gives the HDMI/TMDS side a cleaner pixel-clock boundary.
-// =============================================================================
-
 module hdmi_scanout_1bpp_patterns #(
     parameter FB_WIDTH = 480,
     parameter FB_HEIGHT = 270,
@@ -43,6 +29,7 @@ module hdmi_scanout_1bpp_patterns #(
     output reg O_frame_start,
     input wire I_fb_data
 );
+
     wire unused_mode = |I_mode;
     wire unused_params = (FB_HEIGHT != 270) | (FB_SCALE != 4) | (FB_SCALE_SHIFT != 2) | unused_mode;
 
@@ -88,13 +75,10 @@ module hdmi_scanout_1bpp_patterns #(
 
     reg de_q1;
     reg de_q2;
-    reg de_q3;
     reg hs_q1;
     reg hs_q2;
-    reg hs_q3;
     reg vs_q1;
     reg vs_q2;
-    reg vs_q3;
     reg fb_data_q;
 
     always @(posedge I_pxl_clk or negedge I_rst_n) begin
@@ -107,13 +91,10 @@ module hdmi_scanout_1bpp_patterns #(
             line_base <= {FB_ADDR_BITS{1'b0}};
             de_q1 <= 1'b0;
             de_q2 <= 1'b0;
-            de_q3 <= 1'b0;
             hs_q1 <= 1'b0;
             hs_q2 <= 1'b0;
-            hs_q3 <= 1'b0;
             vs_q1 <= 1'b0;
             vs_q2 <= 1'b0;
-            vs_q3 <= 1'b0;
             fb_data_q <= 1'b0;
         end else begin
             O_frame_start <= h_last && v_last;
@@ -155,19 +136,16 @@ module hdmi_scanout_1bpp_patterns #(
 
             de_q1 <= de_raw;
             de_q2 <= de_q1;
-            de_q3 <= de_q2;
 
             hs_q1 <= I_hs_pol ? hs_raw : ~hs_raw;
             hs_q2 <= hs_q1;
-            hs_q3 <= hs_q2;
 
             vs_q1 <= I_vs_pol ? vs_raw : ~vs_raw;
             vs_q2 <= vs_q1;
-            vs_q3 <= vs_q2;
         end
     end
 
-    wire pixel_on = de_q3 && fb_data_q;
+    wire pixel_on = de_q2 && fb_data_q;
 
     always @(posedge I_pxl_clk or negedge I_rst_n) begin
         if (!I_rst_n) begin
@@ -178,9 +156,9 @@ module hdmi_scanout_1bpp_patterns #(
             O_data_g <= 8'd0;
             O_data_b <= 8'd0;
         end else begin
-            O_de <= de_q3;
-            O_hs <= hs_q3;
-            O_vs <= vs_q3;
+            O_de <= de_q2;
+            O_hs <= hs_q2;
+            O_vs <= vs_q2;
 
             if (pixel_on) begin
                 O_data_r <= ON_LEVEL;
@@ -193,4 +171,5 @@ module hdmi_scanout_1bpp_patterns #(
             end
         end
     end
+
 endmodule

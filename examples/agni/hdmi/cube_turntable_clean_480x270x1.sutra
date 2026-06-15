@@ -1,0 +1,327 @@
+; 480x270 HDMI demo: slow rotating wire cube.
+
+.code
+main:
+    move r20, 0
+    move r18, 0
+    move r19, 0
+    move r21, sin_lut
+    move r22, 512
+
+    fbsize 480, 270
+
+    move @hdmi.draw_bank, false
+    fbclear r20
+    move @hdmi.draw_bank, true
+    fbclear r20
+
+    move @hdmi.draw_bank, false
+    move @hdmi.request_bank, false
+    call wait_front_false
+
+loop_bank_1:
+    move @hdmi.draw_bank, true
+    call draw_frame
+    move @hdmi.request_bank, true
+    call wait_front_true
+    call advance_angle
+    jump loop_bank_0
+
+loop_bank_0:
+    move @hdmi.draw_bank, false
+    call draw_frame
+    move @hdmi.request_bank, false
+    call wait_front_false
+    call advance_angle
+    jump loop_bank_1
+
+draw_frame:
+    fbclear r20
+    call load_angle
+    call project_cube
+    call draw_cube_edges
+    return
+
+advance_angle:
+    inc r19
+    cmp.gt b0, r19, 1
+    jump_if b0, advance_angle_do
+    return
+advance_angle_do:
+    move r19, 0
+    inc r18
+    cmp.gt b0, r18, 511
+    jump_if b0, reset_angle
+    return
+reset_angle:
+    move r18, 0
+    return
+
+load_angle:
+    iadd r23, r21, r18
+    move r10, @r23
+    iadd r23, r18, 128
+    cmp.lt b0, r23, r22
+    jump_if b0, cos_index_ready
+    isub r23, r23, r22
+cos_index_ready:
+    iadd r23, r21, r23
+    move r11, @r23
+    return
+
+project_cube:
+    move r0, -1.0
+    move r1, -1.0
+    move r2, -1.0
+    call project_vertex
+    move @512, r25
+    move @513, r26
+
+    move r0, 1.0
+    move r1, -1.0
+    move r2, -1.0
+    call project_vertex
+    move @514, r25
+    move @515, r26
+
+    move r0, 1.0
+    move r1, 1.0
+    move r2, -1.0
+    call project_vertex
+    move @516, r25
+    move @517, r26
+
+    move r0, -1.0
+    move r1, 1.0
+    move r2, -1.0
+    call project_vertex
+    move @518, r25
+    move @519, r26
+
+    move r0, -1.0
+    move r1, -1.0
+    move r2, 1.0
+    call project_vertex
+    move @520, r25
+    move @521, r26
+
+    move r0, 1.0
+    move r1, -1.0
+    move r2, 1.0
+    call project_vertex
+    move @522, r25
+    move @523, r26
+
+    move r0, 1.0
+    move r1, 1.0
+    move r2, 1.0
+    call project_vertex
+    move @524, r25
+    move @525, r26
+
+    move r0, -1.0
+    move r1, 1.0
+    move r2, 1.0
+    call project_vertex
+    move @526, r25
+    move @527, r26
+
+    return
+
+project_vertex:
+    fsub r3, 1.0, r11
+    fadd r4, r0, r1
+    fadd r4, r4, r2
+    fmul r4, r4, 0.333333
+    fmul r4, r4, r3
+    fmul r14, r10, 0.577350
+
+    fmul r5, r0, r11
+    fsub r6, r2, r1
+    fmul r6, r6, r14
+    fadd r7, r5, r6
+    fadd r7, r7, r4
+
+    fmul r5, r1, r11
+    fsub r6, r0, r2
+    fmul r6, r6, r14
+    fadd r5, r5, r6
+    fadd r5, r5, r4
+
+    fmul r6, r2, r11
+    fsub r8, r1, r0
+    fmul r8, r8, r14
+    fadd r8, r6, r8
+    fadd r8, r8, r4
+
+    fadd r9, r8, 4.0
+    fdiv r14, 50.0, r9
+
+    fmul r15, r7, r14
+    fadd r15, r15, 32.5
+    ftoi r15, r15
+
+    fmul r16, r5, r14
+    fsub r16, 32.5, r16
+    ftoi r16, r16
+
+    shl r25, r15, 2
+    iadd r25, r25, 112
+    shl r26, r16, 2
+    iadd r26, r26, 7
+    return
+
+draw_cube_edges:
+    move r1, @512
+    move r2, @513
+    move r3, @514
+    move r4, @515
+    call line
+    move r1, @514
+    move r2, @515
+    move r3, @516
+    move r4, @517
+    call line
+    move r1, @516
+    move r2, @517
+    move r3, @518
+    move r4, @519
+    call line
+    move r1, @518
+    move r2, @519
+    move r3, @512
+    move r4, @513
+    call line
+
+    move r1, @520
+    move r2, @521
+    move r3, @522
+    move r4, @523
+    call line
+    move r1, @522
+    move r2, @523
+    move r3, @524
+    move r4, @525
+    call line
+    move r1, @524
+    move r2, @525
+    move r3, @526
+    move r4, @527
+    call line
+    move r1, @526
+    move r2, @527
+    move r3, @520
+    move r4, @521
+    call line
+
+    move r1, @512
+    move r2, @513
+    move r3, @520
+    move r4, @521
+    call line
+    move r1, @514
+    move r2, @515
+    move r3, @522
+    move r4, @523
+    call line
+    move r1, @516
+    move r2, @517
+    move r3, @524
+    move r4, @525
+    call line
+    move r1, @518
+    move r2, @519
+    move r3, @526
+    move r4, @527
+    call line
+
+    return
+
+line:
+    blt r1, 0, line_done
+    bge r1, 480, line_done
+    blt r2, 0, line_done
+    bge r2, 270, line_done
+    blt r3, 0, line_done
+    bge r3, 480, line_done
+    blt r4, 0, line_done
+    bge r4, 270, line_done
+
+    move r12, 0
+
+    isub r5, r3, r1
+    bge r5, 0, line_dx_ready
+    isub r5, 0, r5
+line_dx_ready:
+    move r6, 1
+    bge r3, r1, line_sx_ready
+    move r6, -1
+line_sx_ready:
+    isub r7, r4, r2
+    bge r7, 0, line_dy_ready
+    isub r7, 0, r7
+line_dy_ready:
+    move r8, 1
+    bge r4, r2, line_sy_ready
+    move r8, -1
+line_sy_ready:
+    cmp.ge b0, r5, r7
+    jump_if b0, line_x_major
+    jump line_y_major
+
+line_x_major:
+    move r9, 0
+line_x_loop:
+    fbplot r20, r1, r2
+    cmp.eq b0, r1, r3
+    cmp.eq b1, r2, r4
+    band b2, b0, b1
+    jump_if b2, line_done
+    inc r12
+    cmp.gt b0, r12, 1024
+    jump_if b0, line_done
+    iadd r1, r1, r6
+    iadd r9, r9, r7
+    cmp.lt b0, r9, r5
+    jump_if b0, line_x_loop
+    iadd r2, r2, r8
+    isub r9, r9, r5
+    jump line_x_loop
+
+line_y_major:
+    move r9, 0
+line_y_loop:
+    fbplot r20, r1, r2
+    cmp.eq b0, r1, r3
+    cmp.eq b1, r2, r4
+    band b2, b0, b1
+    jump_if b2, line_done
+    inc r12
+    cmp.gt b0, r12, 1024
+    jump_if b0, line_done
+    iadd r2, r2, r8
+    iadd r9, r9, r5
+    cmp.lt b0, r9, r7
+    jump_if b0, line_y_loop
+    iadd r1, r1, r6
+    isub r9, r9, r7
+    jump line_y_loop
+
+line_done:
+    return
+
+wait_front_true:
+    move b7, @hdmi.active_bank
+    jump_if_not b7, wait_front_true
+    return
+
+wait_front_false:
+    move b7, @hdmi.active_bank
+    jump_if b7, wait_front_false
+    return
+
+.data
+sin_lut:
+    .sin_lut 512
+projected_vertices:
+    .zero 16

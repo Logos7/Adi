@@ -1,0 +1,66 @@
+; 480x270 HDMI demo: one native framebuffer pixel scanning the screen.
+
+.code
+main:
+    move r20, 0
+    move r21, 0
+    move r22, 135
+
+    fbsize 480, 270
+
+    move @hdmi.draw_bank, false
+    fbclear r20
+    move @hdmi.draw_bank, true
+    fbclear r20
+
+    move @hdmi.draw_bank, false
+    move @hdmi.request_bank, false
+    call wait_front_false
+
+loop_bank_1:
+    move @hdmi.draw_bank, true
+    call draw_frame
+    move @hdmi.request_bank, true
+    call wait_front_true
+    call tick_pixel
+    jump loop_bank_0
+
+loop_bank_0:
+    move @hdmi.draw_bank, false
+    call draw_frame
+    move @hdmi.request_bank, false
+    call wait_front_false
+    call tick_pixel
+    jump loop_bank_1
+
+draw_frame:
+    fbclear r20
+    fbplot r20, r21, r22
+    return
+
+tick_pixel:
+    inc r21
+    cmp.gt b0, r21, 479
+    jump_if b0, tick_pixel_wrap_x
+    return
+
+tick_pixel_wrap_x:
+    move r21, 0
+    inc r22
+    cmp.gt b0, r22, 269
+    jump_if b0, tick_pixel_wrap_y
+    return
+
+tick_pixel_wrap_y:
+    move r22, 0
+    return
+
+wait_front_true:
+    move b7, @hdmi.active_bank
+    jump_if_not b7, wait_front_true
+    return
+
+wait_front_false:
+    move b7, @hdmi.active_bank
+    jump_if b7, wait_front_false
+    return
