@@ -1,0 +1,13 @@
+IO_LOC "clk" E2;
+
+IO_LOC "audio_top_l" G11;
+IO_LOC "audio_top_r" D11;
+IO_LOC "audio_bottom_l" G10;
+IO_LOC "audio_bottom_r" D10;
+
+IO_PORT "clk" PULL_MODE=NONE DRIVE=OFF BANK_VCCIO=3.3;
+
+IO_PORT "audio_top_l" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "audio_top_r" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "audio_bottom_l" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "audio_bottom_r" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;

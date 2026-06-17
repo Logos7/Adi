@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE gowin-fpga-project>
+<Project>
+    <Template>FPGA</Template>
+    <Version>5</Version>
+    <Device name="GW5A-25B" pn="GW5A-LV25MG121NC1/I0">gw5a25b-003</Device>
+    <FileList>
+        <File path="../../../../../../rtl/video/spi_lcd_master.v" type="file.verilog" enable="1"/>
+        <File path="../../../../../../rtl/video/pmod_lcd_096_driver.v" type="file.verilog" enable="1"/>
+        <File path="../../../../../../rtl/video/demos/lcd_demo_colorbars.v" type="file.verilog" enable="1"/>
+        <File path="../../../../../../rtl/video/demos/lcd_demo_checkerboard.v" type="file.verilog" enable="1"/>
+        <File path="../../../../../../rtl/video/demos/lcd_demo_plasma.v" type="file.verilog" enable="1"/>
+        <File path="../../../../../../rtl/video/demos/lcd_demo_rings.v" type="file.verilog" enable="1"/>
+        <File path="../../../../../../rtl/video/demos/lcd_demo_bouncing_squares.v" type="file.verilog" enable="1"/>
+        <File path="../../rtl/display_spi_tang_primer_25k_pmod_lcd_096_demo_suite_top.v" type="file.verilog" enable="1"/>
+        <File path="../../../../../../boards/tang_primer_25k/constraints/gowin/tang_primer_25k_pmod_lcd_096.cst" type="file.cst" enable="1"/>
+        <File path="clock.sdc" type="file.sdc" enable="1"/>
+    </FileList>
+</Project>

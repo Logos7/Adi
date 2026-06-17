@@ -1,0 +1,55 @@
+id: display_spi.tang_primer_25k.pmod_lcd_096_demo_suite
+name: PMOD-LCD-0.96 demo suite on Tang Primer 25K
+kind: fpga_system
+system_family: display_spi
+board: tang_primer_25k
+variant: pmod_lcd_096_demo_suite
+toolchain: gowin
+fpga:
+  device: GW5A-25B
+  part_number: GW5A-LV25MG121NC1/I0
+  device_code: gw5a25b-003
+display:
+  module: PMOD-LCD-0.96
+  interface: spi_write_only
+  pixel_format: rgb565
+  logical_width: 80
+  logical_height: 160
+  controller_family: ST7735-compatible
+clock:
+  name: clk
+  frequency_hz: 50000000
+reset:
+  name: rst
+  active_high: true
+top_module: display_spi_tang_primer_25k_pmod_lcd_096_demo_suite_top
+rtl:
+  - systems/display_spi/tang_primer_25k/pmod_lcd_096_demo_suite/rtl/display_spi_tang_primer_25k_pmod_lcd_096_demo_suite_top.v
+  - rtl/video/spi_lcd_master.v
+  - rtl/video/pmod_lcd_096_driver.v
+  - rtl/video/demos/lcd_demo_colorbars.v
+  - rtl/video/demos/lcd_demo_checkerboard.v
+  - rtl/video/demos/lcd_demo_plasma.v
+  - rtl/video/demos/lcd_demo_rings.v
+  - rtl/video/demos/lcd_demo_bouncing_squares.v
+constraints:
+  - boards/tang_primer_25k/constraints/gowin/tang_primer_25k_pmod_lcd_096.cst
+build:
+  gowin:
+    project: systems/display_spi/tang_primer_25k/pmod_lcd_096_demo_suite/build/gowin/Tang25K.gprj
+    timing: systems/display_spi/tang_primer_25k/pmod_lcd_096_demo_suite/build/gowin/clock.sdc
+demos:
+  selection: automatic_frame_timer
+  modules:
+    - colorbars
+    - checkerboard
+    - plasma
+    - rings
+    - bouncing_squares
+source_truth:
+  original_uploaded_archive: impl.zip
+  original_gowin_project: Tang25K.gprj
+  original_top: src/top.v
+  original_constraints: src/tang_primer_25k_pmod_led.cst
+  original_synthesis_log_device: GW5A-LV25MG121NC1/I0
+  original_synthesis_log_created: 2026-06-07
