@@ -1,0 +1,51 @@
+id: nada.tang_primer_25k.pmod_audio_dds_synth
+name: PMOD-AUDIO DDS synth on Tang Primer 25K
+kind: fpga_system
+system_family: nada
+
+board: tang_primer_25k
+variant: pmod_audio_dds_synth
+toolchain: gowin
+
+fpga:
+  device: GW5A-25B
+  part_number: GW5A-LV25MG121NC1/I0
+  device_code: gw5a25b-003
+
+clock:
+  source: internal_osca
+  oscillator_hz: 210000000
+  freq_div: 100
+  effective_hz: 2100000
+  external_pin: none
+
+audio:
+  module: PMOD-AUDIO v1.2
+  connector: J4
+  physical_slot: 3
+  waveform: triangle
+  converter: first_order_sigma_delta
+  voices: 4
+
+buttons:
+  module: PMOD_BTN4+4
+  connector: J5
+  physical_slot: 2
+  active_low: true
+  pins:
+    button_0_n: A11
+    button_1_n: E11
+    button_2_n: L11
+    button_3_n: K5
+  notes:
+    - C4
+    - E4
+    - G4
+    - C5
+
+envelope:
+  type: attack_release
+  attack_ms: 64
+  release_ms: 255
+
+top_module: nada_tang_primer_25k_pmod_audio_dds_synth_top
