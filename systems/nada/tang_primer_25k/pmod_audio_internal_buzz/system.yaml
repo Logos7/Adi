@@ -1,0 +1,37 @@
+id: nada.tang_primer_25k.pmod_audio_internal_buzz
+name: PMOD-AUDIO button instrument on Tang Primer 25K
+kind: fpga_system
+system_family: nada
+
+board: tang_primer_25k
+variant: pmod_audio_internal_buzz
+toolchain: gowin
+
+fpga:
+  device: GW5A-25B
+  part_number: GW5A-LV25MG121NC1/I0
+  device_code: gw5a25b-003
+
+audio:
+  module: PMOD-AUDIO v1.2
+  interface: direct_square_wave
+  connector: J4
+  physical_slot: 3
+
+buttons:
+  module: PMOD_BTN4+4
+  connector: J5
+  physical_slot: 2
+  active_low: true
+  notes:
+    - C4
+    - E4
+    - G4
+    - C5
+
+clock:
+  source: internal_osca
+  external_pin: none
+  freq_div: 100
+
+top_module: nada_tang_primer_25k_pmod_audio_internal_buzz_top

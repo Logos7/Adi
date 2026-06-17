@@ -1,0 +1,19 @@
+IO_LOC "button_0_n" A11;
+IO_LOC "button_1_n" E11;
+IO_LOC "button_2_n" L11;
+IO_LOC "button_3_n" K5;
+
+IO_LOC "audio_row_a_1" G11;
+IO_LOC "audio_row_a_2" D11;
+IO_LOC "audio_row_b_1" G10;
+IO_LOC "audio_row_b_2" D10;
+
+IO_PORT "button_0_n" PULL_MODE=NONE DRIVE=OFF BANK_VCCIO=3.3;
+IO_PORT "button_1_n" PULL_MODE=NONE DRIVE=OFF BANK_VCCIO=3.3;
+IO_PORT "button_2_n" PULL_MODE=NONE DRIVE=OFF BANK_VCCIO=3.3;
+IO_PORT "button_3_n" PULL_MODE=NONE DRIVE=OFF BANK_VCCIO=3.3;
+
+IO_PORT "audio_row_a_1" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "audio_row_a_2" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "audio_row_b_1" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "audio_row_b_2" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
