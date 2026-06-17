@@ -1,0 +1,13 @@
+songs:
+- id: 0
+  name: C major arpeggio
+  default_tempo_bpm: 120
+- id: 1
+  name: Bass groove
+  default_tempo_bpm: 140
+- id: 2
+  name: Four-voice chord progression
+  default_tempo_bpm: 100
+- id: 3
+  name: Descending motif and C major chord
+  default_tempo_bpm: 120

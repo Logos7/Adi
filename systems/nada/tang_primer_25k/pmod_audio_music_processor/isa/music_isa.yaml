@@ -1,0 +1,36 @@
+name: Nada Music ISA v1
+instruction_width: 32
+fields:
+  opcode: '31:28'
+  voice: '27:24'
+  note: '23:16'
+  velocity: '15:8'
+  argument: '7:0'
+  wide_argument: '15:0'
+opcodes:
+- name: PATCH
+  code: '0x1'
+  syntax: PATCH voice, patch
+- name: NOTE_ON
+  code: '0x2'
+  syntax: NOTE_ON voice, midi_note, velocity
+- name: NOTE_OFF
+  code: '0x3'
+  syntax: NOTE_OFF voice
+- name: WAIT
+  code: '0x4'
+  syntax: WAIT ticks
+- name: JUMP
+  code: '0x5'
+  syntax: JUMP address
+- name: TEMPO
+  code: '0x6'
+  syntax: TEMPO preset
+- name: END
+  code: '0xF'
+  syntax: END
+tempo_presets:
+  0: 80
+  1: 100
+  2: 120
+  3: 140

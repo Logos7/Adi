@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE gowin-fpga-project>
+<Project>
+ <Template>FPGA</Template>
+ <Version>5</Version>
+ <Device name="GW5A-25B" pn="GW5A-LV25MG121NC1/I0">gw5a25b-003</Device>
+ <FileList>
+  <File path="../../rtl/nada_tang_primer_25k_pmod_audio_music_processor_top.v" type="file.verilog" enable="1"/>
+  <File path="../../rtl/nada_button_panel.v" type="file.verilog" enable="1"/>
+  <File path="../../rtl/nada_music_program_rom.v" type="file.verilog" enable="1"/>
+  <File path="../../rtl/nada_music_processor.v" type="file.verilog" enable="1"/>
+  <File path="../../rtl/nada_music_voice.v" type="file.verilog" enable="1"/>
+  <File path="../../rtl/nada_sigma_delta_dac.v" type="file.verilog" enable="1"/>
+  <File path="pmod_audio_music_processor.cst" type="file.cst" enable="1"/>
+ </FileList>
+</Project>

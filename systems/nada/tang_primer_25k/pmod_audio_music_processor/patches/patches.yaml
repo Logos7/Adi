@@ -1,0 +1,48 @@
+patches:
+- id: 0
+  name: Soft Triangle EP
+  oscillators:
+  - triangle
+  - triangle octave
+  envelope: soft piano
+- id: 1
+  name: Fat Saw Pad
+  oscillators:
+  - saw
+  - detuned saw
+  envelope: slow pad
+- id: 2
+  name: Square Bass
+  oscillators:
+  - square
+  - sub square
+  envelope: fast bass
+- id: 3
+  name: Chiptune Lead
+  oscillators:
+  - pulse
+  - square octave
+  envelope: lead
+- id: 4
+  name: Metal Bell
+  oscillators:
+  - triangle ring modulation
+  envelope: percussive bell
+- id: 5
+  name: Digital Organ
+  oscillators:
+  - triangle
+  - square octave
+  envelope: organ
+- id: 6
+  name: Noise Pluck
+  oscillators:
+  - noise
+  - triangle
+  envelope: short pluck
+- id: 7
+  name: Glass Pad
+  oscillators:
+  - triangle
+  - light ring modulation
+  envelope: glass pad

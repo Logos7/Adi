@@ -1,0 +1,45 @@
+id: nada.tang_primer_25k.pmod_audio_music_processor
+name: PMOD-AUDIO programmable music processor on Tang Primer 25K
+kind: fpga_system
+system_family: nada
+board: tang_primer_25k
+variant: pmod_audio_music_processor
+toolchain: gowin
+fpga:
+  device: GW5A-25B
+  part_number: GW5A-LV25MG121NC1/I0
+  device_code: gw5a25b-003
+clock:
+  source: internal_osca
+  oscillator_hz: 210000000
+  freq_div: 100
+  effective_hz: 2100000
+  external_pin: null
+audio:
+  module: PMOD-AUDIO v1.2
+  connector: J4
+  physical_slot: 3
+  voices: 4
+  converter: first_order_sigma_delta
+buttons:
+  module: PMOD_BTN4+4
+  connector: J5
+  physical_slot: 2
+  active_low: true
+  mapping:
+    button_0: previous_patch
+    button_1: next_patch
+    button_2: next_song
+    button_3: play_stop
+  pins:
+    button_0_n: A11
+    button_1_n: E11
+    button_2_n: L11
+    button_3_n: K5
+processor:
+  instruction_width: 32
+  program_counter_width: 8
+  voices: 4
+  songs: 4
+  patches: 8
+top_module: nada_tang_primer_25k_pmod_audio_music_processor_top
